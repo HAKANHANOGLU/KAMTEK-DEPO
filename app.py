@@ -90,7 +90,7 @@ def sayfa_home():
             unsafe_allow_html=True,
         )
         try:
-            st.image("assets/kamtek_logo.png", use_container_width=True)
+            st.image("kamtek_logo.png", use_container_width=True)
         except Exception:
             pass
         st.markdown("</div>", unsafe_allow_html=True)
@@ -127,20 +127,38 @@ def sayfa_sevkiyat():
         try:
             import plotly.express as px
             import requests
-            geojson_url = "https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/tr-cities-utf8.json"
-            geojson = requests.get(geojson_url, timeout=5).json()
-            df_map = pd.DataFrame({"il": data.IL_LISTESI})
-            df_map["secili"] = df_map["il"].apply(lambda x: 1 if x == secili_il else 0)
-            fig = px.choropleth(
-                df_map, geojson=geojson, locations="il", featureidkey="properties.name",
-                color="secili", color_continuous_scale=["#E6F1FB", "#378ADD"],
-                scope=None,
-            )
-            fig.update_geos(fitbounds="locations", visible=False)
-            fig.update_layout(height=420, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
-            st.plotly_chart(fig, use_container_width=True)
-        except Exception:
-            st.info("Harita görseli için internet bağlantısı gerekiyor (Streamlit Cloud'da otomatik yüklenecektir).")
+            import excel_utils as _eu
+
+            geojson_url = "https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json"
+            geojson = requests.get(geojson_url, timeout=8).json()
+
+            # geojson'daki il isimleri bizim ALL-CAPS listemizle birebir eşleşmiyor
+            # (örn. "İstanbul", "Afyon"), bu yüzden normalize ederek eşleştiriyoruz.
+            EK_ESLESTIRME = {"AFYONKARAHİSAR": "AFYON", "MERSİN": "İÇEL"}
+
+            def norm_il(s):
+                s = EK_ESLESTIRME.get(s.upper(), s.upper())
+                return _eu.norm(s)
+
+            geojson_isim_haritasi = {norm_il(f["properties"]["name"]): f["properties"]["name"] for f in geojson["features"]}
+            gercek_isim = geojson_isim_haritasi.get(norm_il(secili_il))
+
+            if gercek_isim is None:
+                st.info(f"{secili_il} haritada bulunamadı, sadece il seçimiyle devam edebilirsiniz.")
+            else:
+                tum_isimler = [f["properties"]["name"] for f in geojson["features"]]
+                df_map = pd.DataFrame({"il": tum_isimler})
+                df_map["secili"] = df_map["il"].apply(lambda x: 1 if x == gercek_isim else 0)
+                fig = px.choropleth(
+                    df_map, geojson=geojson, locations="il", featureidkey="properties.name",
+                    color="secili", color_continuous_scale=["#E6F1FB", "#378ADD"],
+                    scope=None,
+                )
+                fig.update_geos(fitbounds="locations", visible=False)
+                fig.update_layout(height=420, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
+                st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
 
     st.markdown("---")
     st.subheader("Gönderi Hesapla")

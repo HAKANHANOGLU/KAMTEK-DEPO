@@ -22,7 +22,7 @@ IL_LISTESI = [
 # iller: "ALL" (her ile gönderim yapar) veya sadece gönderim yapılan iki harfli il listesi.
 PRICING = {
     "DHL": {
-        "logo": "assets/dhl_logo.jpg",
+        "logo": "dhl_logo.jpg",
         "tiers": [
             (1, 5, 143.70), (6, 10, 164.23), (11, 15, 197.06), (16, 20, 235.56),
             (21, 25, 293.40), (26, 30, 386.65), (31, 35, 420.76), (36, 40, 557.23),
@@ -32,7 +32,7 @@ PRICING = {
         "iller": "ALL",
     },
     "İNTERGLOBAL": {
-        "logo": "assets/interglobal_logo.png",
+        "logo": "interglobal_logo.png",
         "tiers": [
             (1, 5, 100), (6, 10, 120), (11, 15, 160), (16, 20, 200), (21, 30, 242),
         ],
@@ -40,7 +40,7 @@ PRICING = {
         "iller": ["İZMİR", "BALIKESİR", "İSTANBUL", "KOCAELİ", "ESKİŞEHİR", "ANKARA", "DENİZLİ"],
     },
     "ARAS": {
-        "logo": "assets/aras_logo.jpg",
+        "logo": "aras_logo.jpg",
         "tiers": [
             (1, 10, 176.45), (11, 15, 186.34), (16, 20, 229.51), (21, 25, 269.52),
             (26, 30, 307.17),
@@ -49,7 +49,7 @@ PRICING = {
         "iller": "ALL",
     },
     "YURTİÇİ": {
-        "logo": "assets/yurtici_logo.jpg",
+        "logo": "yurtici_logo.jpg",
         "tiers": [
             (1, 5, 125), (6, 10, 160), (11, 15, 185), (16, 20, 235), (21, 30, 320),
         ],
