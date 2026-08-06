@@ -149,6 +149,12 @@ def sayfa_sevkiyat():
         if "secili_il" not in st.session_state:
             st.session_state.secili_il = "İZMİR"
 
+        # Haritadan bir önceki çalıştırmada il seçildiyse, selectbox oluşturulmadan
+        # önce uygula (widget'ın değeri, oluşturulduktan sonra aynı çalıştırmada
+        # değiştirilemiyor - bu yüzden bir sonraki rerun'da burada uyguluyoruz).
+        if "harita_secim_bekliyor" in st.session_state:
+            st.session_state.secili_il = st.session_state.pop("harita_secim_bekliyor")
+
         secili_il = st.selectbox("Varış İli", data.IL_LISTESI, key="secili_il")
         try:
             import plotly.graph_objects as go
@@ -229,10 +235,16 @@ def sayfa_sevkiyat():
                 if event and event.get("selection", {}).get("points"):
                     tiklanan = event["selection"]["points"][0]
                     loc = tiklanan.get("location")
+                    if not loc:
+                        # Tıklama, il isimlerini gösteren metin katmanına denk gelmiş olabilir;
+                        # bu durumda nokta indeksinden ilin adını buluyoruz.
+                        pt_idx = tiklanan.get("point_index", tiklanan.get("pointIndex"))
+                        if pt_idx is not None and 0 <= pt_idx < len(texts):
+                            loc = texts[pt_idx]
                     if loc:
                         eslesen_il = norm_to_il.get(norm_il(loc))
                         if eslesen_il and eslesen_il != st.session_state.secili_il:
-                            st.session_state.secili_il = eslesen_il
+                            st.session_state["harita_secim_bekliyor"] = eslesen_il
                             st.rerun()
         except Exception as e:
             st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
