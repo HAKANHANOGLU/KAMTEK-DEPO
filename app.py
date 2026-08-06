@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import date, datetime
 import calendar
 import io
+import base64
 
 import data
 import db
@@ -23,20 +24,24 @@ header {visibility: hidden;}
 div[data-testid="stToolbar"] {visibility: hidden;}
 
 div[data-testid="column"]:nth-of-type(1) button {
-    background-color: #E6F1FB !important; border: none !important; border-radius: 20px !important;
-    height: 150px !important; font-size: 20px !important; font-weight: 600 !important; color: #0C447C !important;
+    background-color: #E6F1FB !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #0C447C !important;
+    line-height: 1.6 !important;
 }
 div[data-testid="column"]:nth-of-type(2) button {
-    background-color: #FAEEDA !important; border: none !important; border-radius: 20px !important;
-    height: 150px !important; font-size: 20px !important; font-weight: 600 !important; color: #854F0B !important;
+    background-color: #FAEEDA !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #854F0B !important;
+    line-height: 1.6 !important;
 }
 div[data-testid="column"]:nth-of-type(3) button {
-    background-color: #EAF3DE !important; border: none !important; border-radius: 20px !important;
-    height: 150px !important; font-size: 20px !important; font-weight: 600 !important; color: #27500A !important;
+    background-color: #EAF3DE !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #27500A !important;
+    line-height: 1.6 !important;
 }
 div[data-testid="column"]:nth-of-type(4) button {
-    background-color: #FAECE7 !important; border: none !important; border-radius: 20px !important;
-    height: 150px !important; font-size: 20px !important; font-weight: 600 !important; color: #993C1D !important;
+    background-color: #FAECE7 !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #993C1D !important;
+    line-height: 1.6 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -77,6 +82,14 @@ def git(sayfa):
 def geri_butonu():
     if st.button("⬅ Ana Sayfa"):
         git("home")
+
+
+def _img_b64(path):
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return None
 
 
 # ------------------------------------------------------------------
@@ -123,9 +136,12 @@ def sayfa_sevkiyat():
 
     col_map, col_bosluk = st.columns([1, 1])
     with col_map:
-        secili_il = st.selectbox("Varış İli", data.IL_LISTESI, index=data.IL_LISTESI.index("İZMİR"))
+        if "secili_il" not in st.session_state:
+            st.session_state.secili_il = "İZMİR"
+
+        secili_il = st.selectbox("Varış İli", data.IL_LISTESI, key="secili_il")
         try:
-            import plotly.express as px
+            import plotly.graph_objects as go
             import requests
             import excel_utils as _eu
 
@@ -141,6 +157,7 @@ def sayfa_sevkiyat():
                 return _eu.norm(s)
 
             geojson_isim_haritasi = {norm_il(f["properties"]["name"]): f["properties"]["name"] for f in geojson["features"]}
+            norm_to_il = {norm_il(il): il for il in data.IL_LISTESI}
             gercek_isim = geojson_isim_haritasi.get(norm_il(secili_il))
 
             if gercek_isim is None:
@@ -149,14 +166,64 @@ def sayfa_sevkiyat():
                 tum_isimler = [f["properties"]["name"] for f in geojson["features"]]
                 df_map = pd.DataFrame({"il": tum_isimler})
                 df_map["secili"] = df_map["il"].apply(lambda x: 1 if x == gercek_isim else 0)
-                fig = px.choropleth(
-                    df_map, geojson=geojson, locations="il", featureidkey="properties.name",
-                    color="secili", color_continuous_scale=["#E6F1FB", "#378ADD"],
-                    scope=None,
-                )
+
+                def _il_centroid_bbox(feature):
+                    geom = feature["geometry"]
+                    coords = geom["coordinates"]
+                    depth = 2 if geom["type"] == "Polygon" else 3
+                    pts = []
+
+                    def collect(c, d):
+                        if d == 0:
+                            pts.append(c)
+                        else:
+                            for cc in c:
+                                collect(cc, d - 1)
+
+                    collect(coords, depth)
+                    xs = [p[0] for p in pts]
+                    ys = [p[1] for p in pts]
+                    return sum(xs) / len(xs), sum(ys) / len(ys), max(xs) - min(xs), max(ys) - min(ys)
+
+                lons, lats, texts, sizes = [], [], [], []
+                for f in geojson["features"]:
+                    cx, cy, w, h = _il_centroid_bbox(f)
+                    lons.append(cx)
+                    lats.append(cy)
+                    texts.append(f["properties"]["name"])
+                    # küçük illerde küçük, büyük illerde biraz daha büyük yazı - sınırı taşmasın diye
+                    alan = w * h
+                    sizes.append(max(5, min(10, alan * 350)))
+
+                fig = go.Figure()
+                fig.add_trace(go.Choropleth(
+                    geojson=geojson, locations=df_map["il"], z=df_map["secili"],
+                    featureidkey="properties.name",
+                    colorscale=[[0, "#E6F1FB"], [1, "#378ADD"]],
+                    showscale=False, marker_line_color="#9DB8CC", marker_line_width=0.6,
+                ))
+                fig.add_trace(go.Scattergeo(
+                    lon=lons, lat=lats, text=texts, mode="text",
+                    textfont=dict(size=sizes, color="#1F2937"),
+                    hoverinfo="skip", showlegend=False,
+                ))
                 fig.update_geos(fitbounds="locations", visible=False)
-                fig.update_layout(height=420, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
-                st.plotly_chart(fig, use_container_width=True)
+                fig.update_layout(height=420, margin=dict(l=0, r=0, t=0, b=0))
+
+                event = st.plotly_chart(
+                    fig, use_container_width=True, key="il_haritasi",
+                    on_select="rerun", selection_mode="points",
+                )
+                st.caption("Haritadan bir ile tıklayarak da varış ilini seçebilirsiniz.")
+
+                if event and event.get("selection", {}).get("points"):
+                    tiklanan = event["selection"]["points"][0]
+                    loc = tiklanan.get("location")
+                    if loc:
+                        eslesen_il = norm_to_il.get(norm_il(loc))
+                        if eslesen_il and eslesen_il != st.session_state.secili_il:
+                            st.session_state.secili_il = eslesen_il
+                            st.rerun()
         except Exception as e:
             st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
 
@@ -203,10 +270,16 @@ def sayfa_sevkiyat():
                 st.warning(f"{secili_il} iline gönderim yapan kargo firması bulunamadı.")
             else:
                 st.markdown(f"**{secili_il} için hesaplanan fiyatlar:**")
+                en_ucuz_kargo = min(sonuclar, key=lambda x: x[1])[0]
                 cols = st.columns(len(sonuclar))
                 for col, (kargo, toplam) in zip(cols, sonuclar):
                     with col:
                         st.metric(kargo, f"{toplam:,.2f} TL (+ KDV)")
+                        if kargo == en_ucuz_kargo:
+                            st.markdown(
+                                "<p style='color:#16A34A; font-weight:700; text-align:center; margin-top:-8px;'>✓ Önerilen</p>",
+                                unsafe_allow_html=True,
+                            )
 
 
 # ------------------------------------------------------------------
@@ -242,7 +315,20 @@ def sayfa_kargotakip():
             ["kargo_firmasi", "gonderi_tarihi", "gonderi_no", "alici_adi", "alici_adresi", "varis_il", "odeme_sekli", "desi"]
         ]
         df_goster.columns = ["Kargo Firması", "Gönderi Tarihi", "Gönderi No", "Alıcı Adı", "Alıcı Adresi", "Varış İl", "Ödeme Şekli", "Desi"]
-        st.dataframe(df_goster, use_container_width=True, height=450)
+        df_goster["Sorgula"] = df_goster.apply(
+            lambda r: data.tracking_url(r["Kargo Firması"], r["Gönderi No"]), axis=1
+        )
+        st.dataframe(
+            df_goster, use_container_width=True, height=450,
+            column_config={
+                "Sorgula": st.column_config.LinkColumn("Sorgula", display_text="🔗 Kargo Durumu")
+            },
+        )
+        st.caption(
+            "\"Sorgula\" linki kargo firmasının kendi halka açık gönderi sorgulama sayfasını açar "
+            "(İnterglobal için doğrulanmış bir doğrudan sorgu linki bulunamadığından ana sayfaya yönlendirir, "
+            "gönderi numarasını orada elle girmeniz gerekir)."
+        )
     else:
         st.info(f"{secili_tarih.strftime('%d.%m.%Y')} tarihi için henüz kayıt yok.")
 
@@ -335,10 +421,25 @@ def sayfa_fiyatlistesi():
     cols = st.columns(len(data.PRICING))
     for col, (kargo, cfg) in zip(cols, data.PRICING.items()):
         with col:
-            try:
-                st.image(cfg["logo"], use_container_width=True)
-            except Exception:
-                st.write(f"**{kargo}**")
+            b64 = _img_b64(cfg["logo"])
+            ext = cfg["logo"].rsplit(".", 1)[-1]
+            if b64:
+                st.markdown(
+                    f"""
+                    <div style="height:130px; display:flex; align-items:center;
+                                justify-content:center; margin-bottom:10px;">
+                        <img src="data:image/{ext};base64,{b64}"
+                             style="max-height:120px; max-width:100%; object-fit:contain;">
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"<div style='height:130px; display:flex; align-items:center; "
+                    f"justify-content:center;'><b>{kargo}</b></div>",
+                    unsafe_allow_html=True,
+                )
             tarife_df = pd.DataFrame(cfg["tiers"], columns=["Alt Desi", "Üst Desi", "Tutar (+ KDV)"])
             st.dataframe(tarife_df, use_container_width=True, hide_index=True)
             if cfg["artan_desi"] is not None:
