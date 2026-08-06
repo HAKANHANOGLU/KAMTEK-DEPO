@@ -58,6 +58,28 @@ PRICING = {
     },
 }
 
+# Her kargo firmasının HALKA AÇIK gönderi sorgulama sayfasına, takip numarasıyla
+# doğrudan gidecek link kalıbı. {no} yerine gönderi numarası konur.
+# Not: Bu resmi bir API değil - firmanın herkese açık web sorgulama sayfasına
+# yönlendirir; İnterglobal için doğrulanmış bir sorgu linki bulunamadığı için
+# sadece ana sayfaya yönlendirilir (numara kullanıcı tarafından elle girilir).
+TRACKING_URL_TEMPLATES = {
+    "DHL": "https://www.dhl.com.tr/exp-tr/express/tracking.html?AWB={no}&brand=DHL",
+    "İNTERGLOBAL": "https://www.globalkargo.com/",
+    "ARAS": "http://kargotakip.araskargo.com.tr/mainpage.aspx?code={no}",
+    "YURTİÇİ": "https://www.yurticikargo.com/tr/online-servisler/gonderi-sorgula?code={no}",
+}
+
+
+def tracking_url(carrier: str, no: str):
+    tpl = TRACKING_URL_TEMPLATES.get(carrier)
+    if not tpl or not no:
+        return None
+    try:
+        return tpl.format(no=no)
+    except Exception:
+        return tpl
+
 
 def carrier_ships_to(carrier: str, il: str) -> bool:
     cfg = PRICING[carrier]
