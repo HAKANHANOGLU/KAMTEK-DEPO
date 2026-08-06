@@ -1,126 +1,117 @@
 # -*- coding: utf-8 -*-
-"""SQLite tabanlı basit kalıcı depolama katmanı."""
-import sqlite3
+"""Supabase (Postgres) tabanlı kalıcı depolama katmanı.
+Streamlit Cloud'un dosya sistemi kalıcı olmadığı için (uygulama zaman zaman
+yeniden başlatılır/uyandırılır) veriler artık gerçek bir bulut veritabanında
+(Supabase) tutuluyor - böylece bugün girilen veriler yarın da görünür."""
+import base64
 import json
 from datetime import date
 
-DB_PATH = "kamtek_depo.db"
+import requests
+import streamlit as st
 
+# Varsayılan değerler (proje oluşturulurken alındı). İstenirse Streamlit Cloud'da
+# Settings > Secrets kısmına SUPABASE_URL / SUPABASE_KEY eklenerek override edilebilir.
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "https://zfmfmqaqkeuvxkrafxoe.supabase.co")
+SUPABASE_KEY = st.secrets.get(
+    "SUPABASE_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmbWZtcWFxa2V1dnhrcmFmeG9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjA5MjYsImV4cCI6MjEwMTU5NjkyNn0.c0tJ2ghgqt57Wrq9otW7wQdGDwQFKxw_zs62XS1bHvw",
+)
 
-def get_conn():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+_HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json",
+}
+_REST = f"{SUPABASE_URL}/rest/v1"
 
 
 def init_db():
-    conn = get_conn()
-    c = conn.cursor()
-    # Kargo takip: her gün, her kargo firması için yüklenen excel'den çıkarılan satırlar
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS kargo_takip (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tarih TEXT NOT NULL,
-            kargo_firmasi TEXT NOT NULL,
-            gonderi_tarihi TEXT,
-            gonderi_no TEXT,
-            alici_adi TEXT,
-            alici_adresi TEXT,
-            varis_il TEXT,
-            odeme_sekli TEXT,
-            desi TEXT,
-            yuklenme_zamani TEXT
-        )
-    """)
-    # Depo sayım fişleri: her gün yüklenen excel dosyasının ham içeriği (indirilebilmesi için)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS depo_sayim (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tarih TEXT NOT NULL,
-            dosya_adi TEXT NOT NULL,
-            dosya_icerik BLOB NOT NULL,
-            yuklenme_zamani TEXT
-        )
-    """)
-    # Depo temizlik çizelgesi: gün -> personel adı
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS depo_temizlik (
-            tarih TEXT PRIMARY KEY,
-            personel_adi TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+    """Tablolar Supabase tarafında zaten oluşturuldu, burada yapılacak bir şey yok."""
+    pass
 
 
 # ---------- Kargo Takip ----------
 
 def kargo_takip_kaydet(tarih: str, kargo_firmasi: str, satirlar: list):
-    conn = get_conn()
-    c = conn.cursor()
     now = date.today().isoformat()
-    for s in satirlar:
-        c.execute("""
-            INSERT INTO kargo_takip
-            (tarih, kargo_firmasi, gonderi_tarihi, gonderi_no, alici_adi, alici_adresi, varis_il, odeme_sekli, desi, yuklenme_zamani)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            tarih, kargo_firmasi,
-            s.get("gonderi_tarihi"), s.get("gonderi_no"), s.get("alici_adi"),
-            s.get("alici_adresi"), s.get("varis_il"), s.get("odeme_sekli"),
-            s.get("desi"), now,
-        ))
-    conn.commit()
-    conn.close()
+    rows = [
+        {
+            "tarih": tarih,
+            "kargo_firmasi": kargo_firmasi,
+            "gonderi_tarihi": s.get("gonderi_tarihi"),
+            "gonderi_no": s.get("gonderi_no"),
+            "alici_adi": s.get("alici_adi"),
+            "alici_adresi": s.get("alici_adresi"),
+            "varis_il": s.get("varis_il"),
+            "odeme_sekli": s.get("odeme_sekli"),
+            "desi": s.get("desi"),
+            "yuklenme_zamani": now,
+        }
+        for s in satirlar
+    ]
+    if not rows:
+        return
+    r = requests.post(f"{_REST}/kargo_takip", headers=_HEADERS, data=json.dumps(rows), timeout=15)
+    r.raise_for_status()
 
 
 def kargo_takip_getir(tarih: str):
-    conn = get_conn()
-    c = conn.cursor()
-    rows = c.execute("SELECT * FROM kargo_takip WHERE tarih = ? ORDER BY kargo_firmasi, id", (tarih,)).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    params = {"tarih": f"eq.{tarih}", "order": "kargo_firmasi,id"}
+    r = requests.get(f"{_REST}/kargo_takip", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
 
 
 # ---------- Depo Sayım ----------
 
 def depo_sayim_kaydet(tarih: str, dosya_adi: str, dosya_bytes: bytes):
-    conn = get_conn()
-    c = conn.cursor()
     now = date.today().isoformat()
-    c.execute("""
-        INSERT INTO depo_sayim (tarih, dosya_adi, dosya_icerik, yuklenme_zamani)
-        VALUES (?, ?, ?, ?)
-    """, (tarih, dosya_adi, dosya_bytes, now))
-    conn.commit()
-    conn.close()
+    row = {
+        "tarih": tarih,
+        "dosya_adi": dosya_adi,
+        "dosya_icerik_b64": base64.b64encode(dosya_bytes).decode(),
+        "yuklenme_zamani": now,
+    }
+    r = requests.post(f"{_REST}/depo_sayim", headers=_HEADERS, data=json.dumps(row), timeout=30)
+    r.raise_for_status()
 
 
 def depo_sayim_getir(tarih: str):
-    conn = get_conn()
-    c = conn.cursor()
-    rows = c.execute("SELECT id, dosya_adi, dosya_icerik, yuklenme_zamani FROM depo_sayim WHERE tarih = ? ORDER BY id", (tarih,)).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    params = {
+        "tarih": f"eq.{tarih}",
+        "select": "id,dosya_adi,dosya_icerik_b64,yuklenme_zamani",
+        "order": "id",
+    }
+    r = requests.get(f"{_REST}/depo_sayim", headers=_HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    sonuc = []
+    for row in r.json():
+        sonuc.append({
+            "id": row["id"],
+            "dosya_adi": row["dosya_adi"],
+            "dosya_icerik": base64.b64decode(row["dosya_icerik_b64"]),
+            "yuklenme_zamani": row.get("yuklenme_zamani"),
+        })
+    return sonuc
 
 
 # ---------- Depo Temizlik ----------
 
 def temizlik_kaydet(tarih: str, personel_adi: str):
-    conn = get_conn()
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO depo_temizlik (tarih, personel_adi) VALUES (?, ?)
-        ON CONFLICT(tarih) DO UPDATE SET personel_adi = excluded.personel_adi
-    """, (tarih, personel_adi))
-    conn.commit()
-    conn.close()
+    row = {"tarih": tarih, "personel_adi": personel_adi}
+    headers = dict(_HEADERS)
+    headers["Prefer"] = "resolution=merge-duplicates"
+    r = requests.post(
+        f"{_REST}/depo_temizlik", headers=headers,
+        params={"on_conflict": "tarih"}, data=json.dumps(row), timeout=15,
+    )
+    r.raise_for_status()
 
 
 def temizlik_getir_ay(yil: int, ay: int):
-    conn = get_conn()
-    c = conn.cursor()
     prefix = f"{yil:04d}-{ay:02d}"
-    rows = c.execute("SELECT tarih, personel_adi FROM depo_temizlik WHERE tarih LIKE ?", (prefix + "%",)).fetchall()
-    conn.close()
-    return {r["tarih"]: r["personel_adi"] for r in rows}
+    params = {"tarih": f"like.{prefix}%", "select": "tarih,personel_adi"}
+    r = requests.get(f"{_REST}/depo_temizlik", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return {row["tarih"]: row["personel_adi"] for row in r.json()}
