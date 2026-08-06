@@ -25,26 +25,29 @@ div[data-testid="stToolbar"] {visibility: hidden;}
 
 .st-key-kart1 button {
     background-color: #E6F1FB !important; border: none !important; border-radius: 32px !important;
-    height: 260px !important; font-size: 48px !important; font-weight: 700 !important; color: #0C447C !important;
+    height: 260px !important; font-weight: 700 !important; color: #0C447C !important;
     line-height: 1.5 !important; width: 100% !important;
 }
 .st-key-kart2 button {
     background-color: #FAEEDA !important; border: none !important; border-radius: 32px !important;
-    height: 260px !important; font-size: 48px !important; font-weight: 700 !important; color: #854F0B !important;
+    height: 260px !important; font-weight: 700 !important; color: #854F0B !important;
     line-height: 1.5 !important; width: 100% !important;
 }
 .st-key-kart3 button {
     background-color: #EAF3DE !important; border: none !important; border-radius: 32px !important;
-    height: 260px !important; font-size: 48px !important; font-weight: 700 !important; color: #27500A !important;
+    height: 260px !important; font-weight: 700 !important; color: #27500A !important;
     line-height: 1.5 !important; width: 100% !important;
 }
 .st-key-kart4 button {
     background-color: #FAECE7 !important; border: none !important; border-radius: 32px !important;
-    height: 260px !important; font-size: 48px !important; font-weight: 700 !important; color: #993C1D !important;
+    height: 260px !important; font-weight: 700 !important; color: #993C1D !important;
     line-height: 1.5 !important; width: 100% !important;
 }
-.st-key-kart1 button p, .st-key-kart2 button p, .st-key-kart3 button p, .st-key-kart4 button p {
-    font-size: inherit !important;
+.st-key-kart1 button, .st-key-kart1 button *,
+.st-key-kart2 button, .st-key-kart2 button *,
+.st-key-kart3 button, .st-key-kart3 button *,
+.st-key-kart4 button, .st-key-kart4 button * {
+    font-size: 48px !important;
 }
 </style>
 """, unsafe_allow_html=True)
