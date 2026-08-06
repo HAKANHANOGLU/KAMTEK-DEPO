@@ -23,25 +23,25 @@ footer {visibility: hidden;}
 header {visibility: hidden;}
 div[data-testid="stToolbar"] {visibility: hidden;}
 
-div[data-testid="column"]:nth-of-type(1) button {
+.st-key-kart1 button {
     background-color: #E6F1FB !important; border: none !important; border-radius: 32px !important;
     height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #0C447C !important;
-    line-height: 1.6 !important;
+    line-height: 1.6 !important; width: 100% !important;
 }
-div[data-testid="column"]:nth-of-type(2) button {
+.st-key-kart2 button {
     background-color: #FAEEDA !important; border: none !important; border-radius: 32px !important;
     height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #854F0B !important;
-    line-height: 1.6 !important;
+    line-height: 1.6 !important; width: 100% !important;
 }
-div[data-testid="column"]:nth-of-type(3) button {
+.st-key-kart3 button {
     background-color: #EAF3DE !important; border: none !important; border-radius: 32px !important;
     height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #27500A !important;
-    line-height: 1.6 !important;
+    line-height: 1.6 !important; width: 100% !important;
 }
-div[data-testid="column"]:nth-of-type(4) button {
+.st-key-kart4 button {
     background-color: #FAECE7 !important; border: none !important; border-radius: 32px !important;
     height: 260px !important; font-size: 32px !important; font-weight: 700 !important; color: #993C1D !important;
-    line-height: 1.6 !important;
+    line-height: 1.6 !important; width: 100% !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -114,17 +114,21 @@ def sayfa_home():
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        if st.button("🗺️\n\nSevkiyat Planlama", use_container_width=True, key="kart1"):
-            git("sevkiyat")
+        with st.container(key="kart1"):
+            if st.button("🗺️\n\nSevkiyat Planlama", use_container_width=True):
+                git("sevkiyat")
     with c2:
-        if st.button("🚚\n\nKargo Takip", use_container_width=True, key="kart2"):
-            git("kargotakip")
+        with st.container(key="kart2"):
+            if st.button("🚚\n\nKargo Takip", use_container_width=True):
+                git("kargotakip")
     with c3:
-        if st.button("📦\n\nDepo", use_container_width=True, key="kart3"):
-            git("depo")
+        with st.container(key="kart3"):
+            if st.button("📦\n\nDepo", use_container_width=True):
+                git("depo")
     with c4:
-        if st.button("🏷️\n\nKargo Fiyat Listesi", use_container_width=True, key="kart4"):
-            git("fiyatlistesi")
+        with st.container(key="kart4"):
+            if st.button("🏷️\n\nKargo Fiyat Listesi", use_container_width=True):
+                git("fiyatlistesi")
 
 
 # ------------------------------------------------------------------
