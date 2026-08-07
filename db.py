@@ -115,3 +115,76 @@ def temizlik_getir_ay(yil: int, ay: int):
     r = requests.get(f"{_REST}/depo_temizlik", headers=_HEADERS, params=params, timeout=15)
     r.raise_for_status()
     return {row["tarih"]: row["personel_adi"] for row in r.json()}
+
+
+# ---------- Depo Sayım Notları (haftalık program için gün bazlı not) ----------
+
+def sayim_not_kaydet(tarih: str, not_metni: str):
+    row = {"tarih": tarih, "not_metni": not_metni}
+    headers = dict(_HEADERS)
+    headers["Prefer"] = "resolution=merge-duplicates"
+    r = requests.post(
+        f"{_REST}/depo_sayim_notlar", headers=headers,
+        params={"on_conflict": "tarih"}, data=json.dumps(row), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def sayim_notlari_getir(gunler: list):
+    if not gunler:
+        return {}
+    tarih_listesi = ",".join(gunler)
+    params = {"tarih": f"in.({tarih_listesi})", "select": "tarih,not_metni"}
+    r = requests.get(f"{_REST}/depo_sayim_notlar", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return {row["tarih"]: row["not_metni"] for row in r.json()}
+
+
+# ---------- Planlanan Kargolar (serbest not tablosu) ----------
+
+def planlanan_kargolar_getir():
+    params = {"order": "id"}
+    r = requests.get(f"{_REST}/planlanan_kargolar", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def planlanan_kargolar_kaydet(satirlar: list):
+    """Tabloyu tamamen yeni haliyle değiştirir (silinenler DB'den de silinir)."""
+    r = requests.delete(f"{_REST}/planlanan_kargolar", headers=_HEADERS, params={"id": "gte.0"}, timeout=15)
+    r.raise_for_status()
+    if not satirlar:
+        return
+    now = date.today().isoformat()
+    rows = [
+        {
+            "musteri_adi": s.get("musteri_adi") or "",
+            "alici_adresi": s.get("alici_adresi") or "",
+            "koli_adedi": s.get("koli_adedi") or "",
+            "planlanan_tarih": s.get("planlanan_tarih") or "",
+            "olusturma_zamani": now,
+        }
+        for s in satirlar
+    ]
+    r = requests.post(f"{_REST}/planlanan_kargolar", headers=_HEADERS, data=json.dumps(rows), timeout=15)
+    r.raise_for_status()
+
+
+# ---------- Tamamlanan Kargolar (Kargolaştır ile eklenir) ----------
+
+def tamamlanan_kargo_kaydet(tarih: str, varis_il: str, kargo_firmasi: str, toplam_tutar: float, detay: str):
+    now_dt = date.today().isoformat()
+    row = {
+        "tarih": tarih, "varis_il": varis_il, "kargo_firmasi": kargo_firmasi,
+        "toplam_tutar": toplam_tutar, "detay": detay, "olusturma_zamani": now_dt,
+    }
+    r = requests.post(f"{_REST}/tamamlanan_kargolar", headers=_HEADERS, data=json.dumps(row), timeout=15)
+    r.raise_for_status()
+
+
+def tamamlanan_kargolar_getir_ay(yil: int, ay: int):
+    prefix = f"{yil:04d}-{ay:02d}"
+    params = {"tarih": f"like.{prefix}%", "order": "tarih.desc,id.desc"}
+    r = requests.get(f"{_REST}/tamamlanan_kargolar", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
