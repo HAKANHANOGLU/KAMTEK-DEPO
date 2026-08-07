@@ -97,3 +97,27 @@ def standart_satirlara_donustur(df: pd.DataFrame):
         if any(v not in (None, "", "nan") for v in satir.values()):
             satirlar.append(satir)
     return satirlar, mapping
+
+
+def sayim_satirlarini_filtrele(dosya) -> pd.DataFrame:
+    """Depo sayım excel'inde 'Sayım' sütununu bulur ve sadece bu sütunda
+    (o gün fiilen sayılmış, yani) sayısal bir değer girilmiş satırları,
+    diğer tüm sütunlarla birlikte döndürür."""
+    if hasattr(dosya, "seek"):
+        dosya.seek(0)
+    df = pd.read_excel(dosya)
+    sayim_col = bul_sutun(df.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
+    if sayim_col is None:
+        return df.iloc[0:0]
+
+    def _sayisal_mi(v):
+        if pd.isna(v) or str(v).strip() == "":
+            return False
+        try:
+            float(str(v).replace(",", "."))
+            return True
+        except Exception:
+            return False
+
+    mask = df[sayim_col].apply(_sayisal_mi)
+    return df[mask].reset_index(drop=True)
