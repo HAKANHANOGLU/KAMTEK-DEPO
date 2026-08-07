@@ -64,8 +64,8 @@ PRICING = {
 # yönlendirir; İnterglobal için doğrulanmış bir sorgu linki bulunamadığı için
 # sadece ana sayfaya yönlendirilir (numara kullanıcı tarafından elle girilir).
 TRACKING_URL_TEMPLATES = {
-    "DHL": "https://www.dhl.com.tr/exp-tr/express/tracking.html?AWB={no}&brand=DHL",
-    "İNTERGLOBAL": "https://www.globalkargo.com/",
+    "DHL": "https://kargotakip.dhlecommerce.com.tr/?takipNo={no}",
+    "İNTERGLOBAL": "https://www.globalkargo.com/tr/KargoDetay/{no}",
     "ARAS": "http://kargotakip.araskargo.com.tr/mainpage.aspx?code={no}",
     "YURTİÇİ": "https://www.yurticikargo.com/tr/online-servisler/gonderi-sorgula?code={no}",
 }
