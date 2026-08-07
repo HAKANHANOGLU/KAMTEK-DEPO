@@ -3,6 +3,7 @@
 ortak alanları (gönderi tarihi, gönderi no, alıcı adı, alıcı adresi,
 varış il, ödeme şekli, desi) çıkarmak için sütun eşleştirme."""
 import pandas as pd
+from datetime import date, datetime
 
 TR_MAP = str.maketrans({
     "İ": "I", "I": "I", "ı": "I", "Ş": "S", "ş": "s",
@@ -123,6 +124,23 @@ def sayim_satirlarini_filtrele(dosya) -> pd.DataFrame:
 
     mask = df[sayim_col].apply(_sayisal_mi)
     sonuc = df[mask].reset_index(drop=True)
+
+    # Sayım sütunundan hemen önceki sütun genelde depodaki mevcut stok değeridir;
+    # bu değerle sayım değeri uyuşmuyorsa (birebir aynı değilse) satırı işaretle.
+    kolon_listesi = list(df.columns)
+    sayim_idx = kolon_listesi.index(sayim_col)
+    stok_col = kolon_listesi[sayim_idx - 1] if sayim_idx > 0 else None
+    if stok_col is not None and not sonuc.empty:
+        def _uyumsuz(row):
+            try:
+                a = float(str(row[stok_col]).replace(",", "."))
+                b = float(str(row[sayim_col]).replace(",", "."))
+                return abs(a - b) > 1e-9
+            except Exception:
+                return True
+        sonuc.attrs["uyumsuz_maske"] = sonuc.apply(_uyumsuz, axis=1).tolist()
+        sonuc.attrs["stok_col"] = stok_col
+
     if mask.sum() == 0:
         sonuc = sonuc.copy()
         ornek_degerler = df[sayim_col].dropna().astype(str).head(5).tolist()
