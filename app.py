@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import calendar
 import io
 import base64
@@ -43,12 +43,24 @@ div[data-testid="stToolbar"] {visibility: hidden;}
     height: 260px !important; font-weight: 700 !important; color: #993C1D !important;
     line-height: 1.5 !important; width: 100% !important;
 }
+.st-key-kart5 button {
+    background-color: #F1E9FB !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-weight: 700 !important; color: #5B2A86 !important;
+    line-height: 1.5 !important; width: 100% !important;
+}
 .st-key-kart1 button, .st-key-kart1 button *,
 .st-key-kart2 button, .st-key-kart2 button *,
 .st-key-kart3 button, .st-key-kart3 button *,
-.st-key-kart4 button, .st-key-kart4 button * {
+.st-key-kart4 button, .st-key-kart4 button *,
+.st-key-kart5 button, .st-key-kart5 button * {
     font-size: 48px !important;
 }
+.st-key-kartplan button {
+    background-color: #F1E9FB !important; border: none !important; border-radius: 32px !important;
+    height: 130px !important; font-weight: 700 !important; color: #5B2A86 !important;
+    line-height: 1.4 !important; width: 100% !important; font-size: 30px !important;
+}
+.st-key-kartplan button * { font-size: 30px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,7 +130,7 @@ def sayfa_home():
     st.write("")
     st.write("")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         with st.container(key="kart1"):
             if st.button("🗺️\n\nSevkiyat Planlama", use_container_width=True):
@@ -135,6 +147,10 @@ def sayfa_home():
         with st.container(key="kart4"):
             if st.button("🏷️\n\nKargo Fiyat Listesi", use_container_width=True):
                 git("fiyatlistesi")
+    with c5:
+        with st.container(key="kart5"):
+            if st.button("✅\n\nTamamlanmış Kargolar", use_container_width=True):
+                git("tamamlanankargolar")
 
 
 # ------------------------------------------------------------------
@@ -249,6 +265,35 @@ def sayfa_sevkiyat():
         except Exception as e:
             st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
 
+    with col_bosluk:
+        with st.container(key="kartplan"):
+            if st.button("📝\n\nPlanlanacak Kargolar", use_container_width=True):
+                st.session_state.planlanan_goster = not st.session_state.get("planlanan_goster", False)
+
+        if st.session_state.get("planlanan_goster", False):
+            st.caption("Müşteri adı, alıcı adres, koli adedi ve planlanan tarihi buraya serbestçe yazabilirsiniz.")
+            mevcut = db.planlanan_kargolar_getir()
+            if mevcut:
+                df_plan = pd.DataFrame(mevcut)[["musteri_adi", "alici_adresi", "koli_adedi", "planlanan_tarih"]]
+            else:
+                df_plan = pd.DataFrame({"musteri_adi": [""] * 8, "alici_adresi": [""] * 8,
+                                         "koli_adedi": [""] * 8, "planlanan_tarih": [""] * 8})
+            df_plan.columns = ["Müşteri Adı", "Alıcı Adres", "Koli Adedi", "Planlanan Tarih"]
+            edited_plan = st.data_editor(
+                df_plan, use_container_width=True, num_rows="dynamic", key="planlanan_editor", height=350,
+            )
+            if st.button("Kaydet", key="planlanan_kaydet"):
+                satirlar = [
+                    {
+                        "musteri_adi": row["Müşteri Adı"], "alici_adresi": row["Alıcı Adres"],
+                        "koli_adedi": row["Koli Adedi"], "planlanan_tarih": row["Planlanan Tarih"],
+                    }
+                    for _, row in edited_plan.iterrows()
+                    if any(str(row[c]).strip() not in ("", "nan", "None") for c in edited_plan.columns)
+                ]
+                db.planlanan_kargolar_kaydet(satirlar)
+                st.success("Planlanan kargolar kaydedildi.")
+
     st.markdown("---")
     st.subheader("Gönderi Hesapla")
     st.caption("Her satıra bir gönderi grubu için Miktar (adet) ve Desi bilgisini girin.")
@@ -269,13 +314,18 @@ def sayfa_sevkiyat():
         },
     )
 
-    if st.button("Hesapla", type="primary"):
+    col_hesapla, col_kargolastir = st.columns(2)
+    hesapla_tiklandi = col_hesapla.button("Hesapla", type="primary", use_container_width=True)
+    kargolastir_tiklandi = col_kargolastir.button("📦 Kargolaştır", use_container_width=True)
+
+    if hesapla_tiklandi:
         gecerli_satirlar = [
             (row["Miktar"], row["Desi"]) for _, row in edited.iterrows()
             if pd.notna(row["Miktar"]) and pd.notna(row["Desi"]) and row["Miktar"] > 0 and row["Desi"] > 0
         ]
         if not gecerli_satirlar:
             st.warning("Lütfen en az bir satıra miktar ve desi girin.")
+            st.session_state.hesap_sonuclari = None
         else:
             sonuclar = []
             for kargo in data.PRICING:
@@ -287,21 +337,32 @@ def sayfa_sevkiyat():
                     if birim is not None:
                         toplam += birim * miktar
                 sonuclar.append((kargo, toplam))
-
             if not sonuclar:
                 st.warning(f"{secili_il} iline gönderim yapan kargo firması bulunamadı.")
-            else:
-                st.markdown(f"**{secili_il} için hesaplanan fiyatlar:**")
-                en_ucuz_kargo = min(sonuclar, key=lambda x: x[1])[0]
-                cols = st.columns(len(sonuclar))
-                for col, (kargo, toplam) in zip(cols, sonuclar):
-                    with col:
-                        st.metric(kargo, f"{toplam:,.2f} TL (+ KDV)")
-                        if kargo == en_ucuz_kargo:
-                            st.markdown(
-                                "<p style='color:#16A34A; font-weight:700; text-align:center; margin-top:-8px;'>✓ Önerilen</p>",
-                                unsafe_allow_html=True,
-                            )
+            st.session_state.hesap_sonuclari = sonuclar
+            st.session_state.hesap_il = secili_il
+            st.session_state.hesap_detay = gecerli_satirlar
+
+    sonuclar = st.session_state.get("hesap_sonuclari")
+    if sonuclar:
+        st.markdown(f"**{st.session_state.hesap_il} için hesaplanan fiyatlar:**")
+        en_ucuz_kargo = min(sonuclar, key=lambda x: x[1])[0]
+        secenekler = [f"{kargo} — {toplam:,.2f} TL (+ KDV)" + ("  ✓ Önerilen" if kargo == en_ucuz_kargo else "")
+                      for kargo, toplam in sonuclar]
+        secim = st.radio("Kargo firması seçin:", secenekler, key="kargo_secim_radio")
+        secilen_index = secenekler.index(secim)
+        secilen_kargo, secilen_tutar = sonuclar[secilen_index]
+
+        if kargolastir_tiklandi:
+            detay_ozet = "; ".join(f"{m} adet x {d} desi" for m, d in st.session_state.hesap_detay)
+            db.tamamlanan_kargo_kaydet(
+                date.today().isoformat(), st.session_state.hesap_il, secilen_kargo, secilen_tutar, detay_ozet,
+            )
+            st.success(f"{secilen_kargo} ile kargolaştırıldı ({secilen_tutar:,.2f} TL). "
+                       f"'Tamamlanmış Kargolar' sayfasından takip edebilirsiniz.")
+            st.session_state.hesap_sonuclari = None
+    elif kargolastir_tiklandi:
+        st.warning("Önce 'Hesapla' ile bir fiyat hesaplaması yapıp kargo firması seçmeniz gerekiyor.")
 
 
 # ------------------------------------------------------------------
@@ -385,25 +446,72 @@ def sayfa_depo():
 
 def depo_sayim_bolumu():
     st.subheader("Depo Sayım Fişleri")
-    secili_tarih = st.date_input("Sayım Tarihi", value=date.today(), key="sayim_tarih")
+    st.caption("Depo sayımı haftalık programlanır — her gün deponun bir kısmı sayılır, hafta sonunda tüm depo sayılmış olur.")
 
+    secili_tarih = st.date_input("Sayım Tarihi (Excel Yükleme)", value=date.today(), key="sayim_tarih")
     yuklenen = st.file_uploader("Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"], key="sayim_uploader")
     if yuklenen is not None:
         db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
-        st.success(f"{yuklenen.name} kaydedildi.")
+        st.success(f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')}).")
 
-    kayitlar = db.depo_sayim_getir(secili_tarih.isoformat())
-    if kayitlar:
-        st.write(f"{secili_tarih.strftime('%d.%m.%Y')} tarihine ait kayıtlı sayım dosyaları:")
-        for k in kayitlar:
-            st.download_button(
-                label=f"⬇ {k['dosya_adi']}",
-                data=k["dosya_icerik"],
-                file_name=k["dosya_adi"],
-                key=f"indir_{k['id']}",
-            )
+    st.markdown("---")
+    st.markdown("**Haftalık Sayım Takvimi**")
+
+    # secili_tarih'in içinde bulunduğu haftanın Pazartesi-Pazar günlerini bul
+    hafta_baslangic = secili_tarih - timedelta(days=secili_tarih.weekday())
+    gun_isimleri = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+    hafta_gunleri = [hafta_baslangic + timedelta(days=i) for i in range(7)]
+
+    notlar = db.sayim_notlari_getir([g.isoformat() for g in hafta_gunleri])
+
+    if "sayim_secili_gun" not in st.session_state:
+        st.session_state.sayim_secili_gun = None
+
+    baslik_cols = st.columns(7)
+    for col, isim in zip(baslik_cols, gun_isimleri):
+        col.markdown(f"**{isim}**")
+
+    gun_cols = st.columns(7)
+    gun_dosyalari = {}
+    for col, gun, isim in zip(gun_cols, hafta_gunleri, gun_isimleri):
+        with col:
+            kayitlar = db.depo_sayim_getir(gun.isoformat())
+            gun_dosyalari[gun.isoformat()] = kayitlar
+            tik = "✅" if kayitlar else "⬜"
+            etiket = f"{tik}\n{gun.strftime('%d.%m')}"
+            if st.button(etiket, key=f"gun_btn_{gun.isoformat()}", use_container_width=True):
+                st.session_state.sayim_secili_gun = gun.isoformat()
+            not_mevcut = notlar.get(gun.isoformat(), "")
+            yeni_not = st.text_input("Not", value=not_mevcut, key=f"not_{gun.isoformat()}", label_visibility="collapsed",
+                                      placeholder="Not ekle...")
+            if yeni_not != not_mevcut:
+                db.sayim_not_kaydet(gun.isoformat(), yeni_not)
+
+    st.markdown("---")
+    secili_gun = st.session_state.sayim_secili_gun
+    if secili_gun:
+        kayitlar = gun_dosyalari.get(secili_gun, db.depo_sayim_getir(secili_gun))
+        gun_str = datetime.fromisoformat(secili_gun).strftime("%d.%m.%Y")
+        if not kayitlar:
+            st.info(f"{gun_str} için henüz sayım dosyası yok.")
+        else:
+            st.markdown(f"**{gun_str} tarihli sayım — sadece 'Sayım' sütununda değer girilmiş satırlar:**")
+            for k in kayitlar:
+                st.caption(f"📄 {k['dosya_adi']}")
+                try:
+                    filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(k["dosya_icerik"]))
+                    if filtreli.empty:
+                        st.write("Bu dosyada 'Sayım' sütunu bulunamadı ya da sayılmış satır yok.")
+                    else:
+                        st.dataframe(filtreli, use_container_width=True)
+                except Exception as e:
+                    st.error(f"Dosya okunurken hata oluştu: {e}")
+                st.download_button(
+                    label=f"⬇ {k['dosya_adi']} indir", data=k["dosya_icerik"],
+                    file_name=k["dosya_adi"], key=f"indir_{k['id']}",
+                )
     else:
-        st.info("Bu tarih için henüz sayım dosyası yok.")
+        st.info("Yukarıdaki takvimden bir güne tıklayarak o günün sayım detayını görebilirsiniz.")
 
 
 def depo_temizlik_bolumu():
@@ -430,6 +538,40 @@ def depo_temizlik_bolumu():
         for _, row in edited.iterrows():
             db.temizlik_kaydet(row["Tarih"], row["Temizlik Yapan Personel"])
         st.success("Temizlik çizelgesi kaydedildi.")
+
+
+# ------------------------------------------------------------------
+# TAMAMLANMIŞ KARGOLAR
+# ------------------------------------------------------------------
+def sayfa_tamamlanankargolar():
+    geri_butonu()
+    st.header("Tamamlanmış Kargolar")
+    st.caption("'Sevkiyat Planlama' sayfasında 'Kargolaştır' ile tamamlanan gönderilerin dökümü — kargo faturası takibi için.")
+
+    bugun = date.today()
+    col1, col2 = st.columns(2)
+    with col1:
+        yil = st.number_input("Yıl", min_value=2024, max_value=2100, value=bugun.year, step=1, key="tk_yil")
+    with col2:
+        ay = st.selectbox("Ay", list(range(1, 13)), index=bugun.month - 1,
+                           format_func=lambda x: calendar.month_name[x], key="tk_ay")
+
+    kayitlar = db.tamamlanan_kargolar_getir_ay(yil, ay)
+    if kayitlar:
+        df = pd.DataFrame(kayitlar)[["tarih", "kargo_firmasi", "varis_il", "toplam_tutar", "detay"]]
+        df.columns = ["Tarih", "Kargo Firması", "Varış İl", "Toplam Tutar (TL)", "Detay"]
+        df["Toplam Tutar (TL)"] = pd.to_numeric(df["Toplam Tutar (TL)"], errors="coerce").fillna(0)
+        st.dataframe(df, use_container_width=True, height=450)
+
+        st.markdown("---")
+        st.markdown("**Kargo firmasına göre toplam (bu ay):**")
+        ozet = df.groupby("Kargo Firması")["Toplam Tutar (TL)"].sum().reset_index()
+        cols = st.columns(len(ozet)) if len(ozet) > 0 else []
+        for col, (_, row) in zip(cols, ozet.iterrows()):
+            with col:
+                st.metric(row["Kargo Firması"], f"{row['Toplam Tutar (TL)']:,.2f} TL")
+    else:
+        st.info(f"{calendar.month_name[ay]} {yil} için henüz kargolaştırılmış gönderi yok.")
 
 
 # ------------------------------------------------------------------
@@ -481,6 +623,7 @@ SAYFALAR = {
     "kargotakip": sayfa_kargotakip,
     "depo": sayfa_depo,
     "fiyatlistesi": sayfa_fiyatlistesi,
+    "tamamlanankargolar": sayfa_tamamlanankargolar,
 }
 
 SAYFALAR[st.session_state.sayfa]()
