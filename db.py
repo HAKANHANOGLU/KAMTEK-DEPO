@@ -96,6 +96,11 @@ def depo_sayim_getir(tarih: str):
     return sonuc
 
 
+def depo_sayim_sil(kayit_id: int):
+    r = requests.delete(f"{_REST}/depo_sayim", headers=_HEADERS, params={"id": f"eq.{kayit_id}"}, timeout=15)
+    r.raise_for_status()
+
+
 # ---------- Depo Temizlik ----------
 
 def temizlik_kaydet(tarih: str, personel_adi: str):
@@ -160,6 +165,8 @@ def planlanan_kargolar_kaydet(satirlar: list):
         {
             "musteri_adi": s.get("musteri_adi") or "",
             "alici_adresi": s.get("alici_adresi") or "",
+            "aciklama": s.get("aciklama") or "",
+            "siparis_tarihi": s.get("siparis_tarihi") or "",
             "koli_adedi": s.get("koli_adedi") or "",
             "planlanan_tarih": s.get("planlanan_tarih") or "",
             "olusturma_zamani": now,
@@ -188,3 +195,8 @@ def tamamlanan_kargolar_getir_ay(yil: int, ay: int):
     r = requests.get(f"{_REST}/tamamlanan_kargolar", headers=_HEADERS, params=params, timeout=15)
     r.raise_for_status()
     return r.json()
+
+
+def tamamlanan_kargo_sil(kayit_id: int):
+    r = requests.delete(f"{_REST}/tamamlanan_kargolar", headers=_HEADERS, params={"id": f"eq.{kayit_id}"}, timeout=15)
+    r.raise_for_status()
