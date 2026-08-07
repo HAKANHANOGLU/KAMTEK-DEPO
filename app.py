@@ -9,6 +9,7 @@ import base64
 import data
 import db
 import excel_utils
+import stok_utils
 
 st.set_page_config(page_title="KAMTEK DEPO", layout="wide", initial_sidebar_state="collapsed")
 db.init_db()
@@ -48,11 +49,17 @@ div[data-testid="stToolbar"] {visibility: hidden;}
     height: 260px !important; font-weight: 700 !important; color: #5B2A86 !important;
     line-height: 1.5 !important; width: 100% !important;
 }
+.st-key-kart6 button {
+    background-color: #DFF4F1 !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-weight: 700 !important; color: #0F6B5C !important;
+    line-height: 1.5 !important; width: 100% !important;
+}
 .st-key-kart1 button, .st-key-kart1 button *,
 .st-key-kart2 button, .st-key-kart2 button *,
 .st-key-kart3 button, .st-key-kart3 button *,
 .st-key-kart4 button, .st-key-kart4 button *,
-.st-key-kart5 button, .st-key-kart5 button * {
+.st-key-kart5 button, .st-key-kart5 button *,
+.st-key-kart6 button, .st-key-kart6 button * {
     font-size: 48px !important;
 }
 .st-key-kartplan button {
@@ -133,7 +140,7 @@ def sayfa_home():
     st.write("")
     st.write("")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1:
         with st.container(key="kart1"):
             if st.button("🗺️\n\nSevkiyat Planlama", use_container_width=True):
@@ -154,6 +161,10 @@ def sayfa_home():
         with st.container(key="kart5"):
             if st.button("✅\n\nTamamlanmış Kargolar", use_container_width=True):
                 git("tamamlanankargolar")
+    with c6:
+        with st.container(key="kart6"):
+            if st.button("📊\n\nStok Takip", use_container_width=True):
+                git("stoktakip")
 
 
 # ------------------------------------------------------------------
@@ -622,6 +633,58 @@ def sayfa_tamamlanankargolar():
 
 
 # ------------------------------------------------------------------
+# STOK TAKİP
+# ------------------------------------------------------------------
+@st.cache_data(ttl=1800, show_spinner=False)
+def _stok_verisi_cache():
+    return stok_utils.stok_verisini_getir()
+
+
+def sayfa_stoktakip():
+    geri_butonu()
+    st.header("Stok Takip")
+    st.caption(
+        "DIA'dan internet satış sitesine beslenen ürün/stok verisi — kaynak yaklaşık 2 saatte bir "
+        "güncelleniyor, burada en fazla 30 dakika önbelleklenir."
+    )
+
+    col_ara, col_yenile = st.columns([4, 1])
+    with col_yenile:
+        if st.button("🔄 Şimdi Güncelle", use_container_width=True):
+            _stok_verisi_cache.clear()
+            st.rerun()
+
+    try:
+        with st.spinner("Stok verisi çekiliyor..."):
+            urunler = _stok_verisi_cache()
+    except Exception as e:
+        st.error(f"Stok verisi alınamadı: {e}")
+        return
+
+    if not urunler:
+        st.info("Stok verisi bulunamadı.")
+        return
+
+    df = pd.DataFrame(urunler)
+    with col_ara:
+        arama = st.text_input("Ürün adı, stok kodu veya marka ara", label_visibility="collapsed",
+                               placeholder="Ürün adı, stok kodu veya marka ara...")
+    if arama:
+        mask = (
+            df["Ürün Adı"].str.contains(arama, case=False, na=False)
+            | df["Stok Kodu"].str.contains(arama, case=False, na=False)
+            | df["Marka"].str.contains(arama, case=False, na=False)
+        )
+        df = df[mask]
+
+    st.dataframe(
+        df[["Stok Kodu", "Ürün Adı", "Marka", "Kategori", "Fiyat", "Para Birimi", "Stok", "Açıklama"]],
+        use_container_width=True, height=600,
+    )
+    st.caption(f"Toplam {len(df)} ürün gösteriliyor.")
+
+
+# ------------------------------------------------------------------
 # KARGO FİYAT LİSTESİ
 # ------------------------------------------------------------------
 def sayfa_fiyatlistesi():
@@ -671,6 +734,7 @@ SAYFALAR = {
     "depo": sayfa_depo,
     "fiyatlistesi": sayfa_fiyatlistesi,
     "tamamlanankargolar": sayfa_tamamlanankargolar,
+    "stoktakip": sayfa_stoktakip,
 }
 
 SAYFALAR[st.session_state.sayfa]()
