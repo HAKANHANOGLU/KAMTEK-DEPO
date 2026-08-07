@@ -61,6 +61,9 @@ div[data-testid="stToolbar"] {visibility: hidden;}
     line-height: 1.4 !important; width: 100% !important; font-size: 30px !important;
 }
 .st-key-kartplan button * { font-size: 30px !important; }
+.st-key-kargo_radyo div[data-testid="stRadio"] label p {
+    font-size: 19px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -274,11 +277,14 @@ def sayfa_sevkiyat():
             st.caption("Müşteri adı, alıcı adres, koli adedi ve planlanan tarihi buraya serbestçe yazabilirsiniz.")
             mevcut = db.planlanan_kargolar_getir()
             if mevcut:
-                df_plan = pd.DataFrame(mevcut)[["musteri_adi", "alici_adresi", "koli_adedi", "planlanan_tarih"]]
+                df_plan = pd.DataFrame(mevcut)[
+                    ["musteri_adi", "alici_adresi", "aciklama", "siparis_tarihi", "koli_adedi", "planlanan_tarih"]
+                ]
             else:
                 df_plan = pd.DataFrame({"musteri_adi": [""] * 8, "alici_adresi": [""] * 8,
+                                         "aciklama": [""] * 8, "siparis_tarihi": [""] * 8,
                                          "koli_adedi": [""] * 8, "planlanan_tarih": [""] * 8})
-            df_plan.columns = ["Müşteri Adı", "Alıcı Adres", "Koli Adedi", "Planlanan Tarih"]
+            df_plan.columns = ["Müşteri Adı", "Alıcı Adres", "Açıklama", "Sipariş Tarihi", "Koli Adedi", "Planlanan Tarih"]
             edited_plan = st.data_editor(
                 df_plan, use_container_width=True, num_rows="dynamic", key="planlanan_editor", height=350,
             )
@@ -286,6 +292,7 @@ def sayfa_sevkiyat():
                 satirlar = [
                     {
                         "musteri_adi": row["Müşteri Adı"], "alici_adresi": row["Alıcı Adres"],
+                        "aciklama": row["Açıklama"], "siparis_tarihi": row["Sipariş Tarihi"],
                         "koli_adedi": row["Koli Adedi"], "planlanan_tarih": row["Planlanan Tarih"],
                     }
                     for _, row in edited_plan.iterrows()
@@ -349,7 +356,8 @@ def sayfa_sevkiyat():
         en_ucuz_kargo = min(sonuclar, key=lambda x: x[1])[0]
         secenekler = [f"{kargo} — {toplam:,.2f} TL (+ KDV)" + ("  ✓ Önerilen" if kargo == en_ucuz_kargo else "")
                       for kargo, toplam in sonuclar]
-        secim = st.radio("Kargo firması seçin:", secenekler, key="kargo_secim_radio")
+        with st.container(key="kargo_radyo"):
+            secim = st.radio("Kargo firması seçin:", secenekler, key="kargo_secim_radio")
         secilen_index = secenekler.index(secim)
         secilen_kargo, secilen_tutar = sonuclar[secilen_index]
 
@@ -495,21 +503,34 @@ def depo_sayim_bolumu():
             st.info(f"{gun_str} için henüz sayım dosyası yok.")
         else:
             st.markdown(f"**{gun_str} tarihli sayım — sadece 'Sayım' sütununda değer girilmiş satırlar:**")
+            st.caption("🔴 Kırmızı satır: depodaki mevcut stok değeri ile sayım değeri birbirini tutmuyor.")
             for k in kayitlar:
-                st.caption(f"📄 {k['dosya_adi']}")
+                c_baslik, c_indir, c_sil = st.columns([6, 1, 1])
+                c_baslik.caption(f"📄 {k['dosya_adi']}")
+                c_indir.download_button(
+                    label="⬇ İndir", data=k["dosya_icerik"],
+                    file_name=k["dosya_adi"], key=f"indir_{k['id']}",
+                )
+                if c_sil.button("🗑 Sil", key=f"sil_{k['id']}"):
+                    db.depo_sayim_sil(k["id"])
+                    st.rerun()
                 try:
                     filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(k["dosya_icerik"]))
                     if filtreli.empty:
                         hata = filtreli.attrs.get("hata")
                         st.write(hata if hata else "Bu dosyada 'Sayım' sütunu bulunamadı ya da sayılmış satır yok.")
                     else:
-                        st.dataframe(filtreli, use_container_width=True)
+                        uyumsuz_maske = filtreli.attrs.get("uyumsuz_maske")
+                        if uyumsuz_maske:
+                            def _kirmizi_satir(row, _maske=uyumsuz_maske):
+                                if _maske[row.name]:
+                                    return ["background-color: #FCA5A5"] * len(row)
+                                return [""] * len(row)
+                            st.dataframe(filtreli.style.apply(_kirmizi_satir, axis=1), use_container_width=True)
+                        else:
+                            st.dataframe(filtreli, use_container_width=True)
                 except Exception as e:
                     st.error(f"Dosya okunurken hata oluştu: {e}")
-                st.download_button(
-                    label=f"⬇ {k['dosya_adi']} indir", data=k["dosya_icerik"],
-                    file_name=k["dosya_adi"], key=f"indir_{k['id']}",
-                )
     else:
         st.info("Yukarıdaki takvimden bir güne tıklayarak o günün sayım detayını görebilirsiniz.")
 
@@ -561,7 +582,22 @@ def sayfa_tamamlanankargolar():
         df = pd.DataFrame(kayitlar)[["tarih", "kargo_firmasi", "varis_il", "toplam_tutar", "detay"]]
         df.columns = ["Tarih", "Kargo Firması", "Varış İl", "Toplam Tutar (TL)", "Detay"]
         df["Toplam Tutar (TL)"] = pd.to_numeric(df["Toplam Tutar (TL)"], errors="coerce").fillna(0)
-        st.dataframe(df, use_container_width=True, height=450)
+        df.insert(0, "Sil", False)
+
+        edited = st.data_editor(
+            df, use_container_width=True, height=450, key="tk_editor",
+            disabled=["Tarih", "Kargo Firması", "Varış İl", "Toplam Tutar (TL)", "Detay"],
+            column_config={"Sil": st.column_config.CheckboxColumn("Sil")},
+        )
+        if st.button("🗑 Seçili satırları sil"):
+            silinecekler = [kayitlar[i]["id"] for i in edited.index[edited["Sil"]]]
+            if not silinecekler:
+                st.warning("Silmek için en az bir satırı işaretleyin.")
+            else:
+                for _id in silinecekler:
+                    db.tamamlanan_kargo_sil(_id)
+                st.success(f"{len(silinecekler)} kayıt silindi.")
+                st.rerun()
 
         st.markdown("---")
         st.markdown("**Kargo firmasına göre toplam (bu ay):**")
