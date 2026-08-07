@@ -456,10 +456,21 @@ def depo_sayim_bolumu():
     st.caption("Depo sayımı haftalık programlanır — her gün deponun bir kısmı sayılır, hafta sonunda tüm depo sayılmış olur.")
 
     secili_tarih = st.date_input("Sayım Tarihi (Excel Yükleme)", value=date.today(), key="sayim_tarih")
-    yuklenen = st.file_uploader("Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"], key="sayim_uploader")
+    if "sayim_uploader_key" not in st.session_state:
+        st.session_state.sayim_uploader_key = 0
+    yuklenen = st.file_uploader(
+        "Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"],
+        key=f"sayim_uploader_{st.session_state.sayim_uploader_key}",
+    )
     if yuklenen is not None:
         db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
-        st.success(f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')}).")
+        st.session_state.sayim_uploader_key += 1
+        st.session_state.sayim_basarili_mesaj = f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')})."
+        st.rerun()
+
+    if st.session_state.get("sayim_basarili_mesaj"):
+        st.success(st.session_state.sayim_basarili_mesaj)
+        st.session_state.sayim_basarili_mesaj = None
 
     st.markdown("---")
     st.markdown("**Haftalık Sayım Takvimi**")
