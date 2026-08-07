@@ -117,10 +117,12 @@ def sayim_satirlarini_filtrele(dosya) -> pd.DataFrame:
         if pd.isna(v) or str(v).strip() == "":
             return False
         try:
-            float(str(v).replace(",", "."))
-            return True
+            sayi = float(str(v).replace(",", "."))
         except Exception:
             return False
+        # 0 (veya boşa yakın) değer, o ürünün o gün SAYILMADIĞI anlamına geliyor -
+        # gerçek bir sayım sonucu değil, bu yüzden "sayılmış" saymıyoruz.
+        return sayi != 0
 
     mask = df[sayim_col].apply(_sayisal_mi)
     sonuc = df[mask].reset_index(drop=True)
@@ -140,6 +142,14 @@ def sayim_satirlarini_filtrele(dosya) -> pd.DataFrame:
                 return True
         sonuc.attrs["uyumsuz_maske"] = sonuc.apply(_uyumsuz, axis=1).tolist()
         sonuc.attrs["stok_col"] = stok_col
+
+        def _tam_sayi_goster(v):
+            try:
+                return int(round(float(str(v).replace(",", "."))))
+            except Exception:
+                return v
+        sonuc[stok_col] = sonuc[stok_col].apply(_tam_sayi_goster)
+        sonuc[sayim_col] = sonuc[sayim_col].apply(_tam_sayi_goster)
 
     if mask.sum() == 0:
         sonuc = sonuc.copy()
