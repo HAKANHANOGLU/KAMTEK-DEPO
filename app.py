@@ -408,9 +408,8 @@ def sayfa_kargotakip():
             },
         )
         st.caption(
-            "\"Sorgula\" linki kargo firmasının kendi halka açık gönderi sorgulama sayfasını açar "
-            "(İnterglobal için doğrulanmış bir doğrudan sorgu linki bulunamadığından ana sayfaya yönlendirir, "
-            "gönderi numarasını orada elle girmeniz gerekir)."
+            "\"Sorgula\" linki kargo firmasının kendi halka açık gönderi sorgulama sayfasını, "
+            "takip numarası otomatik dolu şekilde açar."
         )
     else:
         st.info(f"{secili_tarih.strftime('%d.%m.%Y')} tarihi için henüz kayıt yok.")
@@ -501,7 +500,8 @@ def depo_sayim_bolumu():
                 try:
                     filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(k["dosya_icerik"]))
                     if filtreli.empty:
-                        st.write("Bu dosyada 'Sayım' sütunu bulunamadı ya da sayılmış satır yok.")
+                        hata = filtreli.attrs.get("hata")
+                        st.write(hata if hata else "Bu dosyada 'Sayım' sütunu bulunamadı ya da sayılmış satır yok.")
                     else:
                         st.dataframe(filtreli, use_container_width=True)
                 except Exception as e:
