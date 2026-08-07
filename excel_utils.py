@@ -108,7 +108,9 @@ def sayim_satirlarini_filtrele(dosya) -> pd.DataFrame:
     df = pd.read_excel(dosya)
     sayim_col = bul_sutun(df.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
     if sayim_col is None:
-        return df.iloc[0:0]
+        bos = df.iloc[0:0].copy()
+        bos.attrs["hata"] = f"'Sayım' sütunu bulunamadı. Dosyadaki sütunlar: {list(df.columns)}"
+        return bos
 
     def _sayisal_mi(v):
         if pd.isna(v) or str(v).strip() == "":
@@ -120,4 +122,12 @@ def sayim_satirlarini_filtrele(dosya) -> pd.DataFrame:
             return False
 
     mask = df[sayim_col].apply(_sayisal_mi)
-    return df[mask].reset_index(drop=True)
+    sonuc = df[mask].reset_index(drop=True)
+    if mask.sum() == 0:
+        sonuc = sonuc.copy()
+        ornek_degerler = df[sayim_col].dropna().astype(str).head(5).tolist()
+        sonuc.attrs["hata"] = (
+            f"'{sayim_col}' sütunu bulundu ({len(df)} satır tarandı) ama sayısal değer girilmiş satır "
+            f"bulunamadı. Bu sütundaki dolu ilk birkaç değer: {ornek_degerler}"
+        )
+    return sonuc
