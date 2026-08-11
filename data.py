@@ -102,3 +102,33 @@ def calc_unit_price(carrier: str, desi: float):
         # Artan desi bilgisi yok (örn. DHL) -> en yakın (son) tarifeyi kullan, yaklaşık değerdir
         return max_price
     return None  # desi <= 0 gibi geçersiz durum
+
+
+# 2026 Türkiye resmi tatilleri (Puantaj'da mesai hesabında dikkate alınır).
+# Not: dini bayramların tarihi her yıl değişir, bu liste her yıl başında güncellenmeli.
+RESMI_TATILLER_2026 = {
+    "2026-01-01": "Yılbaşı",
+    "2026-03-19": "Ramazan Bayramı Arifesi",
+    "2026-03-20": "Ramazan Bayramı 1. Gün",
+    "2026-03-21": "Ramazan Bayramı 2. Gün",
+    "2026-03-22": "Ramazan Bayramı 3. Gün",
+    "2026-04-23": "Ulusal Egemenlik ve Çocuk Bayramı",
+    "2026-05-01": "Emek ve Dayanışma Günü",
+    "2026-05-19": "Atatürk'ü Anma Gençlik ve Spor Bayramı",
+    "2026-05-26": "Kurban Bayramı Arifesi",
+    "2026-05-27": "Kurban Bayramı 1. Gün",
+    "2026-05-28": "Kurban Bayramı 2. Gün",
+    "2026-05-29": "Kurban Bayramı 3. Gün",
+    "2026-05-30": "Kurban Bayramı 4. Gün",
+    "2026-07-15": "Demokrasi ve Milli Birlik Günü",
+    "2026-08-30": "Zafer Bayramı",
+    "2026-10-29": "Cumhuriyet Bayramı",
+}
+
+
+def is_resmi_tatil(tarih_iso: str) -> bool:
+    return tarih_iso in RESMI_TATILLER_2026
+
+
+def resmi_tatil_adi(tarih_iso: str):
+    return RESMI_TATILLER_2026.get(tarih_iso)
