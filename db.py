@@ -204,9 +204,9 @@ def tamamlanan_kargo_sil(kayit_id: int):
 
 # ---------- İnsan Kaynakları: Personel ----------
 
-def personel_ekle(ad_soyad, yas, telefon, foto_bytes):
+def personel_ekle(ad_soyad, dogum_tarihi, telefon, foto_bytes):
     row = {
-        "ad_soyad": ad_soyad, "yas": yas, "telefon": telefon,
+        "ad_soyad": ad_soyad, "dogum_tarihi": dogum_tarihi, "telefon": telefon,
         "foto_b64": base64.b64encode(foto_bytes).decode() if foto_bytes else None,
         "olusturma_zamani": date.today().isoformat(),
     }
@@ -222,6 +222,18 @@ def personel_listele():
         row = dict(row)
         row["foto_bytes"] = base64.b64decode(row["foto_b64"]) if row.get("foto_b64") else None
         sonuc.append(row)
+    return sonuc
+
+
+def bugun_dogum_gunu_olanlar():
+    """Bugünün ay-gününe denk gelen doğum tarihi olan personelleri döndürür."""
+    bugun = date.today()
+    ay_gun = f"-{bugun.month:02d}-{bugun.day:02d}"
+    sonuc = []
+    for p in personel_listele():
+        dt = p.get("dogum_tarihi")
+        if dt and dt.endswith(ay_gun) and len(dt) == 10:
+            sonuc.append(p)
     return sonuc
 
 
@@ -261,8 +273,11 @@ def ozluk_belgesi_sil(belge_id: int):
 
 # ---------- İnsan Kaynakları: Puantaj ----------
 
-def puantaj_kaydet(tarih, personel_id, giris_saati, cikis_saati):
-    row = {"tarih": tarih, "personel_id": personel_id, "giris_saati": giris_saati, "cikis_saati": cikis_saati}
+def puantaj_kaydet(tarih, personel_id, giris_saati, cikis_saati, ek_mesai_saat=None, sebep=None):
+    row = {
+        "tarih": tarih, "personel_id": personel_id, "giris_saati": giris_saati, "cikis_saati": cikis_saati,
+        "ek_mesai_saat": ek_mesai_saat, "sebep": sebep,
+    }
     headers = dict(_HEADERS)
     headers["Prefer"] = "resolution=merge-duplicates"
     r = requests.post(
@@ -404,17 +419,17 @@ def transfer_talebi_sil(talep_id):
 
 # ---------- Kontrol Listesi ----------
 
-def kontrol_maddesi_ekle(tarih, madde):
+def kontrol_maddesi_ekle(tarih, madde, tip="gunluk"):
     row = {
-        "tarih": tarih, "madde": madde, "tamamlandi": False,
+        "tarih": tarih, "madde": madde, "tamamlandi": False, "tip": tip,
         "olusturma_zamani": date.today().isoformat(),
     }
     r = requests.post(f"{_REST}/kontrol_listesi", headers=_HEADERS, data=json.dumps(row), timeout=15)
     r.raise_for_status()
 
 
-def kontrol_listesi_getir(tarih):
-    params = {"tarih": f"eq.{tarih}", "order": "id"}
+def kontrol_listesi_getir(tarih, tip="gunluk"):
+    params = {"tarih": f"eq.{tarih}", "tip": f"eq.{tip}", "order": "id"}
     r = requests.get(f"{_REST}/kontrol_listesi", headers=_HEADERS, params=params, timeout=15)
     r.raise_for_status()
     return r.json()
