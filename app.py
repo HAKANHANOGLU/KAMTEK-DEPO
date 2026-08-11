@@ -829,14 +829,18 @@ def _personel_bolumu():
     st.subheader("Personel")
     with st.expander("➕ Yeni personel ekle"):
         ad_soyad = st.text_input("Ad Soyad", key="yeni_p_ad")
-        yas = st.text_input("Yaş", key="yeni_p_yas")
+        dogum_tarihi = st.date_input("Doğum Tarihi", value=None, key="yeni_p_dogum",
+                                      min_value=date(1950, 1, 1), max_value=date.today())
         telefon = st.text_input("Telefon", key="yeni_p_tel")
         foto = st.file_uploader("Fotoğraf", type=["jpg", "jpeg", "png"], key="yeni_p_foto")
         if st.button("Kaydet", key="yeni_p_kaydet"):
             if not ad_soyad:
                 st.warning("Ad soyad girin.")
             else:
-                db.personel_ekle(ad_soyad, yas, telefon, foto.getvalue() if foto else None)
+                db.personel_ekle(
+                    ad_soyad, dogum_tarihi.isoformat() if dogum_tarihi else None,
+                    telefon, foto.getvalue() if foto else None,
+                )
                 st.success(f"{ad_soyad} eklendi.")
                 st.rerun()
 
@@ -864,8 +868,14 @@ def _personel_bolumu():
                     unsafe_allow_html=True,
                 )
             st.markdown(f"<p style='text-align:center;font-weight:600;margin-top:6px;'>{p['ad_soyad']}</p>", unsafe_allow_html=True)
+            dogum_str = "-"
+            if p.get("dogum_tarihi"):
+                try:
+                    dogum_str = datetime.fromisoformat(p["dogum_tarihi"]).strftime("%d.%m.%Y")
+                except Exception:
+                    dogum_str = p["dogum_tarihi"]
             st.markdown(
-                f"<p style='text-align:center;font-size:12px;color:#666;'>Yaş: {p.get('yas') or '-'} · {p.get('telefon') or '-'}</p>",
+                f"<p style='text-align:center;font-size:12px;color:#666;'>{dogum_str} · {p.get('telefon') or '-'}</p>",
                 unsafe_allow_html=True,
             )
             with st.popover("📁 Özlük Sayfası", use_container_width=True):
@@ -899,6 +909,26 @@ def _ozluk_sayfasi(personel_id, ad_soyad):
             st.rerun()
 
 
+GUN_ISIMLERI_KISA = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+
+
+def _calisma_dakika_hesapla(giris, cikis, tarih_iso):
+    """Giriş/çıkış saatlerinden, hafta içi ise 1 saatlik öğle molası düşülerek
+    net çalışma süresini (dakika) hesaplar."""
+    try:
+        g = datetime.strptime(giris, "%H:%M")
+        c = datetime.strptime(cikis, "%H:%M")
+    except (ValueError, TypeError):
+        return None
+    fark_dk = int((c - g).total_seconds() // 60)
+    if fark_dk <= 0:
+        return None
+    gun_no = datetime.fromisoformat(tarih_iso).weekday()  # 0=Pazartesi ... 5=Cumartesi, 6=Pazar
+    if gun_no <= 4:  # hafta içi - öğle molası düş
+        fark_dk = max(0, fark_dk - 60)
+    return fark_dk
+
+
 def _puantaj_bolumu():
     st.subheader("Puantaj")
     personeller = db.personel_listele()
@@ -914,69 +944,101 @@ def _puantaj_bolumu():
     mevcut = db.puantaj_getir_gun(tarih_iso)
     for p in personeller:
         kayit = mevcut.get(p["id"], {})
-        c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
+        c1, c2, c3, c4, c5 = st.columns([1.6, 1, 1, 1, 1.6])
         c1.write(p["ad_soyad"])
-        giris = c2.text_input("Giriş", value=kayit.get("giris_saati") or "", key=f"giris_{p['id']}_{tarih_iso}", placeholder="08:00")
-        cikis = c3.text_input("Çıkış", value=kayit.get("cikis_saati") or "", key=f"cikis_{p['id']}_{tarih_iso}", placeholder="17:30")
-        sure_str = "-"
-        if giris and cikis:
-            try:
-                g = datetime.strptime(giris, "%H:%M")
-                c = datetime.strptime(cikis, "%H:%M")
-                fark_dk = int((c - g).total_seconds() // 60)
-                if fark_dk > 0:
-                    saat, dk = divmod(fark_dk, 60)
-                    sure_str = f"{saat}s {dk}d"
-                    if data.is_resmi_tatil(tarih_iso):
-                        mesai_dk = fark_dk  # resmi tatilde çalışılan sürenin tamamı mesai sayılır
-                    else:
-                        mesai_dk = max(0, fark_dk - 9 * 60)
-                    if mesai_dk > 0:
-                        ms, md = divmod(mesai_dk, 60)
-                        sure_str += f" (mesai {ms}s {md}d)"
-            except ValueError:
-                sure_str = "geçersiz saat"
-        c4.write(sure_str)
-        if giris != (kayit.get("giris_saati") or "") or cikis != (kayit.get("cikis_saati") or ""):
-            if giris or cikis:
-                db.puantaj_kaydet(tarih_iso, p["id"], giris, cikis)
+        giris = c2.text_input("Giriş", value=kayit.get("giris_saati") or "", key=f"giris_{p['id']}_{tarih_iso}", placeholder="09:30")
+        cikis = c3.text_input("Çıkış", value=kayit.get("cikis_saati") or "", key=f"cikis_{p['id']}_{tarih_iso}", placeholder="18:30")
+        ek_mesai = c4.text_input("Ek Mesai (saat)", value=kayit.get("ek_mesai_saat") or "", key=f"ekmesai_{p['id']}_{tarih_iso}", placeholder="0")
+        sebep = c5.text_input("Sebebi", value=kayit.get("sebep") or "", key=f"sebep_{p['id']}_{tarih_iso}")
+
+        degisti = (
+            giris != (kayit.get("giris_saati") or "") or cikis != (kayit.get("cikis_saati") or "")
+            or ek_mesai != (kayit.get("ek_mesai_saat") or "") or sebep != (kayit.get("sebep") or "")
+        )
+        if degisti and (giris or cikis or ek_mesai or sebep):
+            db.puantaj_kaydet(tarih_iso, p["id"], giris, cikis, ek_mesai, sebep)
+
+    st.caption("Hafta içi günlerde 1 saatlik öğle molası, çalışma süresinden otomatik düşülür. Ek Mesai manuel girilir.")
 
     st.markdown("---")
-    st.markdown("**Aylık toplam**")
+    st.markdown("**Aylık görünüm**")
     col1, col2 = st.columns(2)
     yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=secili_tarih.year, key="puantaj_yil")
     ay = col2.selectbox("Ay", list(range(1, 13)), index=secili_tarih.month - 1,
                          format_func=lambda x: calendar.month_name[x], key="puantaj_ay")
+
     kayitlar_ay = db.puantaj_getir_ay(yil, ay)
+    kayit_haritasi = {}
+    for k in kayitlar_ay:
+        kayit_haritasi.setdefault(k["tarih"], {})[k["personel_id"]] = k
+
+    gun_sayisi = calendar.monthrange(yil, ay)[1]
+    gun_renkleri = {5: "#EAF3DE", 6: "#FCEBEB"}  # Cumartesi yeşilimsi, Pazar somon
+
+    satirlar_html = []
+    for gun_no in range(1, gun_sayisi + 1):
+        d = date(yil, ay, gun_no)
+        d_iso = d.isoformat()
+        haftanin_gunu = d.weekday()
+        renk = gun_renkleri.get(haftanin_gunu, "#FFFFFF" if haftanin_gunu <= 4 else "#FFFFFF")
+        hucre = f"<td style='padding:4px 8px;border:1px solid #ddd;white-space:nowrap;background:{renk}'>{d.strftime('%d.%m.%Y')}<br><span style='font-size:11px;color:#555'>{GUN_ISIMLERI_KISA[haftanin_gunu]}</span></td>"
+        for p in personeller:
+            k = kayit_haritasi.get(d_iso, {}).get(p["id"], {})
+            g = k.get("giris_saati") or ""
+            c = k.get("cikis_saati") or ""
+            em = k.get("ek_mesai_saat") or ""
+            sb = k.get("sebep") or ""
+            hucre += (
+                f"<td style='padding:4px 8px;border:1px solid #ddd;background:{renk}'>{g}</td>"
+                f"<td style='padding:4px 8px;border:1px solid #ddd;background:{renk}'>{c}</td>"
+                f"<td style='padding:4px 8px;border:1px solid #ddd;background:{renk}'>{em}</td>"
+                f"<td style='padding:4px 8px;border:1px solid #ddd;background:{renk}'>{sb}</td>"
+            )
+        satirlar_html.append(f"<tr>{hucre}</tr>")
+
+    baslik_ust = "<th style='padding:4px 8px;border:1px solid #ddd;background:#f5f5f5'>Tarih</th>"
+    for p in personeller:
+        baslik_ust += f"<th colspan='4' style='padding:4px 8px;border:1px solid #ddd;background:#378ADD;color:white;text-align:center'>{p['ad_soyad']}</th>"
+    baslik_alt = "<th style='border:1px solid #ddd;background:#f5f5f5'></th>"
+    for _ in personeller:
+        baslik_alt += (
+            "<th style='padding:4px 8px;border:1px solid #ddd;background:#E6F1FB;font-size:11px'>Giriş</th>"
+            "<th style='padding:4px 8px;border:1px solid #ddd;background:#E6F1FB;font-size:11px'>Çıkış</th>"
+            "<th style='padding:4px 8px;border:1px solid #ddd;background:#E6F1FB;font-size:11px'>Ek Mesai</th>"
+            "<th style='padding:4px 8px;border:1px solid #ddd;background:#E6F1FB;font-size:11px'>Sebebi</th>"
+        )
+
+    tablo_html = (
+        "<div style='overflow-x:auto'><table style='border-collapse:collapse;font-size:13px;width:100%'>"
+        f"<thead><tr>{baslik_ust}</tr><tr>{baslik_alt}</tr></thead>"
+        f"<tbody>{''.join(satirlar_html)}</tbody></table></div>"
+    )
+    st.markdown(tablo_html, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("**Aylık toplam**")
     personel_haritasi = {p["id"]: p["ad_soyad"] for p in personeller}
     toplamlar = {}
     for k in kayitlar_ay:
-        if not (k.get("giris_saati") and k.get("cikis_saati")):
-            continue
+        net_dk = _calisma_dakika_hesapla(k.get("giris_saati"), k.get("cikis_saati"), k["tarih"])
         try:
-            g = datetime.strptime(k["giris_saati"], "%H:%M")
-            c = datetime.strptime(k["cikis_saati"], "%H:%M")
-            fark_dk = int((c - g).total_seconds() // 60)
-        except ValueError:
-            continue
-        if fark_dk <= 0:
-            continue
+            ek_dk = int(round(float(str(k.get("ek_mesai_saat") or 0).replace(",", ".")) * 60))
+        except (ValueError, TypeError):
+            ek_dk = 0
         ad = personel_haritasi.get(k["personel_id"], "?")
-        toplam_dk, mesai_dk_toplam = toplamlar.get(ad, (0, 0))
-        toplam_dk += fark_dk
-        if data.is_resmi_tatil(k["tarih"]):
-            mesai_dk_toplam += fark_dk
-        else:
-            mesai_dk_toplam += max(0, fark_dk - 9 * 60)
-        toplamlar[ad] = (toplam_dk, mesai_dk_toplam)
+        toplam_dk, ekmesai_dk = toplamlar.get(ad, (0, 0))
+        if net_dk:
+            toplam_dk += net_dk
+        ekmesai_dk += ek_dk
+        toplamlar[ad] = (toplam_dk, ekmesai_dk)
 
     if not toplamlar:
         st.caption("Bu ay için kayıt yok.")
     else:
         cols = st.columns(min(4, len(toplamlar)))
-        for i, (ad, (toplam_dk, mesai_dk)) in enumerate(toplamlar.items()):
+        for i, (ad, (toplam_dk, ekmesai_dk)) in enumerate(toplamlar.items()):
             with cols[i % len(cols)]:
-                st.metric(ad, f"{toplam_dk // 60} saat", f"{mesai_dk // 60} saat mesai")
+                st.metric(ad, f"{toplam_dk // 60}s {toplam_dk % 60}d", f"{ekmesai_dk // 60}s {ekmesai_dk % 60}d ek mesai")
 
 
 # ------------------------------------------------------------------
@@ -1110,16 +1172,46 @@ def _planlama_gorevler_bolumu():
 
 def _depo_transfer_bolumu():
     st.caption("Giriş Katı personeli, Alsancak deposundan istediği ürünler için burada bir talep açar.")
-    with st.form("yeni_transfer_form", clear_on_submit=True):
-        c1, c2 = st.columns(2)
-        talep_eden = c1.selectbox("Talep eden depo", ["Giriş Katı", "Alsancak"])
-        hedef = c2.selectbox("Hedef depo (ürünün geleceği yer)", ["Alsancak", "Giriş Katı"])
-        urun = st.text_input("Ürün / açıklama")
-        adet = st.text_input("Adet")
-        ne_zaman = st.text_input("Ne zaman gelmesini istiyorsunuz? (açıklama)", placeholder="Örn. bugün öğleden sonra")
-        if st.form_submit_button("📣 Çağrıda bulun") and urun:
-            db.transfer_talebi_ekle(talep_eden, hedef, urun, adet, ne_zaman)
-            st.success("Talep oluşturuldu, Bildirim ekranına düştü.")
+    c1, c2 = st.columns(2)
+    talep_eden = c1.selectbox("Talep eden depo", ["Giriş Katı", "Alsancak"], key="transfer_talep_eden")
+    hedef = c2.selectbox("Hedef depo (ürünün geleceği yer)", ["Alsancak", "Giriş Katı"], key="transfer_hedef")
+    ne_zaman = st.text_input("Ne zaman gelmesini istiyorsunuz? (açıklama)", placeholder="Örn. bugün öğleden sonra", key="transfer_ne_zaman")
+
+    try:
+        with st.spinner("Stok verisi çekiliyor..."):
+            urunler = _stok_verisi_cache()
+    except Exception as e:
+        st.error(f"Stok verisi alınamadı: {e}")
+        return
+
+    if not urunler:
+        st.info("Stok verisi bulunamadı.")
+        return
+
+    df = pd.DataFrame(urunler)
+    df["_stok_sayi"] = pd.to_numeric(df["Stok"], errors="coerce").fillna(0)
+    df = df.sort_values("_stok_sayi", ascending=False).reset_index(drop=True)
+
+    arama = st.text_input("Ürün adı veya stok kodu ara", key="transfer_arama", placeholder="Aramak için yazın...")
+    df_goster = df[["Ürün Adı", "Stok Kodu", "Stok"]].copy()
+    if arama:
+        mask = df_goster["Ürün Adı"].str.contains(arama, case=False, na=False) | df_goster["Stok Kodu"].str.contains(arama, case=False, na=False)
+        df_goster = df_goster[mask]
+    df_goster.insert(len(df_goster.columns), "İstenen Adet", "")
+
+    edited = st.data_editor(
+        df_goster, use_container_width=True, height=450, key="transfer_urun_editor",
+        disabled=["Ürün Adı", "Stok Kodu", "Stok"], hide_index=True,
+    )
+
+    if st.button("📣 Çağır", type="primary"):
+        secili_satirlar = edited[edited["İstenen Adet"].apply(lambda v: str(v).strip() not in ("", "nan", "None"))]
+        if secili_satirlar.empty:
+            st.warning("Lütfen en az bir ürün için istenen adet girin.")
+        else:
+            for _, row in secili_satirlar.iterrows():
+                db.transfer_talebi_ekle(talep_eden, hedef, row["Ürün Adı"], row["İstenen Adet"], ne_zaman)
+            st.success(f"{len(secili_satirlar)} ürün için talep oluşturuldu, Bildirim ekranına düştü.")
             st.rerun()
 
     st.markdown("---")
@@ -1150,6 +1242,12 @@ def sayfa_bildirim():
     bugun_iso = date.today().isoformat()
     simdi_saat = datetime.now().strftime("%H:%M")
 
+    dogum_gunu_olanlar = db.bugun_dogum_gunu_olanlar()
+    if dogum_gunu_olanlar:
+        st.markdown("**🎂 Bugün doğum günü olanlar**")
+        for p in dogum_gunu_olanlar:
+            st.success(f"🎉 {p['ad_soyad']}'in bugün doğum günü!")
+
     bekleyen_gorevler = db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat)
     if bekleyen_gorevler:
         st.markdown("**⏰ Zamanı gelen planlanan işler**")
@@ -1163,7 +1261,7 @@ def sayfa_bildirim():
             not_metni = f" ({t['istenen_zaman_aciklama']})" if t.get("istenen_zaman_aciklama") else ""
             st.info(f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet){not_metni}")
 
-    if not bekleyen_gorevler and not transfer_talepleri:
+    if not bekleyen_gorevler and not transfer_talepleri and not dogum_gunu_olanlar:
         st.info("Şu an bekleyen bir bildirim yok.")
 
 
@@ -1174,21 +1272,42 @@ def sayfa_kontrollistesi():
     geri_butonu()
     st.header("Kontrol Listesi")
 
-    secili_tarih = st.date_input("Tarih", value=date.today(), key="kl_tarih")
-    tarih_iso = secili_tarih.isoformat()
+    tab_gunluk, tab_haftalik, tab_aylik = st.tabs(["📅 Günlük", "🗓️ Haftalık", "📆 Aylık"])
 
-    with st.form("yeni_kontrol_form", clear_on_submit=True):
-        madde = st.text_input("Kontrol edilecek iş")
+    with tab_gunluk:
+        secili_tarih = st.date_input("Tarih", value=date.today(), key="kl_g_tarih")
+        _kontrol_listesi_ortak(secili_tarih.isoformat(), "gunluk", secili_tarih.strftime("%d.%m.%Y"))
+
+    with tab_haftalik:
+        secili_tarih_h = st.date_input("Bu haftanın herhangi bir günü", value=date.today(), key="kl_h_tarih")
+        hafta_baslangic = secili_tarih_h - timedelta(days=secili_tarih_h.weekday())
+        hafta_bitis = hafta_baslangic + timedelta(days=6)
+        anahtar = hafta_baslangic.isoformat()
+        etiket = f"{hafta_baslangic.strftime('%d.%m.%Y')} - {hafta_bitis.strftime('%d.%m.%Y')}"
+        _kontrol_listesi_ortak(anahtar, "haftalik", etiket)
+
+    with tab_aylik:
+        col1, col2 = st.columns(2)
+        yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=date.today().year, key="kl_a_yil")
+        ay = col2.selectbox("Ay", list(range(1, 13)), index=date.today().month - 1,
+                             format_func=lambda x: calendar.month_name[x], key="kl_a_ay")
+        anahtar_ay = date(yil, ay, 1).isoformat()
+        _kontrol_listesi_ortak(anahtar_ay, "aylik", f"{calendar.month_name[ay]} {yil}")
+
+
+def _kontrol_listesi_ortak(anahtar_tarih, tip, etiket):
+    with st.form(f"yeni_kontrol_form_{tip}", clear_on_submit=True):
+        madde = st.text_input("Kontrol edilecek iş", key=f"kl_madde_{tip}")
         if st.form_submit_button("➕ Ekle") and madde:
-            db.kontrol_maddesi_ekle(tarih_iso, madde)
+            db.kontrol_maddesi_ekle(anahtar_tarih, madde, tip)
             st.rerun()
 
-    maddeler = db.kontrol_listesi_getir(tarih_iso)
+    maddeler = db.kontrol_listesi_getir(anahtar_tarih, tip)
     if not maddeler:
-        st.info(f"{secili_tarih.strftime('%d.%m.%Y')} için henüz madde eklenmedi.")
+        st.info(f"{etiket} için henüz madde eklenmedi.")
     for m in maddeler:
         c1, c2, c3 = st.columns([0.5, 4, 0.5])
-        tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{m['id']}")
+        tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{tip}_{m['id']}")
         if tik != m.get("tamamlandi", False):
             db.kontrol_maddesi_tamamla(m["id"], tik)
             st.rerun()
@@ -1196,7 +1315,7 @@ def sayfa_kontrollistesi():
             c2.markdown(f"<span style='text-decoration:line-through;color:#888;'>{m['madde']}</span>", unsafe_allow_html=True)
         else:
             c2.write(m["madde"])
-        if c3.button("🗑", key=f"kl_sil_{m['id']}"):
+        if c3.button("🗑", key=f"kl_sil_{tip}_{m['id']}"):
             db.kontrol_maddesi_sil(m["id"])
             st.rerun()
 
