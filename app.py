@@ -54,13 +54,43 @@ div[data-testid="stToolbar"] {visibility: hidden;}
     height: 260px !important; font-weight: 700 !important; color: #0F6B5C !important;
     line-height: 1.5 !important; width: 100% !important;
 }
+.st-key-kart7 button {
+    background-color: #FBEAF0 !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-weight: 700 !important; color: #72243E !important;
+    line-height: 1.5 !important; width: 100% !important;
+}
+.st-key-kart8 button {
+    background-color: #FCEBEB !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-weight: 700 !important; color: #791F1F !important;
+    line-height: 1.5 !important; width: 100% !important;
+}
+.st-key-kart9 button {
+    background-color: #F1EFE8 !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-weight: 700 !important; color: #444441 !important;
+    line-height: 1.5 !important; width: 100% !important;
+}
+.st-key-kart10 button {
+    background-color: #FAEEDA !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-weight: 700 !important; color: #633806 !important;
+    line-height: 1.5 !important; width: 100% !important;
+}
+.st-key-kart11 button {
+    background-color: #E1F5EE !important; border: none !important; border-radius: 32px !important;
+    height: 260px !important; font-weight: 700 !important; color: #0F6E56 !important;
+    line-height: 1.5 !important; width: 100% !important;
+}
 .st-key-kart1 button, .st-key-kart1 button *,
 .st-key-kart2 button, .st-key-kart2 button *,
 .st-key-kart3 button, .st-key-kart3 button *,
 .st-key-kart4 button, .st-key-kart4 button *,
 .st-key-kart5 button, .st-key-kart5 button *,
-.st-key-kart6 button, .st-key-kart6 button * {
-    font-size: 48px !important;
+.st-key-kart6 button, .st-key-kart6 button *,
+.st-key-kart7 button, .st-key-kart7 button *,
+.st-key-kart8 button, .st-key-kart8 button *,
+.st-key-kart9 button, .st-key-kart9 button *,
+.st-key-kart10 button, .st-key-kart10 button *,
+.st-key-kart11 button, .st-key-kart11 button * {
+    font-size: 40px !important;
 }
 .st-key-kartplan button {
     background-color: #F1E9FB !important; border: none !important; border-radius: 32px !important;
@@ -68,6 +98,14 @@ div[data-testid="stToolbar"] {visibility: hidden;}
     line-height: 1.4 !important; width: 100% !important; font-size: 30px !important;
 }
 .st-key-kartplan button * { font-size: 30px !important; }
+.st-key-ik_kart_personel button, .st-key-ik_kart_puantaj button,
+.st-key-pl_kart_gorevler button, .st-key-pl_kart_transfer button {
+    background-color: #F1E9FB !important; border: none !important; border-radius: 24px !important;
+    height: 110px !important; font-weight: 700 !important; color: #5B2A86 !important;
+    line-height: 1.4 !important; width: 100% !important; font-size: 26px !important;
+}
+.st-key-ik_kart_personel button *, .st-key-ik_kart_puantaj button *,
+.st-key-pl_kart_gorevler button *, .st-key-pl_kart_transfer button * { font-size: 26px !important; }
 .st-key-kargo_radyo div[data-testid="stRadio"] label p {
     font-size: 19px !important;
 }
@@ -75,12 +113,17 @@ div[data-testid="stToolbar"] {visibility: hidden;}
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# Şifreli giriş (herkes için ortak şifre)
+# Şifreli giriş (şimdilik tek ortak şifre - rol ayrımı ileride açılacak)
 # ------------------------------------------------------------------
 SIFRE = st.secrets.get("SITE_SIFRE", "kamtek2026")
+ROL_ISIMLERI = {"depo": "Depo Personeli", "patron": "Patron", "gelistirici": "Geliştirici"}
+# İK gibi hassas bölümleri görebilecek roller - şimdilik herkes görebiliyor (tek şifre var)
+IK_GORME_YETKISI = {"depo", "patron", "gelistirici"}
 
 if "giris_yapildi" not in st.session_state:
     st.session_state.giris_yapildi = False
+if "rol" not in st.session_state:
+    st.session_state.rol = None
 
 if not st.session_state.giris_yapildi:
     st.markdown("<h1 style='text-align:center; margin-top:80px;'>KAMTEK DEPO</h1>", unsafe_allow_html=True)
@@ -90,6 +133,7 @@ if not st.session_state.giris_yapildi:
         if st.button("Giriş Yap", use_container_width=True):
             if girilen == SIFRE:
                 st.session_state.giris_yapildi = True
+                st.session_state.rol = "gelistirici"
                 st.rerun()
             else:
                 st.error("Şifre hatalı.")
@@ -138,9 +182,9 @@ def sayfa_home():
 
     st.markdown("<h1 style='text-align:center; font-size:56px; margin-top:0;'>KAMTEK DEPO</h1>", unsafe_allow_html=True)
     st.write("")
-    st.write("")
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    st.markdown("<p style='color:var(--text-secondary,#666); font-size:13px; font-weight:500; margin-bottom:4px;'>Sevkiyat ve kargo</p>", unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         with st.container(key="kart1"):
             if st.button("🗺️\n\nSevkiyat Planlama", use_container_width=True):
@@ -150,21 +194,47 @@ def sayfa_home():
             if st.button("🚚\n\nKargo Takip", use_container_width=True):
                 git("kargotakip")
     with c3:
-        with st.container(key="kart3"):
-            if st.button("📦\n\nDepo", use_container_width=True):
-                git("depo")
-    with c4:
         with st.container(key="kart4"):
             if st.button("🏷️\n\nKargo Fiyat Listesi", use_container_width=True):
                 git("fiyatlistesi")
-    with c5:
+    with c4:
         with st.container(key="kart5"):
             if st.button("✅\n\nTamamlanmış Kargolar", use_container_width=True):
                 git("tamamlanankargolar")
+
+    st.write("")
+    st.markdown("<p style='color:var(--text-secondary,#666); font-size:13px; font-weight:500; margin-bottom:4px;'>Depo ve stok</p>", unsafe_allow_html=True)
+    c5, c6, c7, c8 = st.columns(4)
+    with c5:
+        with st.container(key="kart3"):
+            if st.button("📦\n\nDepo", use_container_width=True):
+                git("depo")
     with c6:
         with st.container(key="kart6"):
             if st.button("📊\n\nStok Takip", use_container_width=True):
                 git("stoktakip")
+    with c7:
+        with st.container(key="kart8"):
+            if st.button("↩️\n\nİade", use_container_width=True):
+                git("iade")
+    with c8:
+        with st.container(key="kart11"):
+            if st.button("☑️\n\nKontrol Listesi", use_container_width=True):
+                git("kontrollistesi")
+
+    st.write("")
+    st.markdown("<p style='color:var(--text-secondary,#666); font-size:13px; font-weight:500; margin-bottom:4px;'>Yönetim</p>", unsafe_allow_html=True)
+    yonetim_kartlari = []
+    if st.session_state.rol in IK_GORME_YETKISI:
+        yonetim_kartlari.append(("kart7", "👥\n\nİnsan Kaynakları", "insankaynaklari"))
+    yonetim_kartlari.append(("kart9", "🗓️\n\nPlanlama", "planlama"))
+    yonetim_kartlari.append(("kart10", "🔔\n\nBildirim", "bildirim"))
+    cols_y = st.columns(4)
+    for col, (key, etiket, hedef) in zip(cols_y, yonetim_kartlari):
+        with col:
+            with st.container(key=key):
+                if st.button(etiket, use_container_width=True):
+                    git(hedef)
 
 
 # ------------------------------------------------------------------
@@ -725,6 +795,413 @@ def sayfa_fiyatlistesi():
 
 
 # ------------------------------------------------------------------
+# İNSAN KAYNAKLARI
+# ------------------------------------------------------------------
+def sayfa_insankaynaklari():
+    if st.session_state.rol not in IK_GORME_YETKISI:
+        st.error("Bu bölümü görüntüleme yetkiniz yok.")
+        geri_butonu()
+        return
+    geri_butonu()
+    st.header("İnsan Kaynakları")
+
+    if "ik_alt_sayfa" not in st.session_state:
+        st.session_state.ik_alt_sayfa = "personel"
+
+    c1, c2 = st.columns(2)
+    with c1:
+        with st.container(key="ik_kart_personel"):
+            if st.button("👤\n\nPersonel", use_container_width=True):
+                st.session_state.ik_alt_sayfa = "personel"
+    with c2:
+        with st.container(key="ik_kart_puantaj"):
+            if st.button("🕒\n\nPuantaj", use_container_width=True):
+                st.session_state.ik_alt_sayfa = "puantaj"
+
+    st.markdown("---")
+    if st.session_state.ik_alt_sayfa == "personel":
+        _personel_bolumu()
+    else:
+        _puantaj_bolumu()
+
+
+def _personel_bolumu():
+    st.subheader("Personel")
+    with st.expander("➕ Yeni personel ekle"):
+        ad_soyad = st.text_input("Ad Soyad", key="yeni_p_ad")
+        yas = st.text_input("Yaş", key="yeni_p_yas")
+        telefon = st.text_input("Telefon", key="yeni_p_tel")
+        foto = st.file_uploader("Fotoğraf", type=["jpg", "jpeg", "png"], key="yeni_p_foto")
+        if st.button("Kaydet", key="yeni_p_kaydet"):
+            if not ad_soyad:
+                st.warning("Ad soyad girin.")
+            else:
+                db.personel_ekle(ad_soyad, yas, telefon, foto.getvalue() if foto else None)
+                st.success(f"{ad_soyad} eklendi.")
+                st.rerun()
+
+    personeller = db.personel_listele()
+    if not personeller:
+        st.info("Henüz personel eklenmedi.")
+        return
+
+    cols = st.columns(4)
+    for i, p in enumerate(personeller):
+        with cols[i % 4]:
+            if p.get("foto_bytes"):
+                b64 = base64.b64encode(p["foto_bytes"]).decode()
+                st.markdown(
+                    f"<div style='width:110px;height:110px;border-radius:50%;overflow:hidden;"
+                    f"margin:0 auto;'><img src='data:image/png;base64,{b64}' "
+                    f"style='width:100%;height:100%;object-fit:cover;'></div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    "<div style='width:110px;height:110px;border-radius:50%;background:#E6F1FB;"
+                    "display:flex;align-items:center;justify-content:center;margin:0 auto;"
+                    "font-size:32px;color:#0C447C;'>👤</div>",
+                    unsafe_allow_html=True,
+                )
+            st.markdown(f"<p style='text-align:center;font-weight:600;margin-top:6px;'>{p['ad_soyad']}</p>", unsafe_allow_html=True)
+            st.markdown(
+                f"<p style='text-align:center;font-size:12px;color:#666;'>Yaş: {p.get('yas') or '-'} · {p.get('telefon') or '-'}</p>",
+                unsafe_allow_html=True,
+            )
+            with st.popover("📁 Özlük Sayfası", use_container_width=True):
+                _ozluk_sayfasi(p["id"], p["ad_soyad"])
+            if st.button("🗑 Sil", key=f"personel_sil_{p['id']}", use_container_width=True):
+                db.personel_sil(p["id"])
+                st.rerun()
+
+
+def _ozluk_sayfasi(personel_id, ad_soyad):
+    st.markdown(f"**{ad_soyad} — Özlük Sayfası**")
+    belge_turu = st.selectbox(
+        "Belge türü", ["Sağlık Raporu", "Sicil Kaydı Raporu", "İzin Raporu", "Diğer"],
+        key=f"belge_turu_{personel_id}",
+    )
+    dosya = st.file_uploader("Belge yükle", key=f"belge_dosya_{personel_id}")
+    if dosya is not None and st.button("Yükle", key=f"belge_yukle_{personel_id}"):
+        db.ozluk_belgesi_ekle(personel_id, belge_turu, dosya.name, dosya.getvalue())
+        st.success("Belge yüklendi.")
+        st.rerun()
+
+    belgeler = db.ozluk_belgeleri_getir(personel_id)
+    if not belgeler:
+        st.caption("Henüz belge yüklenmedi.")
+    for b in belgeler:
+        c1, c2, c3 = st.columns([2, 2, 1])
+        c1.caption(f"{b['belge_turu']}")
+        c2.download_button("⬇", data=b["dosya_icerik"], file_name=b["dosya_adi"], key=f"belge_indir_{b['id']}")
+        if c3.button("🗑", key=f"belge_sil_{b['id']}"):
+            db.ozluk_belgesi_sil(b["id"])
+            st.rerun()
+
+
+def _puantaj_bolumu():
+    st.subheader("Puantaj")
+    personeller = db.personel_listele()
+    if not personeller:
+        st.info("Puantaj tutabilmek için önce Personel bölümünden personel eklemelisiniz.")
+        return
+
+    secili_tarih = st.date_input("Tarih", value=date.today(), key="puantaj_tarih")
+    tarih_iso = secili_tarih.isoformat()
+    if data.is_resmi_tatil(tarih_iso):
+        st.info(f"📅 {data.resmi_tatil_adi(tarih_iso)} — resmi tatil.")
+
+    mevcut = db.puantaj_getir_gun(tarih_iso)
+    for p in personeller:
+        kayit = mevcut.get(p["id"], {})
+        c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
+        c1.write(p["ad_soyad"])
+        giris = c2.text_input("Giriş", value=kayit.get("giris_saati") or "", key=f"giris_{p['id']}_{tarih_iso}", placeholder="08:00")
+        cikis = c3.text_input("Çıkış", value=kayit.get("cikis_saati") or "", key=f"cikis_{p['id']}_{tarih_iso}", placeholder="17:30")
+        sure_str = "-"
+        if giris and cikis:
+            try:
+                g = datetime.strptime(giris, "%H:%M")
+                c = datetime.strptime(cikis, "%H:%M")
+                fark_dk = int((c - g).total_seconds() // 60)
+                if fark_dk > 0:
+                    saat, dk = divmod(fark_dk, 60)
+                    sure_str = f"{saat}s {dk}d"
+                    if data.is_resmi_tatil(tarih_iso):
+                        mesai_dk = fark_dk  # resmi tatilde çalışılan sürenin tamamı mesai sayılır
+                    else:
+                        mesai_dk = max(0, fark_dk - 9 * 60)
+                    if mesai_dk > 0:
+                        ms, md = divmod(mesai_dk, 60)
+                        sure_str += f" (mesai {ms}s {md}d)"
+            except ValueError:
+                sure_str = "geçersiz saat"
+        c4.write(sure_str)
+        if giris != (kayit.get("giris_saati") or "") or cikis != (kayit.get("cikis_saati") or ""):
+            if giris or cikis:
+                db.puantaj_kaydet(tarih_iso, p["id"], giris, cikis)
+
+    st.markdown("---")
+    st.markdown("**Aylık toplam**")
+    col1, col2 = st.columns(2)
+    yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=secili_tarih.year, key="puantaj_yil")
+    ay = col2.selectbox("Ay", list(range(1, 13)), index=secili_tarih.month - 1,
+                         format_func=lambda x: calendar.month_name[x], key="puantaj_ay")
+    kayitlar_ay = db.puantaj_getir_ay(yil, ay)
+    personel_haritasi = {p["id"]: p["ad_soyad"] for p in personeller}
+    toplamlar = {}
+    for k in kayitlar_ay:
+        if not (k.get("giris_saati") and k.get("cikis_saati")):
+            continue
+        try:
+            g = datetime.strptime(k["giris_saati"], "%H:%M")
+            c = datetime.strptime(k["cikis_saati"], "%H:%M")
+            fark_dk = int((c - g).total_seconds() // 60)
+        except ValueError:
+            continue
+        if fark_dk <= 0:
+            continue
+        ad = personel_haritasi.get(k["personel_id"], "?")
+        toplam_dk, mesai_dk_toplam = toplamlar.get(ad, (0, 0))
+        toplam_dk += fark_dk
+        if data.is_resmi_tatil(k["tarih"]):
+            mesai_dk_toplam += fark_dk
+        else:
+            mesai_dk_toplam += max(0, fark_dk - 9 * 60)
+        toplamlar[ad] = (toplam_dk, mesai_dk_toplam)
+
+    if not toplamlar:
+        st.caption("Bu ay için kayıt yok.")
+    else:
+        cols = st.columns(min(4, len(toplamlar)))
+        for i, (ad, (toplam_dk, mesai_dk)) in enumerate(toplamlar.items()):
+            with cols[i % len(cols)]:
+                st.metric(ad, f"{toplam_dk // 60} saat", f"{mesai_dk // 60} saat mesai")
+
+
+# ------------------------------------------------------------------
+# İADE
+# ------------------------------------------------------------------
+def sayfa_iade():
+    geri_butonu()
+    st.header("İade")
+    st.caption("Firmalardan gelen iadeler faturası kabul edilene kadar burada takip edilir.")
+
+    with st.expander("➕ Yeni iade ekle"):
+        firma = st.text_input("Firma / Müşteri Adı", key="iade_firma")
+        urun = st.text_input("Ürün Adı", key="iade_urun")
+        adet = st.text_input("Adet", key="iade_adet")
+        tarih_g = st.date_input("Tarih", value=date.today(), key="iade_tarih")
+        seri_no = st.text_area("Seri Numaraları (her satıra bir tane)", key="iade_seri", height=120)
+        if st.button("Ekle", key="iade_ekle_btn"):
+            if not firma or not urun:
+                st.warning("Firma ve ürün adı girin.")
+            else:
+                db.iade_ekle(firma, urun, seri_no, adet, tarih_g.isoformat())
+                st.success("İade eklendi.")
+                st.rerun()
+
+    iadeler = db.iadeler_getir()
+    if not iadeler:
+        st.info("Henüz iade kaydı yok.")
+        return
+
+    for iade in iadeler:
+        durum = iade.get("durum", "Bekliyor")
+        renk = "#EAF3DE" if durum == "Kabul Edildi" else "#FAEEDA"
+        yazi_renk = "#27500A" if durum == "Kabul Edildi" else "#854F0B"
+        with st.expander(f"{iade['firma_adi']} — {iade['urun_adi']} ({iade.get('adet') or '?'} adet) — {iade.get('tarih') or ''}"):
+            st.markdown(
+                f"<span style='background:{renk};color:{yazi_renk};font-size:12px;padding:3px 8px;border-radius:6px;'>{durum}</span>",
+                unsafe_allow_html=True,
+            )
+            seriler = [s.strip() for s in (iade.get("seri_numaralari") or "").splitlines() if s.strip()]
+            if seriler:
+                st.markdown("**Seri numaraları:**")
+                st.write(", ".join(seriler))
+            c1, c2 = st.columns(2)
+            if durum != "Kabul Edildi":
+                if c1.button("✓ Kabul Edildi olarak işaretle", key=f"iade_kabul_{iade['id']}"):
+                    db.iade_durum_guncelle(iade["id"], "Kabul Edildi")
+                    st.rerun()
+            else:
+                if c1.button("↺ Bekliyor'a al", key=f"iade_bekliyor_{iade['id']}"):
+                    db.iade_durum_guncelle(iade["id"], "Bekliyor")
+                    st.rerun()
+            if c2.button("🗑 Sil", key=f"iade_sil_{iade['id']}"):
+                db.iade_sil(iade["id"])
+                st.rerun()
+
+
+# ------------------------------------------------------------------
+# PLANLAMA
+# ------------------------------------------------------------------
+def sayfa_planlama():
+    geri_butonu()
+    st.header("Planlama")
+
+    if "planlama_alt_sayfa" not in st.session_state:
+        st.session_state.planlama_alt_sayfa = "gorevler"
+    c1, c2 = st.columns(2)
+    with c1:
+        with st.container(key="pl_kart_gorevler"):
+            if st.button("📝\n\nGünlük İşler", use_container_width=True):
+                st.session_state.planlama_alt_sayfa = "gorevler"
+    with c2:
+        with st.container(key="pl_kart_transfer"):
+            if st.button("🔁\n\nDepolar Arası Transfer", use_container_width=True):
+                st.session_state.planlama_alt_sayfa = "transfer"
+
+    st.markdown("---")
+    if st.session_state.planlama_alt_sayfa == "gorevler":
+        _planlama_gorevler_bolumu()
+    else:
+        _depo_transfer_bolumu()
+
+
+def _planlama_gorevler_bolumu():
+    secili_tarih = st.date_input("Tarih", value=date.today(), key="planlama_tarih")
+    tarih_iso = secili_tarih.isoformat()
+
+    with st.form("yeni_gorev_form", clear_on_submit=True):
+        c1, c2 = st.columns([1, 3])
+        saat = c1.text_input("Saat", placeholder="09:00")
+        aciklama = c2.text_input("İş açıklaması")
+        if st.form_submit_button("➕ Ekle") and aciklama:
+            db.gorev_ekle(tarih_iso, saat, aciklama)
+            st.rerun()
+
+    gorevler = db.gorevler_getir_gun(tarih_iso)
+    if not gorevler:
+        st.info(f"{secili_tarih.strftime('%d.%m.%Y')} için henüz iş eklenmedi.")
+    for g in gorevler:
+        c1, c2, c3 = st.columns([0.5, 4, 0.5])
+        tik = c1.checkbox("", value=g.get("tamamlandi", False), key=f"gorev_tik_{g['id']}")
+        if tik != g.get("tamamlandi", False):
+            db.gorev_tamamla(g["id"], tik)
+            st.rerun()
+        etiket = f"{g.get('saat') or ''} — {g['aciklama']}"
+        if g.get("tamamlandi"):
+            c2.markdown(f"<span style='text-decoration:line-through;color:#888;'>{etiket}</span>", unsafe_allow_html=True)
+        else:
+            c2.write(etiket)
+        if c3.button("🗑", key=f"gorev_sil_{g['id']}"):
+            db.gorev_sil(g["id"])
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("**Aylık döküm**")
+    col1, col2 = st.columns(2)
+    yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=secili_tarih.year, key="planlama_yil")
+    ay = col2.selectbox("Ay", list(range(1, 13)), index=secili_tarih.month - 1,
+                         format_func=lambda x: calendar.month_name[x], key="planlama_ay")
+    gorevler_ay = db.gorevler_getir_ay(yil, ay)
+    gun_bazinda = {}
+    for g in gorevler_ay:
+        if g.get("tamamlandi"):
+            gun_bazinda.setdefault(g["tarih"], []).append(g["aciklama"])
+    if not gun_bazinda:
+        st.caption("Bu ay tamamlanmış iş yok.")
+    else:
+        for gun in sorted(gun_bazinda.keys()):
+            gun_fmt = datetime.fromisoformat(gun).strftime("%d.%m.%Y")
+            st.markdown(f"**{gun_fmt}**: " + ", ".join(gun_bazinda[gun]))
+
+
+def _depo_transfer_bolumu():
+    st.caption("Giriş Katı personeli, Alsancak deposundan istediği ürünler için burada bir talep açar.")
+    with st.form("yeni_transfer_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        talep_eden = c1.selectbox("Talep eden depo", ["Giriş Katı", "Alsancak"])
+        hedef = c2.selectbox("Hedef depo (ürünün geleceği yer)", ["Alsancak", "Giriş Katı"])
+        urun = st.text_input("Ürün / açıklama")
+        adet = st.text_input("Adet")
+        ne_zaman = st.text_input("Ne zaman gelmesini istiyorsunuz? (açıklama)", placeholder="Örn. bugün öğleden sonra")
+        if st.form_submit_button("📣 Çağrıda bulun") and urun:
+            db.transfer_talebi_ekle(talep_eden, hedef, urun, adet, ne_zaman)
+            st.success("Talep oluşturuldu, Bildirim ekranına düştü.")
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("**Bekleyen talepler**")
+    talepler = db.transfer_talepleri_getir("Bekliyor")
+    if not talepler:
+        st.caption("Bekleyen talep yok.")
+    for t in talepler:
+        with st.expander(f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet)"):
+            if t.get("istenen_zaman_aciklama"):
+                st.write(f"Not: {t['istenen_zaman_aciklama']}")
+            c1, c2 = st.columns(2)
+            if c1.button("✓ Ayarlandı", key=f"transfer_tamam_{t['id']}"):
+                db.transfer_talebi_durum_guncelle(t["id"], "Tamamlandı")
+                st.rerun()
+            if c2.button("🗑 Sil", key=f"transfer_sil_{t['id']}"):
+                db.transfer_talebi_sil(t["id"])
+                st.rerun()
+
+
+# ------------------------------------------------------------------
+# BİLDİRİM
+# ------------------------------------------------------------------
+def sayfa_bildirim():
+    geri_butonu()
+    st.header("Bildirim")
+
+    bugun_iso = date.today().isoformat()
+    simdi_saat = datetime.now().strftime("%H:%M")
+
+    bekleyen_gorevler = db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat)
+    if bekleyen_gorevler:
+        st.markdown("**⏰ Zamanı gelen planlanan işler**")
+        for g in bekleyen_gorevler:
+            st.warning(f"{g.get('saat') or ''} — {g['aciklama']}")
+
+    transfer_talepleri = db.transfer_talepleri_getir("Bekliyor")
+    if transfer_talepleri:
+        st.markdown("**🔁 Bekleyen depo transfer çağrıları**")
+        for t in transfer_talepleri:
+            not_metni = f" ({t['istenen_zaman_aciklama']})" if t.get("istenen_zaman_aciklama") else ""
+            st.info(f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet){not_metni}")
+
+    if not bekleyen_gorevler and not transfer_talepleri:
+        st.info("Şu an bekleyen bir bildirim yok.")
+
+
+# ------------------------------------------------------------------
+# KONTROL LİSTESİ
+# ------------------------------------------------------------------
+def sayfa_kontrollistesi():
+    geri_butonu()
+    st.header("Kontrol Listesi")
+
+    secili_tarih = st.date_input("Tarih", value=date.today(), key="kl_tarih")
+    tarih_iso = secili_tarih.isoformat()
+
+    with st.form("yeni_kontrol_form", clear_on_submit=True):
+        madde = st.text_input("Kontrol edilecek iş")
+        if st.form_submit_button("➕ Ekle") and madde:
+            db.kontrol_maddesi_ekle(tarih_iso, madde)
+            st.rerun()
+
+    maddeler = db.kontrol_listesi_getir(tarih_iso)
+    if not maddeler:
+        st.info(f"{secili_tarih.strftime('%d.%m.%Y')} için henüz madde eklenmedi.")
+    for m in maddeler:
+        c1, c2, c3 = st.columns([0.5, 4, 0.5])
+        tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{m['id']}")
+        if tik != m.get("tamamlandi", False):
+            db.kontrol_maddesi_tamamla(m["id"], tik)
+            st.rerun()
+        if m.get("tamamlandi"):
+            c2.markdown(f"<span style='text-decoration:line-through;color:#888;'>{m['madde']}</span>", unsafe_allow_html=True)
+        else:
+            c2.write(m["madde"])
+        if c3.button("🗑", key=f"kl_sil_{m['id']}"):
+            db.kontrol_maddesi_sil(m["id"])
+            st.rerun()
+
+
+# ------------------------------------------------------------------
 # YÖNLENDİRME
 # ------------------------------------------------------------------
 SAYFALAR = {
@@ -735,6 +1212,11 @@ SAYFALAR = {
     "fiyatlistesi": sayfa_fiyatlistesi,
     "tamamlanankargolar": sayfa_tamamlanankargolar,
     "stoktakip": sayfa_stoktakip,
+    "insankaynaklari": sayfa_insankaynaklari,
+    "iade": sayfa_iade,
+    "planlama": sayfa_planlama,
+    "bildirim": sayfa_bildirim,
+    "kontrollistesi": sayfa_kontrollistesi,
 }
 
 SAYFALAR[st.session_state.sayfa]()
