@@ -200,3 +200,234 @@ def tamamlanan_kargolar_getir_ay(yil: int, ay: int):
 def tamamlanan_kargo_sil(kayit_id: int):
     r = requests.delete(f"{_REST}/tamamlanan_kargolar", headers=_HEADERS, params={"id": f"eq.{kayit_id}"}, timeout=15)
     r.raise_for_status()
+
+
+# ---------- İnsan Kaynakları: Personel ----------
+
+def personel_ekle(ad_soyad, yas, telefon, foto_bytes):
+    row = {
+        "ad_soyad": ad_soyad, "yas": yas, "telefon": telefon,
+        "foto_b64": base64.b64encode(foto_bytes).decode() if foto_bytes else None,
+        "olusturma_zamani": date.today().isoformat(),
+    }
+    r = requests.post(f"{_REST}/personel", headers=_HEADERS, data=json.dumps(row), timeout=20)
+    r.raise_for_status()
+
+
+def personel_listele():
+    r = requests.get(f"{_REST}/personel", headers=_HEADERS, params={"order": "ad_soyad"}, timeout=15)
+    r.raise_for_status()
+    sonuc = []
+    for row in r.json():
+        row = dict(row)
+        row["foto_bytes"] = base64.b64decode(row["foto_b64"]) if row.get("foto_b64") else None
+        sonuc.append(row)
+    return sonuc
+
+
+def personel_sil(personel_id: int):
+    r = requests.delete(f"{_REST}/personel", headers=_HEADERS, params={"id": f"eq.{personel_id}"}, timeout=15)
+    r.raise_for_status()
+
+
+def ozluk_belgesi_ekle(personel_id, belge_turu, dosya_adi, dosya_bytes):
+    row = {
+        "personel_id": personel_id, "belge_turu": belge_turu, "dosya_adi": dosya_adi,
+        "dosya_icerik_b64": base64.b64encode(dosya_bytes).decode(),
+        "yuklenme_zamani": date.today().isoformat(),
+    }
+    r = requests.post(f"{_REST}/ozluk_belgeleri", headers=_HEADERS, data=json.dumps(row), timeout=30)
+    r.raise_for_status()
+
+
+def ozluk_belgeleri_getir(personel_id):
+    params = {"personel_id": f"eq.{personel_id}", "order": "id"}
+    r = requests.get(f"{_REST}/ozluk_belgeleri", headers=_HEADERS, params=params, timeout=20)
+    r.raise_for_status()
+    sonuc = []
+    for row in r.json():
+        sonuc.append({
+            "id": row["id"], "belge_turu": row["belge_turu"], "dosya_adi": row["dosya_adi"],
+            "dosya_icerik": base64.b64decode(row["dosya_icerik_b64"]),
+            "yuklenme_zamani": row.get("yuklenme_zamani"),
+        })
+    return sonuc
+
+
+def ozluk_belgesi_sil(belge_id: int):
+    r = requests.delete(f"{_REST}/ozluk_belgeleri", headers=_HEADERS, params={"id": f"eq.{belge_id}"}, timeout=15)
+    r.raise_for_status()
+
+
+# ---------- İnsan Kaynakları: Puantaj ----------
+
+def puantaj_kaydet(tarih, personel_id, giris_saati, cikis_saati):
+    row = {"tarih": tarih, "personel_id": personel_id, "giris_saati": giris_saati, "cikis_saati": cikis_saati}
+    headers = dict(_HEADERS)
+    headers["Prefer"] = "resolution=merge-duplicates"
+    r = requests.post(
+        f"{_REST}/puantaj", headers=headers, params={"on_conflict": "tarih,personel_id"},
+        data=json.dumps(row), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def puantaj_getir_gun(tarih):
+    params = {"tarih": f"eq.{tarih}"}
+    r = requests.get(f"{_REST}/puantaj", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return {row["personel_id"]: row for row in r.json()}
+
+
+def puantaj_getir_ay(yil, ay):
+    prefix = f"{yil:04d}-{ay:02d}"
+    params = {"tarih": f"like.{prefix}%"}
+    r = requests.get(f"{_REST}/puantaj", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+# ---------- İade ----------
+
+def iade_ekle(firma_adi, urun_adi, seri_numaralari, adet, tarih):
+    row = {
+        "firma_adi": firma_adi, "urun_adi": urun_adi, "seri_numaralari": seri_numaralari,
+        "adet": adet, "tarih": tarih, "durum": "Bekliyor",
+        "olusturma_zamani": date.today().isoformat(),
+    }
+    r = requests.post(f"{_REST}/iadeler", headers=_HEADERS, data=json.dumps(row), timeout=15)
+    r.raise_for_status()
+
+
+def iadeler_getir():
+    r = requests.get(f"{_REST}/iadeler", headers=_HEADERS, params={"order": "id.desc"}, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def iade_durum_guncelle(iade_id, durum):
+    r = requests.patch(
+        f"{_REST}/iadeler", headers=_HEADERS, params={"id": f"eq.{iade_id}"},
+        data=json.dumps({"durum": durum}), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def iade_sil(iade_id):
+    r = requests.delete(f"{_REST}/iadeler", headers=_HEADERS, params={"id": f"eq.{iade_id}"}, timeout=15)
+    r.raise_for_status()
+
+
+# ---------- Planlama: günlük görevler ----------
+
+def gorev_ekle(tarih, saat, aciklama):
+    row = {
+        "tarih": tarih, "saat": saat, "aciklama": aciklama, "tamamlandi": False,
+        "olusturma_zamani": date.today().isoformat(),
+    }
+    r = requests.post(f"{_REST}/planlama_gorevler", headers=_HEADERS, data=json.dumps(row), timeout=15)
+    r.raise_for_status()
+
+
+def gorevler_getir_gun(tarih):
+    params = {"tarih": f"eq.{tarih}", "order": "saat"}
+    r = requests.get(f"{_REST}/planlama_gorevler", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def gorevler_getir_ay(yil, ay):
+    prefix = f"{yil:04d}-{ay:02d}"
+    params = {"tarih": f"like.{prefix}%"}
+    r = requests.get(f"{_REST}/planlama_gorevler", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat):
+    """Bugün, saati gelmiş veya geçmiş ama henüz tamamlanmamış görevleri döndürür."""
+    params = {"tarih": f"eq.{bugun_iso}", "tamamlandi": "eq.false", "order": "saat"}
+    r = requests.get(f"{_REST}/planlama_gorevler", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    tumu = r.json()
+    return [g for g in tumu if g.get("saat") and g["saat"] <= simdi_saat]
+
+
+def gorev_tamamla(gorev_id, tamamlandi=True):
+    r = requests.patch(
+        f"{_REST}/planlama_gorevler", headers=_HEADERS, params={"id": f"eq.{gorev_id}"},
+        data=json.dumps({"tamamlandi": tamamlandi}), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def gorev_sil(gorev_id):
+    r = requests.delete(f"{_REST}/planlama_gorevler", headers=_HEADERS, params={"id": f"eq.{gorev_id}"}, timeout=15)
+    r.raise_for_status()
+
+
+# ---------- Planlama: Depolar arası transfer talepleri ----------
+
+def transfer_talebi_ekle(talep_eden_depo, hedef_depo, urun_aciklama, adet, istenen_zaman_aciklama):
+    row = {
+        "talep_eden_depo": talep_eden_depo, "hedef_depo": hedef_depo, "urun_aciklama": urun_aciklama,
+        "adet": adet, "istenen_zaman_aciklama": istenen_zaman_aciklama, "durum": "Bekliyor",
+        "olusturma_zamani": date.today().isoformat(),
+    }
+    r = requests.post(f"{_REST}/depo_transfer_talepleri", headers=_HEADERS, data=json.dumps(row), timeout=15)
+    r.raise_for_status()
+
+
+def transfer_talepleri_getir(durum=None):
+    params = {"order": "id.desc"}
+    if durum:
+        params["durum"] = f"eq.{durum}"
+    r = requests.get(f"{_REST}/depo_transfer_talepleri", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def transfer_talebi_durum_guncelle(talep_id, durum):
+    r = requests.patch(
+        f"{_REST}/depo_transfer_talepleri", headers=_HEADERS, params={"id": f"eq.{talep_id}"},
+        data=json.dumps({"durum": durum}), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def transfer_talebi_sil(talep_id):
+    r = requests.delete(
+        f"{_REST}/depo_transfer_talepleri", headers=_HEADERS, params={"id": f"eq.{talep_id}"}, timeout=15
+    )
+    r.raise_for_status()
+
+
+# ---------- Kontrol Listesi ----------
+
+def kontrol_maddesi_ekle(tarih, madde):
+    row = {
+        "tarih": tarih, "madde": madde, "tamamlandi": False,
+        "olusturma_zamani": date.today().isoformat(),
+    }
+    r = requests.post(f"{_REST}/kontrol_listesi", headers=_HEADERS, data=json.dumps(row), timeout=15)
+    r.raise_for_status()
+
+
+def kontrol_listesi_getir(tarih):
+    params = {"tarih": f"eq.{tarih}", "order": "id"}
+    r = requests.get(f"{_REST}/kontrol_listesi", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def kontrol_maddesi_tamamla(madde_id, tamamlandi=True):
+    r = requests.patch(
+        f"{_REST}/kontrol_listesi", headers=_HEADERS, params={"id": f"eq.{madde_id}"},
+        data=json.dumps({"tamamlandi": tamamlandi}), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def kontrol_maddesi_sil(madde_id):
+    r = requests.delete(f"{_REST}/kontrol_listesi", headers=_HEADERS, params={"id": f"eq.{madde_id}"}, timeout=15)
+    r.raise_for_status()
