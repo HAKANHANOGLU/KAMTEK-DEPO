@@ -7,11 +7,22 @@ import requests
 
 XML_URL = "https://bayi.kamtek.com.tr/data_sets?id=1&token=G5QVENBwW24GVgh6AN2FsFyK1mtrFgz8"
 
+# Kaynak sunucu, çok sık istek atıldığında 429 (Too Many Requests) ile
+# yanıt veriyor - son başarılı sonucu burada tutup, yeni bir istek
+# başarısız olursa (429 dahil) eski veriyi göstermeye devam ediyoruz.
+_son_basarili_urunler = None
+
 
 def stok_verisini_getir():
-    r = requests.get(XML_URL, timeout=20)
-    r.raise_for_status()
-    root = ET.fromstring(r.content)
+    global _son_basarili_urunler
+    try:
+        r = requests.get(XML_URL, timeout=20)
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+    except Exception:
+        if _son_basarili_urunler is not None:
+            return _son_basarili_urunler
+        raise
 
     urunler = []
     for prod in root.findall(".//product"):
@@ -35,4 +46,5 @@ def stok_verisini_getir():
             "Açıklama": _metin("note"),
             "Görsel": gorseller[0] if gorseller else "",
         })
+    _son_basarili_urunler = urunler
     return urunler

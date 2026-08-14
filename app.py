@@ -1133,7 +1133,10 @@ def sayfa_tamamlanankargolar():
 # ------------------------------------------------------------------
 # STOK TAKİP
 # ------------------------------------------------------------------
-@st.cache_data(ttl=1800, show_spinner=False)
+STOK_CACHE_TTL_SANIYE = 7200  # kaynak ~2 saatte bir güncelleniyor - aynı sıklıkta önbellekle
+
+
+@st.cache_data(ttl=STOK_CACHE_TTL_SANIYE, show_spinner=False)
 def _stok_verisi_cache():
     return stok_utils.stok_verisini_getir()
 
@@ -1142,8 +1145,9 @@ def sayfa_stoktakip():
     geri_butonu()
     st.header("Stok Takip")
     st.caption(
-        "DIA'dan internet satış sitesine beslenen ürün/stok verisi — kaynak yaklaşık 2 saatte bir "
-        "güncelleniyor, burada en fazla 30 dakika önbelleklenir."
+        "Kamtek'in stok kaynağından beslenen ürün/stok verisi — kaynak yaklaşık 2 saatte bir "
+        "güncelleniyor, burada da 2 saatte bir otomatik yenilenir. Hemen görmek için "
+        "'Şimdi Güncelle'yi kullanabilirsiniz."
     )
 
     tab_liste, tab_sayim, tab_excel = st.tabs(["📋 Stok Listesi", "🔢 Stok Sayım", "📥 Excel ile Stok Sayım"])
