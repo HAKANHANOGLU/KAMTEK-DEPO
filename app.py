@@ -315,6 +315,17 @@ div[data-testid="stDateInput"] input:focus,
     .sayim-filtre-bosluk {
         display: none !important;
     }
+    /* Arama kutusu ve Kategori'nin mobildeki sırasını masaüstünden bağımsız
+       olarak değiştiriyoruz: Kategori üstte, arama kutusu tabloya bitişik
+       en altta - st.columns'un flex konteyneri mobilde dikey yığıldığı için
+       CSS order burada çalışıyor. */
+    [class*="_kategori_kutusu"] {
+        order: 1 !important;
+    }
+    [class*="_arama_kutusu"] {
+        order: 2 !important;
+        margin-bottom: 0 !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1269,12 +1280,19 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
     # (Streamlit, Excel'deki gibi başlık içi filtre okunu desteklemiyor - buna en yakın görünüm bu).
     # Masaüstünde sütunlarla yan yana duran boş hizalama div'leri, telefonda
     # st.columns alt alta yığıldığında gereksiz boşluk yarattığı için
-    # 'sayim-filtre-bosluk' class'ı ile mobilde gizleniyor (bkz. CSS).
+    # 'sayim-filtre-bosluk' class'ı ile mobilde gizleniyor (bkz. CSS). Arama
+    # kutusu ve Kategori de "_arama_kutusu"/"_kategori_kutusu" class'larıyla
+    # sarmalanıyor ki mobilde CSS order ile arama kutusu tabloya bitişik,
+    # en altta çıksın (masaüstü sırası değişmiyor, order sadece mobilde geçerli).
     fc = st.columns([3, 1, 1.2, 1.3, 1.5])
-    arama = fc[0].text_input("Ürün Adı", key=f"{anahtar_onek}_arama", placeholder="🔍 ara...", label_visibility="visible")
+    with fc[0]:
+        with st.container(key=f"{anahtar_onek}_arama_kutusu"):
+            arama = st.text_input("Ürün Adı", key=f"{anahtar_onek}_arama", placeholder="🔍 ara...", label_visibility="visible")
     fc[1].markdown("<div class='sayim-filtre-bosluk' style='padding-top:28px;'></div>", unsafe_allow_html=True)
     fc[2].markdown("<div class='sayim-filtre-bosluk' style='padding-top:28px;'></div>", unsafe_allow_html=True)
-    secili_kategori = fc[3].selectbox("Kategori", kategoriler, key=f"{anahtar_onek}_kategori")
+    with fc[3]:
+        with st.container(key=f"{anahtar_onek}_kategori_kutusu"):
+            secili_kategori = st.selectbox("Kategori", kategoriler, key=f"{anahtar_onek}_kategori")
     fc[4].markdown("<div class='sayim-filtre-bosluk' style='padding-top:28px;'></div>", unsafe_allow_html=True)
 
     # "Stok" sütunu kasıtlı olarak GÖSTERİLMİYOR - sayım yapan personel güncel
