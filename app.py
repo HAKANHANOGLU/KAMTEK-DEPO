@@ -309,6 +309,12 @@ div[data-testid="stDateInput"] input:focus,
         min-width: 76vw !important;
         max-width: 300px !important;
     }
+    /* Stok Sayım'daki filtre satırı, masaüstünde sütun genişliğine hizalamak
+       için boş hizalama div'leri kullanıyor; telefonda st.columns alt alta
+       yığılınca bu boş div'ler gereksiz boşluk yaratıyordu. */
+    .sayim-filtre-bosluk {
+        display: none !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1238,12 +1244,15 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
 
     # Filtreleri tablo başlıklarına bitişik, sütun genişlikleriyle hizalı şekilde yerleştiriyoruz
     # (Streamlit, Excel'deki gibi başlık içi filtre okunu desteklemiyor - buna en yakın görünüm bu).
+    # Masaüstünde sütunlarla yan yana duran boş hizalama div'leri, telefonda
+    # st.columns alt alta yığıldığında gereksiz boşluk yarattığı için
+    # 'sayim-filtre-bosluk' class'ı ile mobilde gizleniyor (bkz. CSS).
     fc = st.columns([3, 1, 1.2, 1.3, 1.5])
     arama = fc[0].text_input("Ürün Adı", key=f"{anahtar_onek}_arama", placeholder="🔍 ara...", label_visibility="visible")
-    fc[1].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
-    fc[2].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    fc[1].markdown("<div class='sayim-filtre-bosluk' style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    fc[2].markdown("<div class='sayim-filtre-bosluk' style='padding-top:28px;'></div>", unsafe_allow_html=True)
     secili_kategori = fc[3].selectbox("Kategori", kategoriler, key=f"{anahtar_onek}_kategori")
-    fc[4].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    fc[4].markdown("<div class='sayim-filtre-bosluk' style='padding-top:28px;'></div>", unsafe_allow_html=True)
 
     # "Stok" sütunu kasıtlı olarak GÖSTERİLMİYOR - sayım yapan personel güncel
     # stok miktarını görüp ona göre yazmasın, gerçek sayımı yapsın. Fark
@@ -1264,6 +1273,16 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
         df_goster, use_container_width=True, height=450,
         key=f"stok_sayim_editor_{anahtar_onek}_{st.session_state[editor_key_key]}",
         disabled=["Ürün Adı", "Marka", "Kategori"], hide_index=True,
+        column_config={
+            # Ürün Adı + Sayım'ı dar tutuyoruz ki telefon ekranında ikisi de
+            # kaydırmadan sığsın - Marka/Kategori/Personel'i görmek için
+            # kullanıcı sağa kaydırabilir.
+            "Ürün Adı": st.column_config.TextColumn("Ürün Adı", width="medium"),
+            "Sayım": st.column_config.TextColumn("Sayım", width="small"),
+            "Marka": st.column_config.TextColumn("Marka", width="small"),
+            "Kategori": st.column_config.TextColumn("Kategori", width="small"),
+            "Personel": st.column_config.TextColumn("Personel", width="small"),
+        },
     )
 
     # Kullanıcının bu görünümde yaptığı değişiklikleri kalıcı sözlüğe geri yaz
