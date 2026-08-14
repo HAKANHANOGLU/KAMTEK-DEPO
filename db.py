@@ -5,7 +5,7 @@ yeniden başlatılır/uyandırılır) veriler artık gerçek bir bulut veritaban
 (Supabase) tutuluyor - böylece bugün girilen veriler yarın da görünür."""
 import base64
 import json
-from datetime import date
+from datetime import date, datetime
 
 import requests
 import streamlit as st
@@ -98,6 +98,44 @@ def depo_sayim_getir(tarih: str):
 
 def depo_sayim_sil(kayit_id: int):
     r = requests.delete(f"{_REST}/depo_sayim", headers=_HEADERS, params={"id": f"eq.{kayit_id}"}, timeout=15)
+    r.raise_for_status()
+
+
+# ---------- Excel ile Stok Sayım (XML kaynağı sorunlu olduğunda yedek) ----------
+
+def excel_stok_sayim_kaydet(tarih: str, dosya_adi: str, dosya_bytes: bytes):
+    now = datetime.now().strftime("%H:%M")
+    row = {
+        "tarih": tarih,
+        "dosya_adi": dosya_adi,
+        "dosya_icerik_b64": base64.b64encode(dosya_bytes).decode(),
+        "yuklenme_zamani": now,
+    }
+    r = requests.post(f"{_REST}/excel_stok_sayim", headers=_HEADERS, data=json.dumps(row), timeout=30)
+    r.raise_for_status()
+
+
+def excel_stok_sayim_getir(tarih: str):
+    params = {
+        "tarih": f"eq.{tarih}",
+        "select": "id,dosya_adi,dosya_icerik_b64,yuklenme_zamani",
+        "order": "id.desc",
+    }
+    r = requests.get(f"{_REST}/excel_stok_sayim", headers=_HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    sonuc = []
+    for row in r.json():
+        sonuc.append({
+            "id": row["id"],
+            "dosya_adi": row["dosya_adi"],
+            "dosya_icerik": base64.b64decode(row["dosya_icerik_b64"]),
+            "yuklenme_zamani": row.get("yuklenme_zamani"),
+        })
+    return sonuc
+
+
+def excel_stok_sayim_sil(kayit_id: int):
+    r = requests.delete(f"{_REST}/excel_stok_sayim", headers=_HEADERS, params={"id": f"eq.{kayit_id}"}, timeout=15)
     r.raise_for_status()
 
 

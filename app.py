@@ -1427,31 +1427,54 @@ def _excel_stok_oku(dosya):
 
 def _excel_stok_sayim_bolumu():
     st.caption(
-        "XML kaynağı sorunlu olduğunda yedek olarak kullanın: bir stok/ürün excel'i yükleyin, "
-        "aşağıda normal Stok Sayım ekranıyla birebir aynı şekilde sayım yapabilirsiniz."
+        "XML kaynağı sorunlu olduğunda yedek olarak kullanın: bilgisayardan bir stok/ürün excel'i "
+        "yükleyin, kalıcı olarak saklanır - telefondan girip aynı günün dosyasıyla sayım yapabilirsiniz."
     )
-    yuklenen = st.file_uploader("Stok Excel Dosyasını Yükleyin", type=["xls", "xlsx"], key="excel_stok_uploader")
-    if yuklenen is None:
-        if "excel_stok_urunler" in st.session_state:
-            del st.session_state["excel_stok_urunler"]
-        st.info("Devam etmek için bir excel dosyası yükleyin.")
+
+    secili_tarih = st.date_input("Tarih", value=date.today(), key="excel_stok_tarih")
+    tarih_iso = secili_tarih.isoformat()
+
+    if "excel_stok_uploader_key" not in st.session_state:
+        st.session_state.excel_stok_uploader_key = 0
+    yuklenen = st.file_uploader(
+        f"{secili_tarih.strftime('%d.%m.%Y')} için stok excel'i yükleyin", type=["xls", "xlsx"],
+        key=f"excel_stok_uploader_{st.session_state.excel_stok_uploader_key}",
+    )
+    if yuklenen is not None:
+        db.excel_stok_sayim_kaydet(tarih_iso, yuklenen.name, yuklenen.getvalue())
+        st.session_state.excel_stok_uploader_key += 1
+        st.success(f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')}).")
+        st.rerun()
+
+    kayitlar = db.excel_stok_sayim_getir(tarih_iso)
+    if not kayitlar:
+        st.info(f"{secili_tarih.strftime('%d.%m.%Y')} için henüz excel yüklenmedi.")
         return
 
-    if st.session_state.get("excel_stok_dosya_adi") != yuklenen.name:
-        try:
-            urunler, eslesme = _excel_stok_oku(yuklenen)
-        except Exception as e:
-            st.error(f"Excel okunurken hata oluştu: {e}")
-            return
-        st.session_state.excel_stok_urunler = urunler
-        st.session_state.excel_stok_dosya_adi = yuklenen.name
-        eksik = [alan for alan, col in eslesme.items() if col is None and alan != "Fiyat"]
-        if eksik:
-            st.caption(f"Bu dosyada bulunamayan alanlar boş bırakıldı: {', '.join(eksik)}")
+    if len(kayitlar) > 1:
+        secenekler = [f"{k['dosya_adi']} ({k.get('yuklenme_zamani') or ''})" for k in kayitlar]
+        secim = st.selectbox("Bu gün için birden fazla dosya var - hangisi kullanılsın?", secenekler, key="excel_stok_dosya_secim")
+        secili_kayit = kayitlar[secenekler.index(secim)]
+    else:
+        secili_kayit = kayitlar[0]
 
-    urunler = st.session_state.get("excel_stok_urunler", [])
+    c1, c2 = st.columns([4, 1])
+    c1.caption(f"📄 Kullanılan dosya: {secili_kayit['dosya_adi']} — {secili_kayit.get('yuklenme_zamani') or ''}")
+    if c2.button("🗑 Sil", key=f"excel_stok_sil_{secili_kayit['id']}"):
+        db.excel_stok_sayim_sil(secili_kayit["id"])
+        st.rerun()
+
+    try:
+        urunler, eslesme = _excel_stok_oku(io.BytesIO(secili_kayit["dosya_icerik"]))
+    except Exception as e:
+        st.error(f"Excel okunurken hata oluştu: {e}")
+        return
+    eksik = [alan for alan, col in eslesme.items() if col is None and alan != "Fiyat"]
+    if eksik:
+        st.caption(f"Bu dosyada bulunamayan alanlar boş bırakıldı: {', '.join(eksik)}")
+
     st.success(f"{len(urunler)} ürün excel'den okundu.")
-    _stok_sayim_bolumu(urunler, anahtar_onek="excel_sayim")
+    _stok_sayim_bolumu(urunler, anahtar_onek=f"excel_sayim_{tarih_iso}")
 
 
 # ------------------------------------------------------------------
