@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from datetime import date, datetime, timedelta
 import calendar
@@ -13,6 +14,118 @@ import stok_utils
 
 st.set_page_config(page_title="KAMTEK DEPO", layout="wide", initial_sidebar_state="expanded")
 db.init_db()
+
+# ------------------------------------------------------------------
+# PWA kurulumu (manifest + service worker + iOS/Android meta etiketleri)
+# ------------------------------------------------------------------
+# Streamlit'in kendi <head>'ine doğrudan erişim yok; bu component iframe'i
+# Streamlit ile aynı origin'de çalıştığı için window.parent.document üzerinden
+# manifest/meta/service-worker'ı ana sayfanın <head>'ine enjekte ediyoruz.
+# Not: Streamlit websocket ile canlı çalıştığı için tam offline destek YOK -
+# bu sadece "Ana Ekrana Ekle" ile gerçek bir uygulama gibi (adres çubuğu
+# olmadan, kendi ikonuyla) açılmasını sağlıyor.
+def _pwa_kurulum():
+    components.html(
+        """
+        <script>
+        (function () {
+          var doc = window.parent.document;
+          var win = window.parent;
+          // Streamlit her etkileşimde bu script'i yeniden çalıştırır (rerun);
+          // kurulum ve dinleyicilerin tek sefer eklenmesi için bayrak kullanıyoruz.
+          if (win.__kamtekPwaInit) { return; }
+          win.__kamtekPwaInit = true;
+
+          var manifest = doc.createElement('link');
+          manifest.rel = 'manifest';
+          manifest.href = '/app/static/manifest.json';
+          doc.head.appendChild(manifest);
+
+          var themeColor = doc.createElement('meta');
+          themeColor.name = 'theme-color';
+          themeColor.content = '#378ADD';
+          doc.head.appendChild(themeColor);
+
+          var appleCapable = doc.createElement('meta');
+          appleCapable.name = 'apple-mobile-web-app-capable';
+          appleCapable.content = 'yes';
+          doc.head.appendChild(appleCapable);
+
+          var appleStatusBar = doc.createElement('meta');
+          appleStatusBar.name = 'apple-mobile-web-app-status-bar-style';
+          appleStatusBar.content = 'black-translucent';
+          doc.head.appendChild(appleStatusBar);
+
+          var appleTitle = doc.createElement('meta');
+          appleTitle.name = 'apple-mobile-web-app-title';
+          appleTitle.content = 'Kamtek Depo';
+          doc.head.appendChild(appleTitle);
+
+          var appleIcon = doc.createElement('link');
+          appleIcon.rel = 'apple-touch-icon';
+          appleIcon.href = '/app/static/icons/apple-touch-icon-180x180.png';
+          doc.head.appendChild(appleIcon);
+
+          if (!('serviceWorker' in navigator)) { return; }
+
+          // ---- Güncelleme bildirimi banner'ı ----
+          function bannerGoster(waitingWorker) {
+            if (doc.getElementById('kamtek-pwa-update-banner')) { return; }
+            var banner = doc.createElement('div');
+            banner.id = 'kamtek-pwa-update-banner';
+            banner.style.cssText =
+              'position:fixed;left:0;right:0;bottom:0;z-index:999999;' +
+              'background:#0C447C;color:#fff;padding:12px 16px;' +
+              'display:flex;align-items:center;justify-content:center;gap:14px;' +
+              'font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;' +
+              'box-shadow:0 -2px 8px rgba(0,0,0,.25);';
+            banner.innerHTML =
+              '<span>🔄 Yeni bir güncelleme var</span>' +
+              '<button id="kamtek-pwa-update-btn" style="' +
+              'background:#fff;color:#0C447C;border:none;border-radius:8px;' +
+              'padding:8px 18px;font-weight:700;font-size:14px;">Güncelle</button>';
+            doc.body.appendChild(banner);
+            doc.getElementById('kamtek-pwa-update-btn').addEventListener('click', function () {
+              banner.querySelector('span').textContent = '⏳ Güncelleniyor...';
+              doc.getElementById('kamtek-pwa-update-btn').style.display = 'none';
+              waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+            });
+          }
+
+          var yenilendi = false;
+          navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (yenilendi) { return; }
+            yenilendi = true;
+            win.location.reload();
+          });
+
+          navigator.serviceWorker.register('/app/static/service-worker.js').then(function (reg) {
+            // Sayfa açıldığında zaten bekleyen bir güncelleme varsa hemen göster.
+            if (reg.waiting && reg.active) {
+              bannerGoster(reg.waiting);
+            }
+            reg.addEventListener('updatefound', function () {
+              var yeniWorker = reg.installing;
+              if (!yeniWorker) { return; }
+              yeniWorker.addEventListener('statechange', function () {
+                if (yeniWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  bannerGoster(yeniWorker);
+                }
+              });
+            });
+            // Kullanıcı uygulamayı açık bıraktığında da yeni sürüm var mı diye
+            // periyodik kontrol et (her 30 dakikada bir).
+            setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
+          }).catch(function () {});
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+_pwa_kurulum()
 
 # ------------------------------------------------------------------
 # Ortak stil
