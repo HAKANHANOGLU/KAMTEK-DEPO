@@ -1220,6 +1220,29 @@ def _stok_listesi_bolumu():
     st.caption(f"Toplam {len(df)} ürün gösteriliyor.")
 
 
+_TR_SESLILER = set("AaEeIıİiOoÖöUuÜü")
+
+
+def _marka_kisalt(marka):
+    """Marka sütununu daraltmak için sadece sessiz harfleri gösterir
+    (örn. 'DAHUA' -> 'DH')."""
+    if not marka:
+        return ""
+    sessizler = "".join(c for c in str(marka) if c.isalpha() and c not in _TR_SESLILER)
+    return sessizler or str(marka)
+
+
+def _personel_kisalt(ad_soyad):
+    """Personel sütununu daraltmak için baş harfleri gösterir
+    (örn. 'Sertaç Özcan' -> 'S.Ö.')."""
+    if not ad_soyad:
+        return ""
+    parcalar = [p for p in str(ad_soyad).split() if p]
+    if not parcalar:
+        return ""
+    return "".join(f"{p[0].upper()}." for p in parcalar)
+
+
 def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
     """Ürün listesini (XML'den ya da yüklenen excel'den) sayım arayüzüne
     dönüştürür. `anahtar_onek` iki farklı sayım akışının (XML / Excel)
@@ -1263,35 +1286,40 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
     if secili_kategori != "(Tümü)":
         df_goster = df_goster[df_goster["Kategori"] == secili_kategori]
 
-    # Sayım sütunu Ürün Adı'ndan hemen sonra geliyor - sayım yapan personel
-    # ürünü görüp sayı yazarken Marka/Kategori'yi geçmesine gerek kalmasın.
+    # Marka ve Personel sütunları çok daraltıldı - içerik de kısaltılarak
+    # (marka: sadece sessiz harfler, personel: baş harfleri) tabloyu telefon
+    # ekranına yatay kaydırma gerektirmeden tam sığdırıyoruz. Kategori sütunu
+    # (filtre olarak hâlâ kullanılabiliyor) tablodan tamamen kaldırıldı.
+    df_goster["Marka"] = df_goster["Marka"].apply(_marka_kisalt)
     df_goster["Sayım"] = df_goster["Ürün Adı"].apply(lambda u: girisler.get(u, {}).get("Sayım", ""))
-    df_goster["Personel"] = df_goster["Ürün Adı"].apply(lambda u: girisler.get(u, {}).get("Personel", ""))
-    df_goster = df_goster[["Ürün Adı", "Sayım", "Marka", "Kategori", "Personel"]]
+    df_goster["Personel"] = df_goster["Ürün Adı"].apply(lambda u: _personel_kisalt(girisler.get(u, {}).get("Personel", "")))
+    df_goster = df_goster[["Ürün Adı", "Sayım", "Marka", "Personel"]]
 
     edited = st.data_editor(
         df_goster, use_container_width=True, height=450,
         key=f"stok_sayim_editor_{anahtar_onek}_{st.session_state[editor_key_key]}",
-        disabled=["Ürün Adı", "Marka", "Kategori"], hide_index=True,
+        disabled=["Ürün Adı", "Marka", "Personel"], hide_index=True,
         column_config={
-            # Ürün Adı + Sayım'ı dar tutuyoruz ki telefon ekranında ikisi de
-            # kaydırmadan sığsın - Marka/Kategori/Personel'i görmek için
-            # kullanıcı sağa kaydırabilir.
+            # Ürün Adı + Sayım telefon ekranına kaydırmadan sığsın diye dar;
+            # Marka/Personel içerik zaten kısaltıldığı için "small" yetiyor.
             "Ürün Adı": st.column_config.TextColumn("Ürün Adı", width="medium"),
             "Sayım": st.column_config.TextColumn("Sayım", width="small"),
             "Marka": st.column_config.TextColumn("Marka", width="small"),
-            "Kategori": st.column_config.TextColumn("Kategori", width="small"),
             "Personel": st.column_config.TextColumn("Personel", width="small"),
         },
     )
 
-    # Kullanıcının bu görünümde yaptığı değişiklikleri kalıcı sözlüğe geri yaz
+    # Kullanıcının bu görünümde girdiği Sayım değerlerini kalıcı sözlüğe geri
+    # yaz. Personel artık tabloda salt-okunur (kısaltılmış) gösterildiği için
+    # buradan DEĞİL, aşağıdaki "Personeli Ata" düğmesinden güncelleniyor -
+    # mevcut tam ismi koru, kısaltmayı üzerine yazma.
     for _, row in edited.iterrows():
         urun = row["Ürün Adı"]
-        sayim_dolu = str(row["Sayım"]).strip() not in ("", "nan", "None")
-        personel_dolu = str(row["Personel"]).strip() not in ("", "nan", "None")
-        if sayim_dolu or personel_dolu:
-            girisler[urun] = {"Sayım": row["Sayım"], "Personel": row["Personel"]}
+        sayim_deger = row["Sayım"]
+        sayim_dolu = str(sayim_deger).strip() not in ("", "nan", "None")
+        mevcut_personel = girisler.get(urun, {}).get("Personel", "")
+        if sayim_dolu or mevcut_personel:
+            girisler[urun] = {"Sayım": sayim_deger, "Personel": mevcut_personel}
         elif urun in girisler:
             del girisler[urun]
 
