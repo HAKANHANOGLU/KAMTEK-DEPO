@@ -277,14 +277,18 @@ div[data-testid="stMetric"] {
     padding: 4px !important;
 }
 /* Form alanları (metin/sayı/tarih girişi, seçim kutuları) arkaplanla aynı
-   renkte kaybolup tıklanabilir/doldurulabilir olduğu belli olmuyordu. */
+   renkte kaybolup tıklanabilir/doldurulabilir olduğu belli olmuyordu.
+   Not: bu Streamlit sürümünde selectbox/multiselect BaseWeb değil
+   react-aria-components kullanıyor (data-baseweb değil .react-aria-ComboBox /
+   .react-aria-ListBox slot class'ları) - gerçek kutunun kendi border'ı
+   önceden vardı ama sayfa arkaplanıyla (#F5F5F3) birebir aynı renkteydi,
+   bu yüzden görünmüyordu. Tarayıcıda inceleyip doğru elementi bulduk. */
 div[data-testid="stTextInput"] input,
 div[data-testid="stTextArea"] textarea,
 div[data-testid="stNumberInput"] input,
 div[data-testid="stDateInput"] input,
-div[data-baseweb="select"],
-div[data-baseweb="select"] > div,
-div[data-baseweb="base-input"] {
+.react-aria-ComboBox > div,
+.react-aria-Select > div {
     background-color: #FFFFFF !important;
     border: 1px solid #C9C9C4 !important;
     border-radius: 8px !important;
@@ -293,16 +297,10 @@ div[data-testid="stTextInput"] input:focus,
 div[data-testid="stTextArea"] textarea:focus,
 div[data-testid="stNumberInput"] input:focus,
 div[data-testid="stDateInput"] input:focus,
-div[data-baseweb="select"]:focus-within {
+.react-aria-ComboBox:focus-within > div,
+.react-aria-Select:focus-within > div {
     border-color: #378ADD !important;
     box-shadow: 0 0 0 1px #378ADD !important;
-}
-/* BaseWeb select'in görünür kutusu bazı sürümlerde data-baseweb="select"
-   elementinin kendisi, bazılarında bir alt div - ikisini de kapsayınca
-   iç içe iki border oluşabiliyor, iç div'in kendi border'ını kaldırıyoruz. */
-div[data-baseweb="select"] > div {
-    border: none !important;
-    background-color: transparent !important;
 }
 /* Telefon ekranında sidebar tüm sayfayı kaplıyordu - genişliğini sınırla. */
 @media (max-width: 640px) {
