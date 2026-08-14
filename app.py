@@ -21,6 +21,7 @@ st.markdown("""
 <style>
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
+header {visibility: hidden;}
 div[data-testid="stToolbar"] {visibility: hidden;}
 
 .st-key-kart1 button {
@@ -111,11 +112,13 @@ div[data-testid="stToolbar"] {visibility: hidden;}
 .stApp {
     background-color: #F5F5F3 !important;
 }
-section[data-testid="stSidebar"] {
+.st-key-nav_panel {
     background-color: #EDEDEA !important;
     border-right: 1px solid #DEDEDA !important;
+    border-radius: 10px !important;
+    padding: 14px 10px !important;
 }
-section[data-testid="stSidebar"] button {
+.st-key-nav_panel button {
     background-color: transparent !important;
     border: none !important;
     text-align: left !important;
@@ -124,7 +127,7 @@ section[data-testid="stSidebar"] button {
     font-weight: 500 !important;
     padding: 6px 10px !important;
 }
-section[data-testid="stSidebar"] button:hover {
+.st-key-nav_panel button:hover {
     background-color: #FFFFFF !important;
 }
 div[data-testid="stMetric"] {
@@ -217,7 +220,7 @@ def _bildirim_sayisi():
 
 
 def render_sidebar():
-    with st.sidebar:
+    with st.container(key="nav_panel"):
         b64 = _img_b64("kamtek_logo.png")
         if b64:
             st.markdown(
@@ -1690,5 +1693,8 @@ SAYFALAR = {
     "depotransfer": sayfa_depotransfer,
 }
 
-render_sidebar()
-SAYFALAR[st.session_state.sayfa]()
+col_nav, col_content = st.columns([1, 4], gap="large")
+with col_nav:
+    render_sidebar()
+with col_content:
+    SAYFALAR[st.session_state.sayfa]()
