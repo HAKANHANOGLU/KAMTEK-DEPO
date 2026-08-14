@@ -502,6 +502,20 @@ def sayfa_home():
 # ------------------------------------------------------------------
 # SEVKİYAT PLANLAMA
 # ------------------------------------------------------------------
+# geojson'daki il isimleri bizim ALL-CAPS listemizle birebir eşleşmiyor
+# (örn. "İstanbul", "Afyon"), bu yüzden normalize ederek eşleştiriyoruz.
+# Modül seviyesinde tanımlı (nested/closure değil) çünkü _il_harita_verisi'nin
+# döndürdüğü sözlüğün içine konursa st.cache_data pickle ile serialize
+# edemiyor ("Cannot serialize the return value") - fonksiyonlar sadece
+# modül seviyesinde tanımlıysa referansla picklenebilir.
+_IL_EK_ESLESTIRME = {"AFYONKARAHİSAR": "AFYON", "MERSİN": "İÇEL"}
+
+
+def _norm_il(s):
+    s = _IL_EK_ESLESTIRME.get(s.upper(), s.upper())
+    return excel_utils.norm(s)
+
+
 @st.cache_data(ttl=None, show_spinner=False)
 def _il_harita_verisi():
     """Türkiye il sınırları + il ismi eşleştirme haritalarını GitHub'dan bir
@@ -509,20 +523,12 @@ def _il_harita_verisi():
     centroid/bbox hesaplaması Sevkiyat Planlama sayfasına HER girişte yeniden
     yapılıyordu — sayfa geçişini belirgin şekilde yavaşlatan asıl sebep
     buydu. Veri statik olduğu için süresiz önbellekleniyor (uygulama yeniden
-    başlatılınca zaten temizlenir)."""
+    başlatılınca zaten temizlenir). Dönen sözlük yalnızca picklenebilir
+    (dict/list/str/float) değerler içermeli - fonksiyon KONMAMALI."""
     import requests
-    import excel_utils as _eu
 
     geojson_url = "https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json"
     geojson = requests.get(geojson_url, timeout=8).json()
-
-    # geojson'daki il isimleri bizim ALL-CAPS listemizle birebir eşleşmiyor
-    # (örn. "İstanbul", "Afyon"), bu yüzden normalize ederek eşleştiriyoruz.
-    EK_ESLESTIRME = {"AFYONKARAHİSAR": "AFYON", "MERSİN": "İÇEL"}
-
-    def norm_il(s):
-        s = EK_ESLESTIRME.get(s.upper(), s.upper())
-        return _eu.norm(s)
 
     def _il_centroid_bbox(feature):
         geom = feature["geometry"]
@@ -542,8 +548,8 @@ def _il_harita_verisi():
         ys = [p[1] for p in pts]
         return sum(xs) / len(xs), sum(ys) / len(ys), max(xs) - min(xs), max(ys) - min(ys)
 
-    geojson_isim_haritasi = {norm_il(f["properties"]["name"]): f["properties"]["name"] for f in geojson["features"]}
-    norm_to_il = {norm_il(il): il for il in data.IL_LISTESI}
+    geojson_isim_haritasi = {_norm_il(f["properties"]["name"]): f["properties"]["name"] for f in geojson["features"]}
+    norm_to_il = {_norm_il(il): il for il in data.IL_LISTESI}
 
     lons, lats, texts, sizes = [], [], [], []
     for f in geojson["features"]:
@@ -559,7 +565,6 @@ def _il_harita_verisi():
         "geojson": geojson,
         "geojson_isim_haritasi": geojson_isim_haritasi,
         "norm_to_il": norm_to_il,
-        "norm_il": norm_il,
         "tum_isimler": [f["properties"]["name"] for f in geojson["features"]],
         "lons": lons, "lats": lats, "texts": texts, "sizes": sizes,
     }
@@ -586,9 +591,8 @@ def sayfa_sevkiyat():
 
             hv = _il_harita_verisi()
             geojson = hv["geojson"]
-            norm_il = hv["norm_il"]
             norm_to_il = hv["norm_to_il"]
-            gercek_isim = hv["geojson_isim_haritasi"].get(norm_il(secili_il))
+            gercek_isim = hv["geojson_isim_haritasi"].get(_norm_il(secili_il))
 
             if gercek_isim is None:
                 st.info(f"{secili_il} haritada bulunamadı, sadece il seçimiyle devam edebilirsiniz.")
@@ -628,7 +632,7 @@ def sayfa_sevkiyat():
                         if pt_idx is not None and 0 <= pt_idx < len(texts):
                             loc = texts[pt_idx]
                     if loc:
-                        eslesen_il = norm_to_il.get(norm_il(loc))
+                        eslesen_il = norm_to_il.get(_norm_il(loc))
                         if eslesen_il and eslesen_il != st.session_state.secili_il:
                             st.session_state["harita_secim_bekliyor"] = eslesen_il
                             st.rerun()
