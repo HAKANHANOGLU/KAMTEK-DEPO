@@ -11,7 +11,7 @@ import db
 import excel_utils
 import stok_utils
 
-st.set_page_config(page_title="KAMTEK DEPO", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="KAMTEK DEPO", layout="wide", initial_sidebar_state="expanded")
 db.init_db()
 
 # ------------------------------------------------------------------
@@ -109,6 +109,40 @@ div[data-testid="stToolbar"] {visibility: hidden;}
 .st-key-kargo_radyo div[data-testid="stRadio"] label p {
     font-size: 19px !important;
 }
+.stApp {
+    background-color: #F5F5F3 !important;
+}
+section[data-testid="stSidebar"] {
+    background-color: #EDEDEA !important;
+    border-right: 1px solid #DEDEDA !important;
+}
+section[data-testid="stSidebar"] button {
+    background-color: transparent !important;
+    border: none !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    color: #2C2C2A !important;
+    font-weight: 500 !important;
+    padding: 6px 10px !important;
+}
+section[data-testid="stSidebar"] button:hover {
+    background-color: #FFFFFF !important;
+}
+div[data-testid="stMetric"] {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E4E4E0 !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
+}
+[class*="st-key-kl_gun_kutu_"] button {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E4E4E0 !important;
+    border-radius: 8px !important;
+    min-height: 52px !important;
+    white-space: pre-line !important;
+    font-size: 12px !important;
+    padding: 4px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -164,77 +198,116 @@ def _img_b64(path):
         return None
 
 
+def _bildirim_sayisi():
+    bugun_iso = date.today().isoformat()
+    simdi_saat = datetime.now().strftime("%H:%M")
+    sayac = 0
+    try:
+        for g in db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat):
+            if not db.bildirim_okundu_mu("gorev", g["id"], bugun_iso):
+                sayac += 1
+        for t in db.transfer_talepleri_getir("Bekliyor"):
+            if not db.bildirim_okundu_mu("transfer", t["id"], bugun_iso):
+                sayac += 1
+        for p in db.bugun_dogum_gunu_olanlar():
+            if not db.bildirim_okundu_mu("dogumgunu", p["id"], bugun_iso):
+                sayac += 1
+    except Exception:
+        pass
+    return sayac
+
+
+def render_sidebar():
+    with st.sidebar:
+        b64 = _img_b64("kamtek_logo.png")
+        if b64:
+            st.markdown(
+                f"<img src='data:image/png;base64,{b64}' style='width:100%;margin-bottom:4px;'>",
+                unsafe_allow_html=True,
+            )
+        st.caption("KAMTEK DEPO")
+        st.markdown("---")
+
+        if st.button("🏠 Genel Bakış", use_container_width=True, key="nav_home"):
+            git("home")
+
+        st.markdown("**Sevkiyat ve Kargo**")
+        if st.button("🗺️ Sevkiyat Planlama", use_container_width=True, key="nav_sevkiyat"):
+            git("sevkiyat")
+        if st.button("🚚 Kargo Takip", use_container_width=True, key="nav_kargotakip"):
+            git("kargotakip")
+        if st.button("🏷️ Kargo Fiyat Listesi", use_container_width=True, key="nav_fiyatlistesi"):
+            git("fiyatlistesi")
+        if st.button("✅ Tamamlanmış Kargolar", use_container_width=True, key="nav_tamamlanankargolar"):
+            git("tamamlanankargolar")
+
+        st.markdown("**Depo ve Stok**")
+        if st.button("📦 Depo", use_container_width=True, key="nav_depo"):
+            git("depo")
+        if st.button("📊 Stok Takip", use_container_width=True, key="nav_stoktakip"):
+            git("stoktakip")
+        if st.button("🔁 Depolar Arası Transfer", use_container_width=True, key="nav_transfer"):
+            git("depotransfer")
+        if st.button("↩️ İade", use_container_width=True, key="nav_iade"):
+            git("iade")
+        if st.button("☑️ Kontrol Listesi", use_container_width=True, key="nav_kontrollistesi"):
+            git("kontrollistesi")
+
+        st.markdown("**Yönetim**")
+        if st.session_state.rol in IK_GORME_YETKISI:
+            if st.button("👥 Personel Yönetimi", use_container_width=True, key="nav_ik"):
+                git("insankaynaklari")
+        if st.button("🗓️ Planlama", use_container_width=True, key="nav_planlama"):
+            git("planlama")
+        bildirim_n = _bildirim_sayisi()
+        bildirim_etiket = f"🔔 Bildirim 🔴{bildirim_n}" if bildirim_n > 0 else "🔔 Bildirim"
+        if st.button(bildirim_etiket, use_container_width=True, key="nav_bildirim"):
+            git("bildirim")
+
+
 # ------------------------------------------------------------------
 # ANA SAYFA
 # ------------------------------------------------------------------
 def sayfa_home():
-    col_logo = st.columns([1, 2, 1])
-    with col_logo[1]:
-        st.markdown(
-            "<div style='opacity:0.12; text-align:center; margin-bottom:-60px;'>",
-            unsafe_allow_html=True,
-        )
-        try:
-            st.image("kamtek_logo.png", use_container_width=True)
-        except Exception:
-            pass
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='color:#8A8A85; font-size:12px;'>Kamtek Depo / genel bakış</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:22px; font-weight:600; margin-bottom:18px;'>Bugün, {date.today().strftime('%d.%m.%Y')}</div>", unsafe_allow_html=True)
 
-    st.markdown("<h1 style='text-align:center; font-size:56px; margin-top:0;'>KAMTEK DEPO</h1>", unsafe_allow_html=True)
-    st.write("")
+    bugun_iso = date.today().isoformat()
+    try:
+        bugun_sevkiyat = len(db.tamamlanan_kargolar_getir_ay(date.today().year, date.today().month))
+    except Exception:
+        bugun_sevkiyat = 0
+    try:
+        bekleyen_iade = len([i for i in db.iadeler_getir() if i.get("durum") != "Kabul Edildi"])
+    except Exception:
+        bekleyen_iade = 0
+    try:
+        bekleyen_transfer = len(db.transfer_talepleri_getir("Bekliyor"))
+    except Exception:
+        bekleyen_transfer = 0
+    bildirim_n = _bildirim_sayisi()
 
-    st.markdown("<p style='color:var(--text-secondary,#666); font-size:13px; font-weight:500; margin-bottom:4px;'>Sevkiyat ve kargo</p>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        with st.container(key="kart1"):
-            if st.button("🗺️\n\nSevkiyat Planlama", use_container_width=True):
-                git("sevkiyat")
-    with c2:
-        with st.container(key="kart2"):
-            if st.button("🚚\n\nKargo Takip", use_container_width=True):
-                git("kargotakip")
-    with c3:
-        with st.container(key="kart4"):
-            if st.button("🏷️\n\nKargo Fiyat Listesi", use_container_width=True):
-                git("fiyatlistesi")
-    with c4:
-        with st.container(key="kart5"):
-            if st.button("✅\n\nTamamlanmış Kargolar", use_container_width=True):
-                git("tamamlanankargolar")
+    c1.metric("Bu ay tamamlanan kargo", bugun_sevkiyat)
+    c2.metric("Bekleyen iade", bekleyen_iade)
+    c3.metric("Bekleyen transfer talebi", bekleyen_transfer)
+    c4.metric("Bekleyen bildirim", bildirim_n)
 
     st.write("")
-    st.markdown("<p style='color:var(--text-secondary,#666); font-size:13px; font-weight:500; margin-bottom:4px;'>Depo ve stok</p>", unsafe_allow_html=True)
-    c5, c6, c7, c8 = st.columns(4)
-    with c5:
-        with st.container(key="kart3"):
-            if st.button("📦\n\nDepo", use_container_width=True):
-                git("depo")
-    with c6:
-        with st.container(key="kart6"):
-            if st.button("📊\n\nStok Takip", use_container_width=True):
-                git("stoktakip")
-    with c7:
-        with st.container(key="kart8"):
-            if st.button("↩️\n\nİade", use_container_width=True):
-                git("iade")
-    with c8:
-        with st.container(key="kart11"):
-            if st.button("☑️\n\nKontrol Listesi", use_container_width=True):
-                git("kontrollistesi")
-
-    st.write("")
-    st.markdown("<p style='color:var(--text-secondary,#666); font-size:13px; font-weight:500; margin-bottom:4px;'>Yönetim</p>", unsafe_allow_html=True)
-    yonetim_kartlari = []
-    if st.session_state.rol in IK_GORME_YETKISI:
-        yonetim_kartlari.append(("kart7", "👥\n\nİnsan Kaynakları", "insankaynaklari"))
-    yonetim_kartlari.append(("kart9", "🗓️\n\nPlanlama", "planlama"))
-    yonetim_kartlari.append(("kart10", "🔔\n\nBildirim", "bildirim"))
-    cols_y = st.columns(4)
-    for col, (key, etiket, hedef) in zip(cols_y, yonetim_kartlari):
-        with col:
-            with st.container(key=key):
-                if st.button(etiket, use_container_width=True):
-                    git(hedef)
+    st.markdown("**Son bildirimler**")
+    simdi_saat = datetime.now().strftime("%H:%M")
+    gosterildi = False
+    for p in db.bugun_dogum_gunu_olanlar():
+        st.success(f"🎂 {p['ad_soyad']}'in bugün doğum günü!")
+        gosterildi = True
+    for g in db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat):
+        st.warning(f"⏰ {g.get('saat') or ''} — {g['aciklama']}")
+        gosterildi = True
+    for t in db.transfer_talepleri_getir("Bekliyor"):
+        st.info(f"🔁 {t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet)")
+        gosterildi = True
+    if not gosterildi:
+        st.caption("Şu an bekleyen bir bildirim yok.")
 
 
 # ------------------------------------------------------------------
@@ -572,6 +645,7 @@ def depo_sayim_bolumu():
 
     gun_cols = st.columns(7)
     gun_dosyalari = {}
+    gun_otomatik_sayimlar = {}
     for col, gun, isim in zip(gun_cols, hafta_gunleri, gun_isimleri):
         with col:
             kayitlar = db.depo_sayim_getir(gun.isoformat())
@@ -580,6 +654,15 @@ def depo_sayim_bolumu():
             etiket = f"{tik}\n{gun.strftime('%d.%m')}"
             if st.button(etiket, key=f"gun_btn_{gun.isoformat()}", use_container_width=True):
                 st.session_state.sayim_secili_gun = gun.isoformat()
+                st.session_state.sayim_secili_tur = "excel"
+
+            otomatik = db.stok_sayim_oturumlari_getir(gun.isoformat())
+            gun_otomatik_sayimlar[gun.isoformat()] = otomatik
+            otomatik_tik = "🟢" if otomatik else "⚪"
+            if st.button(f"{otomatik_tik}\nOtomatik sayım", key=f"gun_oto_btn_{gun.isoformat()}", use_container_width=True):
+                st.session_state.sayim_secili_gun = gun.isoformat()
+                st.session_state.sayim_secili_tur = "otomatik"
+
             not_mevcut = notlar.get(gun.isoformat(), "")
             yeni_not = st.text_input("Not", value=not_mevcut, key=f"not_{gun.isoformat()}", label_visibility="collapsed",
                                       placeholder="Not ekle...")
@@ -588,69 +671,197 @@ def depo_sayim_bolumu():
 
     st.markdown("---")
     secili_gun = st.session_state.sayim_secili_gun
-    if secili_gun:
-        kayitlar = gun_dosyalari.get(secili_gun, db.depo_sayim_getir(secili_gun))
-        gun_str = datetime.fromisoformat(secili_gun).strftime("%d.%m.%Y")
-        if not kayitlar:
-            st.info(f"{gun_str} için henüz sayım dosyası yok.")
-        else:
-            st.markdown(f"**{gun_str} tarihli sayım — sadece 'Sayım' sütununda değer girilmiş satırlar:**")
-            st.caption("🔴 Kırmızı satır: depodaki mevcut stok değeri ile sayım değeri birbirini tutmuyor.")
-            for k in kayitlar:
-                c_baslik, c_indir, c_sil = st.columns([6, 1, 1])
-                c_baslik.caption(f"📄 {k['dosya_adi']}")
-                c_indir.download_button(
-                    label="⬇ İndir", data=k["dosya_icerik"],
-                    file_name=k["dosya_adi"], key=f"indir_{k['id']}",
-                )
-                if c_sil.button("🗑 Sil", key=f"sil_{k['id']}"):
-                    db.depo_sayim_sil(k["id"])
-                    st.rerun()
-                try:
-                    filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(k["dosya_icerik"]))
-                    if filtreli.empty:
-                        hata = filtreli.attrs.get("hata")
-                        st.write(hata if hata else "Bu dosyada 'Sayım' sütunu bulunamadı ya da sayılmış satır yok.")
-                    else:
-                        uyumsuz_maske = filtreli.attrs.get("uyumsuz_maske")
-                        if uyumsuz_maske:
-                            def _kirmizi_satir(row, _maske=uyumsuz_maske):
-                                if _maske[row.name]:
-                                    return ["background-color: #FCA5A5"] * len(row)
-                                return [""] * len(row)
-                            st.dataframe(filtreli.style.apply(_kirmizi_satir, axis=1), use_container_width=True)
-                        else:
-                            st.dataframe(filtreli, use_container_width=True)
-                except Exception as e:
-                    st.error(f"Dosya okunurken hata oluştu: {e}")
-    else:
+    secili_tur = st.session_state.get("sayim_secili_tur", "excel")
+
+    if not secili_gun:
         st.info("Yukarıdaki takvimden bir güne tıklayarak o günün sayım detayını görebilirsiniz.")
+        return
+
+    gun_str = datetime.fromisoformat(secili_gun).strftime("%d.%m.%Y")
+
+    if secili_tur == "otomatik":
+        otomatik = gun_otomatik_sayimlar.get(secili_gun, db.stok_sayim_oturumlari_getir(secili_gun))
+        if not otomatik:
+            st.info(f"{gun_str} için Stok Sayım'dan gelen bir otomatik sayım yok.")
+        else:
+            st.markdown(f"**{gun_str} — Stok Sayım'dan gelen otomatik sayımlar (sadece farkı olan ürünler):**")
+            for oturum in otomatik:
+                personel_str = f" — {oturum['personel_adi']}" if oturum.get("personel_adi") else ""
+                st.caption(f"🔢 Sayım #{oturum['id']}{personel_str}")
+                detaylar = db.stok_sayim_detay_getir(oturum["id"])
+                if not detaylar:
+                    st.write("Bu sayımda fark bulunan ürün yok (her şey stokla uyumlu).")
+                else:
+                    df_detay = pd.DataFrame(detaylar)[["urun_adi", "guncel_stok", "sayilan", "fark"]]
+                    df_detay.columns = ["Ürün Adı", "Güncel Stok", "Sayılan", "Fark"]
+                    st.dataframe(df_detay, use_container_width=True, hide_index=True)
+        return
+
+    kayitlar = gun_dosyalari.get(secili_gun, db.depo_sayim_getir(secili_gun))
+    if not kayitlar:
+        st.info(f"{gun_str} için henüz sayım dosyası yok.")
+    else:
+        st.markdown(f"**{gun_str} tarihli sayım — sadece 'Sayım' sütununda değer girilmiş satırlar:**")
+        st.caption("🔴 Kırmızı satır: depodaki mevcut stok değeri ile sayım değeri birbirini tutmuyor.")
+        for k in kayitlar:
+            c_baslik, c_indir, c_sil = st.columns([6, 1, 1])
+            c_baslik.caption(f"📄 {k['dosya_adi']}")
+            c_indir.download_button(
+                label="⬇ İndir", data=k["dosya_icerik"],
+                file_name=k["dosya_adi"], key=f"indir_{k['id']}",
+            )
+            if c_sil.button("🗑 Sil", key=f"sil_{k['id']}"):
+                db.depo_sayim_sil(k["id"])
+                st.rerun()
+            try:
+                filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(k["dosya_icerik"]))
+                if filtreli.empty:
+                    hata = filtreli.attrs.get("hata")
+                    st.write(hata if hata else "Bu dosyada 'Sayım' sütunu bulunamadı ya da sayılmış satır yok.")
+                else:
+                    uyumsuz_maske = filtreli.attrs.get("uyumsuz_maske")
+                    if uyumsuz_maske:
+                        def _kirmizi_satir(row, _maske=uyumsuz_maske):
+                            if _maske[row.name]:
+                                return ["background-color: #FCA5A5"] * len(row)
+                            return [""] * len(row)
+                        st.dataframe(filtreli.style.apply(_kirmizi_satir, axis=1), use_container_width=True)
+                    else:
+                        st.dataframe(filtreli, use_container_width=True)
+            except Exception as e:
+                st.error(f"Dosya okunurken hata oluştu: {e}")
+
+
+ODALAR = ["Sevk Odası", "Erkekler Tuvaleti", "Kadınlar Tuvaleti", "Mutfak",
+          "Sinan Bey'in Odası", "Ofis 1", "Ofis 2", "Ofis 3"]
+
+
+def _temizlik_kroki_svg(temizlenenler_bugun):
+    def renk(oda):
+        return "#BFE3C4" if oda in temizlenenler_bugun else "#ffffff"
+
+    def isaret(oda):
+        return "✓" if oda in temizlenenler_bugun else "+"
+
+    def isaret_renk(oda):
+        return "#1f7a33" if oda in temizlenenler_bugun else "#2f7d4f"
+
+    return f"""
+<div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;">
+  <div style="text-align:center;">
+    <div style="font-size:13px;font-weight:700;letter-spacing:1px;color:#8a6d3b;margin-bottom:6px;">ZEMİN KAT</div>
+    <svg width="300" height="400" viewBox="0 0 480 640" style="background:#f7f5f0;border:1px solid #d9d2c0;border-radius:4px;">
+      <rect x="10" y="10" width="460" height="620" fill="#fff" stroke="#26352c" stroke-width="4"/>
+      <rect x="195" y="10" width="90" height="620" fill="#dfe6e2" stroke="#c3cdc7" stroke-width="1" stroke-dasharray="6,4"/>
+      <rect x="205" y="600" width="70" height="20" fill="#fff" stroke="#26352c" stroke-width="2"/>
+      <text x="240" y="614" font-size="10" text-anchor="middle" fill="#6b6355">GİRİŞ</text>
+
+      <rect x="295" y="500" width="165" height="120" fill="{renk('Sevk Odası')}" stroke="#26352c" stroke-width="2.5"/>
+      <text x="377" y="558" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">SEVK ODASI</text>
+      <text x="377" y="578" font-size="20" text-anchor="middle" fill="{isaret_renk('Sevk Odası')}">{isaret('Sevk Odası')}</text>
+
+      <rect x="20" y="360" width="165" height="90" fill="{renk('Erkekler Tuvaleti')}" stroke="#26352c" stroke-width="2.5"/>
+      <text x="102" y="398" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">ERKEKLER TUVALETİ</text>
+      <text x="102" y="420" font-size="20" text-anchor="middle" fill="{isaret_renk('Erkekler Tuvaleti')}">{isaret('Erkekler Tuvaleti')}</text>
+
+      <rect x="20" y="260" width="165" height="90" fill="{renk('Kadınlar Tuvaleti')}" stroke="#26352c" stroke-width="2.5"/>
+      <text x="102" y="298" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">KADINLAR TUVALETİ</text>
+      <text x="102" y="320" font-size="20" text-anchor="middle" fill="{isaret_renk('Kadınlar Tuvaleti')}">{isaret('Kadınlar Tuvaleti')}</text>
+
+      <rect x="295" y="120" width="165" height="150" fill="{renk('Mutfak')}" stroke="#26352c" stroke-width="2.5"/>
+      <text x="377" y="190" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">MUTFAK</text>
+      <text x="377" y="212" font-size="20" text-anchor="middle" fill="{isaret_renk('Mutfak')}">{isaret('Mutfak')}</text>
+
+      <rect x="20" y="30" width="165" height="220" fill="#e4dcc8" stroke="#b8a97e" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="102" y="145" font-size="11" font-style="italic" font-weight="600" text-anchor="middle" fill="#7a6a3f">KOLİ İSTİFİ</text>
+      <rect x="295" y="30" width="165" height="80" fill="#e4dcc8" stroke="#b8a97e" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="377" y="75" font-size="11" font-style="italic" font-weight="600" text-anchor="middle" fill="#7a6a3f">KOLİ İSTİFİ</text>
+      <rect x="295" y="280" width="165" height="210" fill="#e4dcc8" stroke="#b8a97e" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="377" y="385" font-size="11" font-style="italic" font-weight="600" text-anchor="middle" fill="#7a6a3f">KOLİ İSTİFİ</text>
+    </svg>
+  </div>
+
+  <div style="text-align:center;">
+    <div style="font-size:13px;font-weight:700;letter-spacing:1px;color:#8a6d3b;margin-bottom:6px;">ÜST KAT</div>
+    <svg width="300" height="400" viewBox="0 0 480 640" style="background:#f7f5f0;border:1px solid #d9d2c0;border-radius:4px;">
+      <rect x="10" y="10" width="460" height="620" fill="#fff" stroke="#26352c" stroke-width="4"/>
+      <rect x="205" y="565" width="70" height="55" fill="#fff" stroke="#26352c" stroke-width="2"/>
+      <text x="240" y="636" font-size="10" text-anchor="middle" fill="#6b6355">MERDİVEN</text>
+      <rect x="150" y="230" width="180" height="180" fill="#eef1ef" stroke="#c3cdc7" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <text x="240" y="322" font-size="10" text-anchor="middle" fill="#6b6355">KARE BOŞLUK</text>
+
+      <rect x="20" y="420" width="200" height="150" fill="{renk("Sinan Bey'in Odası")}" stroke="#8a6d3b" stroke-width="3"/>
+      <text x="120" y="490" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">SİNAN BEY'İN ODASI</text>
+      <text x="120" y="515" font-size="20" text-anchor="middle" fill="{isaret_renk("Sinan Bey'in Odası")}">{isaret("Sinan Bey'in Odası")}</text>
+
+      <rect x="260" y="420" width="200" height="150" fill="{renk('Ofis 1')}" stroke="#26352c" stroke-width="2.5"/>
+      <text x="360" y="495" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">OFİS 1</text>
+      <text x="360" y="518" font-size="20" text-anchor="middle" fill="{isaret_renk('Ofis 1')}">{isaret('Ofis 1')}</text>
+
+      <rect x="20" y="70" width="200" height="150" fill="{renk('Ofis 2')}" stroke="#26352c" stroke-width="2.5"/>
+      <text x="120" y="145" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">OFİS 2</text>
+      <text x="120" y="168" font-size="20" text-anchor="middle" fill="{isaret_renk('Ofis 2')}">{isaret('Ofis 2')}</text>
+
+      <rect x="260" y="70" width="200" height="150" fill="{renk('Ofis 3')}" stroke="#26352c" stroke-width="2.5"/>
+      <text x="360" y="145" font-size="13" font-weight="700" text-anchor="middle" fill="#1f2a24">OFİS 3</text>
+      <text x="360" y="168" font-size="20" text-anchor="middle" fill="{isaret_renk('Ofis 3')}">{isaret('Ofis 3')}</text>
+    </svg>
+  </div>
+</div>
+"""
 
 
 def depo_temizlik_bolumu():
     st.subheader("Depo Temizlik Çizelgesi")
-    bugun = date.today()
-    col1, col2 = st.columns(2)
-    with col1:
-        yil = st.number_input("Yıl", min_value=2024, max_value=2100, value=bugun.year, step=1)
-    with col2:
-        ay = st.selectbox("Ay", list(range(1, 13)), index=bugun.month - 1, format_func=lambda x: calendar.month_name[x])
 
-    mevcut = db.temizlik_getir_ay(yil, ay)
-    gun_sayisi = calendar.monthrange(yil, ay)[1]
+    secili_tarih = st.date_input("Tarih", value=date.today(), key="temizlik_tarih")
+    tarih_iso = secili_tarih.isoformat()
 
-    gunler = [f"{yil:04d}-{ay:02d}-{g:02d}" for g in range(1, gun_sayisi + 1)]
-    df = pd.DataFrame({
-        "Tarih": gunler,
-        "Temizlik Yapan Personel": [mevcut.get(g, "") for g in gunler],
-    })
+    kayitlar_bugun = db.temizlik_getir_gun_oda(tarih_iso)
+    temizlenenler = set(kayitlar_bugun.keys())
 
-    edited = st.data_editor(df, use_container_width=True, height=500, disabled=["Tarih"], key="temizlik_editor")
+    st.markdown(_temizlik_kroki_svg(temizlenenler), unsafe_allow_html=True)
+    st.caption("✓ (yeşil) = seçili günde temizlendi olarak işaretlenmiş, + (beyaz) = henüz işaretlenmemiş.")
 
-    if st.button("Kaydet", type="primary"):
-        for _, row in edited.iterrows():
-            db.temizlik_kaydet(row["Tarih"], row["Temizlik Yapan Personel"])
-        st.success("Temizlik çizelgesi kaydedildi.")
+    st.markdown("---")
+    secili_oda = st.selectbox("Bir alan seçin", ODALAR, key="temizlik_secili_oda")
+
+    kayit = kayitlar_bugun.get(secili_oda)
+    with st.form("temizlik_form", clear_on_submit=False):
+        temizlendi = st.checkbox("Temizlendi", value=bool(kayit), key="temizlik_tik")
+        personel_adi = st.text_input("Kim temizledi?", value=(kayit or {}).get("personel_adi") or "", key="temizlik_personel")
+        if st.form_submit_button("Kaydet"):
+            if temizlendi:
+                db.temizlik_kaydet_oda(secili_oda, tarih_iso, personel_adi)
+                st.success(f"{secili_oda} — {secili_tarih.strftime('%d.%m.%Y')} tarihinde temizlendi olarak kaydedildi.")
+            st.rerun()
+
+    st.markdown(f"**{secili_oda} — son 7 gün**")
+    son_7_gun = [(secili_tarih - timedelta(days=i)).isoformat() for i in range(7)]
+    gecmis = db.temizlik_getir_son_gunler(secili_oda, son_7_gun)
+    if not gecmis:
+        st.caption("Son 7 günde bu alan için kayıt yok.")
+    else:
+        for g in gecmis:
+            g_fmt = datetime.fromisoformat(g["tarih"]).strftime("%d.%m.%Y")
+            st.write(f"✓ {g_fmt} — {g.get('personel_adi') or 'isim belirtilmedi'}")
+
+    st.markdown("---")
+    st.markdown("**Haftalık Temizlik**")
+    hafta_baslangic = secili_tarih - timedelta(days=secili_tarih.weekday())
+    hafta_gunleri_iso = [(hafta_baslangic + timedelta(days=i)).isoformat() for i in range(7)]
+    ozet_satirlari = []
+    for oda in ODALAR:
+        gecmis_oda = db.temizlik_getir_son_gunler(oda, hafta_gunleri_iso)
+        if gecmis_oda:
+            son = gecmis_oda[0]
+            ozet_satirlari.append({
+                "Alan": oda, "Son Temizlik": datetime.fromisoformat(son["tarih"]).strftime("%d.%m.%Y"),
+                "Kim": son.get("personel_adi") or "-",
+            })
+        else:
+            ozet_satirlari.append({"Alan": oda, "Son Temizlik": "Bu hafta temizlenmedi", "Kim": "-"})
+    st.dataframe(pd.DataFrame(ozet_satirlari), use_container_width=True, hide_index=True)
 
 
 # ------------------------------------------------------------------
@@ -718,6 +929,15 @@ def sayfa_stoktakip():
         "güncelleniyor, burada en fazla 30 dakika önbelleklenir."
     )
 
+    tab_liste, tab_sayim = st.tabs(["📋 Stok Listesi", "🔢 Stok Sayım"])
+
+    with tab_liste:
+        _stok_listesi_bolumu()
+    with tab_sayim:
+        _stok_sayim_bolumu()
+
+
+def _stok_listesi_bolumu():
     col_ara, col_yenile = st.columns([4, 1])
     with col_yenile:
         if st.button("🔄 Şimdi Güncelle", use_container_width=True):
@@ -738,7 +958,7 @@ def sayfa_stoktakip():
     df = pd.DataFrame(urunler)
     with col_ara:
         arama = st.text_input("Ürün adı, stok kodu veya marka ara", label_visibility="collapsed",
-                               placeholder="Ürün adı, stok kodu veya marka ara...")
+                               placeholder="Ürün adı, stok kodu veya marka ara...", key="stokliste_arama")
     if arama:
         mask = (
             df["Ürün Adı"].str.contains(arama, case=False, na=False)
@@ -752,6 +972,70 @@ def sayfa_stoktakip():
         use_container_width=True, height=600,
     )
     st.caption(f"Toplam {len(df)} ürün gösteriliyor.")
+
+
+def _stok_sayim_bolumu():
+    st.caption("Ürünleri fiilen sayıp buraya girin. Yalnızca girdiğiniz sayım tutarları kaydedilir.")
+    try:
+        with st.spinner("Stok verisi çekiliyor..."):
+            urunler = _stok_verisi_cache()
+    except Exception as e:
+        st.error(f"Stok verisi alınamadı: {e}")
+        return
+    if not urunler:
+        st.info("Stok verisi bulunamadı.")
+        return
+
+    df = pd.DataFrame(urunler)
+    df["_stok_sayi"] = pd.to_numeric(df["Stok"], errors="coerce").fillna(0)
+    df = df.sort_values("_stok_sayi", ascending=False).reset_index(drop=True)
+
+    c1, c2 = st.columns(2)
+    arama = c1.text_input("Ürün adı ara", key="sayim_arama", placeholder="Ürün adı ara...")
+    kategoriler = ["(Tümü)"] + sorted([k for k in df["Kategori"].dropna().unique() if k])
+    secili_kategori = c2.selectbox("Kategori filtrele", kategoriler, key="sayim_kategori")
+
+    df_goster = df[["Ürün Adı", "Marka", "Kategori", "Stok"]].copy()
+    if arama:
+        df_goster = df_goster[df_goster["Ürün Adı"].str.contains(arama, case=False, na=False)]
+    if secili_kategori != "(Tümü)":
+        df_goster = df_goster[df_goster["Kategori"] == secili_kategori]
+    df_goster.insert(3, "Sayım", "")
+    df_goster.insert(4, "Personel", "")
+
+    edited = st.data_editor(
+        df_goster, use_container_width=True, height=450, key="stok_sayim_editor",
+        disabled=["Ürün Adı", "Marka", "Kategori", "Stok"], hide_index=True,
+    )
+
+    if st.button("✅ Sayımı Tamamla", type="primary"):
+        sayilan = edited[edited["Sayım"].apply(lambda v: str(v).strip() not in ("", "nan", "None"))]
+        if sayilan.empty:
+            st.warning("Lütfen en az bir ürün için sayım miktarı girin.")
+        else:
+            farkli = []
+            personel_adlari = set()
+            for _, row in sayilan.iterrows():
+                try:
+                    guncel = float(str(row["Stok"]).replace(",", "."))
+                    sayilan_deger = float(str(row["Sayım"]).replace(",", "."))
+                except (ValueError, TypeError):
+                    continue
+                if row.get("Personel"):
+                    personel_adlari.add(str(row["Personel"]))
+                if abs(guncel - sayilan_deger) > 1e-9:
+                    farkli.append({
+                        "urun_adi": row["Ürün Adı"], "stok_kodu": None,
+                        "guncel_stok": row["Stok"], "sayilan": row["Sayım"],
+                        "fark": str(sayilan_deger - guncel),
+                    })
+            personel_ozet = ", ".join(personel_adlari) if personel_adlari else None
+            db.stok_sayim_oturumu_kaydet(date.today().isoformat(), personel_ozet, farkli)
+            st.success(
+                f"Sayım kaydedildi ({len(sayilan)} ürün sayıldı, {len(farkli)} tanesinde fark var). "
+                f"Depo Sayım Fişleri'ndeki haftalık takvimde de görünecek."
+            )
+            st.rerun()
 
 
 # ------------------------------------------------------------------
@@ -803,7 +1087,7 @@ def sayfa_insankaynaklari():
         geri_butonu()
         return
     geri_butonu()
-    st.header("İnsan Kaynakları")
+    st.header("Personel Yönetimi")
 
     if "ik_alt_sayfa" not in st.session_state:
         st.session_state.ik_alt_sayfa = "personel"
@@ -831,6 +1115,7 @@ def _personel_bolumu():
         ad_soyad = st.text_input("Ad Soyad", key="yeni_p_ad")
         dogum_tarihi = st.date_input("Doğum Tarihi", value=None, key="yeni_p_dogum",
                                       min_value=date(1950, 1, 1), max_value=date.today())
+        cinsiyet = st.radio("Cinsiyet", ["Kadın", "Erkek"], key="yeni_p_cinsiyet", horizontal=True)
         telefon = st.text_input("Telefon", key="yeni_p_tel")
         foto = st.file_uploader("Fotoğraf", type=["jpg", "jpeg", "png"], key="yeni_p_foto")
         if st.button("Kaydet", key="yeni_p_kaydet"):
@@ -839,7 +1124,7 @@ def _personel_bolumu():
             else:
                 db.personel_ekle(
                     ad_soyad, dogum_tarihi.isoformat() if dogum_tarihi else None,
-                    telefon, foto.getvalue() if foto else None,
+                    telefon, foto.getvalue() if foto else None, cinsiyet,
                 )
                 st.success(f"{ad_soyad} eklendi.")
                 st.rerun()
@@ -880,9 +1165,35 @@ def _personel_bolumu():
             )
             with st.popover("📁 Özlük Sayfası", use_container_width=True):
                 _ozluk_sayfasi(p["id"], p["ad_soyad"])
+            with st.popover("✏️ Düzenle", use_container_width=True):
+                _personel_duzenle_formu(p)
             if st.button("🗑 Sil", key=f"personel_sil_{p['id']}", use_container_width=True):
                 db.personel_sil(p["id"])
                 st.rerun()
+
+
+def _personel_duzenle_formu(p):
+    yeni_ad = st.text_input("Ad Soyad", value=p["ad_soyad"], key=f"duzenle_ad_{p['id']}")
+    mevcut_dogum = None
+    if p.get("dogum_tarihi"):
+        try:
+            mevcut_dogum = datetime.fromisoformat(p["dogum_tarihi"]).date()
+        except Exception:
+            mevcut_dogum = None
+    yeni_dogum = st.date_input("Doğum Tarihi", value=mevcut_dogum, key=f"duzenle_dogum_{p['id']}",
+                                min_value=date(1950, 1, 1), max_value=date.today())
+    mevcut_cinsiyet = p.get("cinsiyet") or "Kadın"
+    yeni_cinsiyet = st.radio("Cinsiyet", ["Kadın", "Erkek"], key=f"duzenle_cinsiyet_{p['id']}",
+                              horizontal=True, index=0 if mevcut_cinsiyet == "Kadın" else 1)
+    yeni_telefon = st.text_input("Telefon", value=p.get("telefon") or "", key=f"duzenle_tel_{p['id']}")
+    yeni_foto = st.file_uploader("Fotoğrafı değiştir (opsiyonel)", type=["jpg", "jpeg", "png"], key=f"duzenle_foto_{p['id']}")
+    if st.button("Güncelle", key=f"duzenle_kaydet_{p['id']}"):
+        db.personel_guncelle(
+            p["id"], yeni_ad, yeni_dogum.isoformat() if yeni_dogum else None,
+            yeni_telefon, yeni_cinsiyet, yeni_foto.getvalue() if yeni_foto else None,
+        )
+        st.success("Güncellendi.")
+        st.rerun()
 
 
 def _ozluk_sayfasi(personel_id, ad_soyad):
@@ -1101,24 +1412,7 @@ def sayfa_iade():
 def sayfa_planlama():
     geri_butonu()
     st.header("Planlama")
-
-    if "planlama_alt_sayfa" not in st.session_state:
-        st.session_state.planlama_alt_sayfa = "gorevler"
-    c1, c2 = st.columns(2)
-    with c1:
-        with st.container(key="pl_kart_gorevler"):
-            if st.button("📝\n\nGünlük İşler", use_container_width=True):
-                st.session_state.planlama_alt_sayfa = "gorevler"
-    with c2:
-        with st.container(key="pl_kart_transfer"):
-            if st.button("🔁\n\nDepolar Arası Transfer", use_container_width=True):
-                st.session_state.planlama_alt_sayfa = "transfer"
-
-    st.markdown("---")
-    if st.session_state.planlama_alt_sayfa == "gorevler":
-        _planlama_gorevler_bolumu()
-    else:
-        _depo_transfer_bolumu()
+    _planlama_gorevler_bolumu()
 
 
 def _planlama_gorevler_bolumu():
@@ -1170,7 +1464,9 @@ def _planlama_gorevler_bolumu():
             st.markdown(f"**{gun_fmt}**: " + ", ".join(gun_bazinda[gun]))
 
 
-def _depo_transfer_bolumu():
+def sayfa_depotransfer():
+    geri_butonu()
+    st.header("Depolar Arası Transfer")
     st.caption("Giriş Katı personeli, Alsancak deposundan istediği ürünler için burada bir talep açar.")
     c1, c2 = st.columns(2)
     talep_eden = c1.selectbox("Talep eden depo", ["Giriş Katı", "Alsancak"], key="transfer_talep_eden")
@@ -1242,24 +1538,45 @@ def sayfa_bildirim():
     bugun_iso = date.today().isoformat()
     simdi_saat = datetime.now().strftime("%H:%M")
 
-    dogum_gunu_olanlar = db.bugun_dogum_gunu_olanlar()
+    dogum_gunu_olanlar = [
+        p for p in db.bugun_dogum_gunu_olanlar()
+        if not db.bildirim_okundu_mu("dogumgunu", p["id"], bugun_iso)
+    ]
     if dogum_gunu_olanlar:
         st.markdown("**🎂 Bugün doğum günü olanlar**")
         for p in dogum_gunu_olanlar:
-            st.success(f"🎉 {p['ad_soyad']}'in bugün doğum günü!")
+            c1, c2 = st.columns([5, 1])
+            c1.success(f"🎉 {p['ad_soyad']}'in bugün doğum günü!")
+            if c2.button("✓ Okundu", key=f"bok_dogumgunu_{p['id']}"):
+                db.bildirim_okundu_isaretle("dogumgunu", p["id"], bugun_iso)
+                st.rerun()
 
-    bekleyen_gorevler = db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat)
+    bekleyen_gorevler = [
+        g for g in db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat)
+        if not db.bildirim_okundu_mu("gorev", g["id"], bugun_iso)
+    ]
     if bekleyen_gorevler:
         st.markdown("**⏰ Zamanı gelen planlanan işler**")
         for g in bekleyen_gorevler:
-            st.warning(f"{g.get('saat') or ''} — {g['aciklama']}")
+            c1, c2 = st.columns([5, 1])
+            c1.warning(f"{g.get('saat') or ''} — {g['aciklama']}")
+            if c2.button("✓ Okundu", key=f"bok_gorev_{g['id']}"):
+                db.bildirim_okundu_isaretle("gorev", g["id"], bugun_iso)
+                st.rerun()
 
-    transfer_talepleri = db.transfer_talepleri_getir("Bekliyor")
+    transfer_talepleri = [
+        t for t in db.transfer_talepleri_getir("Bekliyor")
+        if not db.bildirim_okundu_mu("transfer", t["id"], bugun_iso)
+    ]
     if transfer_talepleri:
         st.markdown("**🔁 Bekleyen depo transfer çağrıları**")
         for t in transfer_talepleri:
             not_metni = f" ({t['istenen_zaman_aciklama']})" if t.get("istenen_zaman_aciklama") else ""
-            st.info(f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet){not_metni}")
+            c1, c2 = st.columns([5, 1])
+            c1.info(f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet){not_metni}")
+            if c2.button("✓ Okundu", key=f"bok_transfer_{t['id']}"):
+                db.bildirim_okundu_isaretle("transfer", t["id"], bugun_iso)
+                st.rerun()
 
     if not bekleyen_gorevler and not transfer_talepleri and not dogum_gunu_olanlar:
         st.info("Şu an bekleyen bir bildirim yok.")
@@ -1272,42 +1589,77 @@ def sayfa_kontrollistesi():
     geri_butonu()
     st.header("Kontrol Listesi")
 
-    tab_gunluk, tab_haftalik, tab_aylik = st.tabs(["📅 Günlük", "🗓️ Haftalık", "📆 Aylık"])
+    if "kl_secili_gun" not in st.session_state:
+        st.session_state.kl_secili_gun = date.today().isoformat()
 
-    with tab_gunluk:
-        secili_tarih = st.date_input("Tarih", value=date.today(), key="kl_g_tarih")
-        _kontrol_listesi_ortak(secili_tarih.isoformat(), "gunluk", secili_tarih.strftime("%d.%m.%Y"))
+    col1, col2 = st.columns(2)
+    yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=date.today().year, key="kl_yil")
+    ay = col2.selectbox("Ay", list(range(1, 13)), index=date.today().month - 1,
+                         format_func=lambda x: calendar.month_name[x], key="kl_ay")
 
-    with tab_haftalik:
-        secili_tarih_h = st.date_input("Bu haftanın herhangi bir günü", value=date.today(), key="kl_h_tarih")
-        hafta_baslangic = secili_tarih_h - timedelta(days=secili_tarih_h.weekday())
-        hafta_bitis = hafta_baslangic + timedelta(days=6)
-        anahtar = hafta_baslangic.isoformat()
-        etiket = f"{hafta_baslangic.strftime('%d.%m.%Y')} - {hafta_bitis.strftime('%d.%m.%Y')}"
-        _kontrol_listesi_ortak(anahtar, "haftalik", etiket)
+    gun_sayisi = calendar.monthrange(yil, ay)[1]
+    ilk_gun_haftasi = date(yil, ay, 1).weekday()  # 0=Pazartesi
+    gun_isimleri = ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"]
 
-    with tab_aylik:
-        col1, col2 = st.columns(2)
-        yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=date.today().year, key="kl_a_yil")
-        ay = col2.selectbox("Ay", list(range(1, 13)), index=date.today().month - 1,
-                             format_func=lambda x: calendar.month_name[x], key="kl_a_ay")
-        anahtar_ay = date(yil, ay, 1).isoformat()
-        _kontrol_listesi_ortak(anahtar_ay, "aylik", f"{calendar.month_name[ay]} {yil}")
+    baslik_cols = st.columns(7)
+    for col, isim in zip(baslik_cols, gun_isimleri):
+        col.markdown(f"<div style='text-align:center;font-size:12px;color:#888;'>{isim}</div>", unsafe_allow_html=True)
 
+    tum_maddeler_ay = db.kontrol_listesi_getir_ay(yil, ay)
+    gun_sayaci = {}
+    for m in tum_maddeler_ay:
+        gun_sayaci.setdefault(m["tarih"], {"toplam": 0, "tamam": 0})
+        gun_sayaci[m["tarih"]]["toplam"] += 1
+        if m.get("tamamlandi"):
+            gun_sayaci[m["tarih"]]["tamam"] += 1
 
-def _kontrol_listesi_ortak(anahtar_tarih, tip, etiket):
-    with st.form(f"yeni_kontrol_form_{tip}", clear_on_submit=True):
-        madde = st.text_input("Kontrol edilecek iş", key=f"kl_madde_{tip}")
+    hafta = [None] * ilk_gun_haftasi
+    haftalar = []
+    for g in range(1, gun_sayisi + 1):
+        hafta.append(g)
+        if len(hafta) == 7:
+            haftalar.append(hafta)
+            hafta = []
+    if hafta:
+        while len(hafta) < 7:
+            hafta.append(None)
+        haftalar.append(hafta)
+
+    for hafta in haftalar:
+        cols = st.columns(7)
+        for col, gun_no in zip(cols, hafta):
+            if gun_no is None:
+                col.write("")
+                continue
+            gun_iso = date(yil, ay, gun_no).isoformat()
+            sayac = gun_sayaci.get(gun_iso)
+            etiket = f"{gun_no}"
+            if sayac:
+                etiket += f"\n{sayac['tamam']}/{sayac['toplam']}"
+            secili = gun_iso == st.session_state.kl_secili_gun
+            with col:
+                with st.container(key=f"kl_gun_kutu_{gun_iso}"):
+                    if st.button(etiket, key=f"kl_gun_{gun_iso}", use_container_width=True):
+                        st.session_state.kl_secili_gun = gun_iso
+                        st.rerun()
+
+    st.markdown("---")
+    secili_gun = st.session_state.kl_secili_gun
+    secili_gun_fmt = datetime.fromisoformat(secili_gun).strftime("%d.%m.%Y")
+    st.markdown(f"**{secili_gun_fmt} kontrol listesi**")
+
+    with st.form("yeni_kontrol_form", clear_on_submit=True):
+        madde = st.text_input("Kontrol edilecek iş")
         if st.form_submit_button("➕ Ekle") and madde:
-            db.kontrol_maddesi_ekle(anahtar_tarih, madde, tip)
+            db.kontrol_maddesi_ekle(secili_gun, madde)
             st.rerun()
 
-    maddeler = db.kontrol_listesi_getir(anahtar_tarih, tip)
+    maddeler = db.kontrol_listesi_getir(secili_gun)
     if not maddeler:
-        st.info(f"{etiket} için henüz madde eklenmedi.")
+        st.info(f"{secili_gun_fmt} için henüz madde eklenmedi.")
     for m in maddeler:
         c1, c2, c3 = st.columns([0.5, 4, 0.5])
-        tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{tip}_{m['id']}")
+        tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{m['id']}")
         if tik != m.get("tamamlandi", False):
             db.kontrol_maddesi_tamamla(m["id"], tik)
             st.rerun()
@@ -1315,7 +1667,7 @@ def _kontrol_listesi_ortak(anahtar_tarih, tip, etiket):
             c2.markdown(f"<span style='text-decoration:line-through;color:#888;'>{m['madde']}</span>", unsafe_allow_html=True)
         else:
             c2.write(m["madde"])
-        if c3.button("🗑", key=f"kl_sil_{tip}_{m['id']}"):
+        if c3.button("🗑", key=f"kl_sil_{m['id']}"):
             db.kontrol_maddesi_sil(m["id"])
             st.rerun()
 
@@ -1336,6 +1688,8 @@ SAYFALAR = {
     "planlama": sayfa_planlama,
     "bildirim": sayfa_bildirim,
     "kontrollistesi": sayfa_kontrollistesi,
+    "depotransfer": sayfa_depotransfer,
 }
 
+render_sidebar()
 SAYFALAR[st.session_state.sayfa]()
