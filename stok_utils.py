@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 
 import requests
 
-XML_URL = "https://uzakdisk.com/kamtek/pdf/kamtek.xml"
+XML_URL = "https://bayi.kamtek.com.tr/data_sets?id=1&token=G5QVENBwW24GVgh6AN2FsFyK1mtrFgz8"
 
 
 def stok_verisini_getir():

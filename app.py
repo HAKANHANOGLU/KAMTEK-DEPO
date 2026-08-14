@@ -246,6 +246,27 @@ div[data-testid="stMetric"] {
     border-radius: 10px !important;
     padding: 14px !important;
 }
+/* Ana sayfadaki KPI kutucukları artık tıklanabilir (button) - metrik kartı
+   görünümünü koruyoruz. */
+.st-key-kpi_kargo button, .st-key-kpi_iade button,
+.st-key-kpi_transfer button, .st-key-kpi_bildirim button {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E4E4E0 !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
+    min-height: 90px !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+    white-space: pre-line !important;
+    color: #2C2C2A !important;
+    font-weight: 600 !important;
+    line-height: 1.6 !important;
+}
+.st-key-kpi_kargo button:hover, .st-key-kpi_iade button:hover,
+.st-key-kpi_transfer button:hover, .st-key-kpi_bildirim button:hover {
+    border-color: #378ADD !important;
+}
 [class*="st-key-kl_gun_kutu_"] button {
     background-color: #FFFFFF !important;
     border: 1px solid #E4E4E0 !important;
@@ -254,6 +275,26 @@ div[data-testid="stMetric"] {
     white-space: pre-line !important;
     font-size: 12px !important;
     padding: 4px !important;
+}
+/* Form alanları (metin/sayı/tarih girişi, seçim kutuları) arkaplanla aynı
+   renkte kaybolup tıklanabilir/doldurulabilir olduğu belli olmuyordu. */
+div[data-testid="stTextInput"] input,
+div[data-testid="stTextArea"] textarea,
+div[data-testid="stNumberInput"] input,
+div[data-testid="stDateInput"] input,
+div[data-baseweb="select"] > div,
+div[data-baseweb="base-input"] {
+    background-color: #FFFFFF !important;
+    border: 1px solid #C9C9C4 !important;
+    border-radius: 8px !important;
+}
+div[data-testid="stTextInput"] input:focus,
+div[data-testid="stTextArea"] textarea:focus,
+div[data-testid="stNumberInput"] input:focus,
+div[data-testid="stDateInput"] input:focus,
+div[data-baseweb="select"]:focus-within > div {
+    border-color: #378ADD !important;
+    box-shadow: 0 0 0 1px #378ADD !important;
 }
 /* Telefon ekranında sidebar tüm sayfayı kaplıyordu - genişliğini sınırla. */
 @media (max-width: 640px) {
@@ -425,10 +466,22 @@ def sayfa_home():
     bildirim_n = _bildirim_sayisi(veri)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Bu ay tamamlanan kargo", bugun_sevkiyat)
-    c2.metric("Bekleyen iade", bekleyen_iade)
-    c3.metric("Bekleyen transfer talebi", len(veri["transferler"]))
-    c4.metric("Bekleyen bildirim", bildirim_n)
+    with c1:
+        with st.container(key="kpi_kargo"):
+            if st.button(f"{bugun_sevkiyat}\n\nBu ay tamamlanan kargo", key="kpi_kargo_btn", use_container_width=True):
+                git("tamamlanankargolar")
+    with c2:
+        with st.container(key="kpi_iade"):
+            if st.button(f"{bekleyen_iade}\n\nBekleyen iade", key="kpi_iade_btn", use_container_width=True):
+                git("iade")
+    with c3:
+        with st.container(key="kpi_transfer"):
+            if st.button(f"{len(veri['transferler'])}\n\nBekleyen transfer talebi", key="kpi_transfer_btn", use_container_width=True):
+                git("depotransfer")
+    with c4:
+        with st.container(key="kpi_bildirim"):
+            if st.button(f"{bildirim_n}\n\nBekleyen bildirim", key="kpi_bildirim_btn", use_container_width=True):
+                git("bildirim")
 
     st.write("")
     st.markdown("**Son bildirimler**")
@@ -1093,12 +1146,21 @@ def sayfa_stoktakip():
         "güncelleniyor, burada en fazla 30 dakika önbelleklenir."
     )
 
-    tab_liste, tab_sayim = st.tabs(["📋 Stok Listesi", "🔢 Stok Sayım"])
+    tab_liste, tab_sayim, tab_excel = st.tabs(["📋 Stok Listesi", "🔢 Stok Sayım", "📥 Excel ile Stok Sayım"])
 
     with tab_liste:
         _stok_listesi_bolumu()
     with tab_sayim:
-        _stok_sayim_bolumu()
+        try:
+            with st.spinner("Stok verisi çekiliyor..."):
+                urunler = _stok_verisi_cache()
+        except Exception as e:
+            st.error(f"Stok verisi alınamadı: {e}")
+        else:
+            st.caption("Ürünleri fiilen sayıp buraya girin. Yalnızca girdiğiniz sayım tutarları kaydedilir.")
+            _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
+    with tab_excel:
+        _excel_stok_sayim_bolumu()
 
 
 def _stok_listesi_bolumu():
@@ -1138,22 +1200,21 @@ def _stok_listesi_bolumu():
     st.caption(f"Toplam {len(df)} ürün gösteriliyor.")
 
 
-def _stok_sayim_bolumu():
-    st.caption("Ürünleri fiilen sayıp buraya girin. Yalnızca girdiğiniz sayım tutarları kaydedilir.")
-    try:
-        with st.spinner("Stok verisi çekiliyor..."):
-            urunler = _stok_verisi_cache()
-    except Exception as e:
-        st.error(f"Stok verisi alınamadı: {e}")
-        return
+def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
+    """Ürün listesini (XML'den ya da yüklenen excel'den) sayım arayüzüne
+    dönüştürür. `anahtar_onek` iki farklı sayım akışının (XML / Excel)
+    session_state ve widget key'lerinin çakışmamasını sağlar."""
     if not urunler:
         st.info("Stok verisi bulunamadı.")
         return
 
-    if "sayim_girisler" not in st.session_state:
-        st.session_state.sayim_girisler = {}  # {urun_adi: {"Sayım":.., "Personel":..}}
-    if "sayim_editor_key" not in st.session_state:
-        st.session_state.sayim_editor_key = 0
+    girisler_key = f"{anahtar_onek}_girisler"
+    editor_key_key = f"{anahtar_onek}_editor_key"
+    if girisler_key not in st.session_state:
+        st.session_state[girisler_key] = {}  # {urun_adi: {"Sayım":.., "Personel":..}}
+    if editor_key_key not in st.session_state:
+        st.session_state[editor_key_key] = 0
+    girisler = st.session_state[girisler_key]
 
     df = pd.DataFrame(urunler)
     df["_stok_sayi"] = pd.to_numeric(df["Stok"], errors="coerce").fillna(0)
@@ -1163,15 +1224,17 @@ def _stok_sayim_bolumu():
 
     # Filtreleri tablo başlıklarına bitişik, sütun genişlikleriyle hizalı şekilde yerleştiriyoruz
     # (Streamlit, Excel'deki gibi başlık içi filtre okunu desteklemiyor - buna en yakın görünüm bu).
-    fc = st.columns([3, 1, 1.2, 1.3, 1.5, 0.8])
-    arama = fc[0].text_input("Ürün Adı", key="sayim_arama", placeholder="🔍 ara...", label_visibility="visible")
+    fc = st.columns([3, 1, 1.2, 1.3, 1.5])
+    arama = fc[0].text_input("Ürün Adı", key=f"{anahtar_onek}_arama", placeholder="🔍 ara...", label_visibility="visible")
     fc[1].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
     fc[2].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
-    secili_kategori = fc[3].selectbox("Kategori", kategoriler, key="sayim_kategori")
+    secili_kategori = fc[3].selectbox("Kategori", kategoriler, key=f"{anahtar_onek}_kategori")
     fc[4].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
-    fc[5].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
 
-    df_goster = df[["Ürün Adı", "Marka", "Kategori", "Stok"]].copy()
+    # "Stok" sütunu kasıtlı olarak GÖSTERİLMİYOR - sayım yapan personel güncel
+    # stok miktarını görüp ona göre yazmasın, gerçek sayımı yapsın. Fark
+    # hesaplaması için gerçek stok değeri `df` üzerinden arka planda kullanılıyor.
+    df_goster = df[["Ürün Adı", "Marka", "Kategori"]].copy()
     if arama:
         df_goster = df_goster[df_goster["Ürün Adı"].str.contains(arama, case=False, na=False)]
     if secili_kategori != "(Tümü)":
@@ -1179,14 +1242,14 @@ def _stok_sayim_bolumu():
 
     # Sayım sütunu Ürün Adı'ndan hemen sonra geliyor - sayım yapan personel
     # ürünü görüp sayı yazarken Marka/Kategori'yi geçmesine gerek kalmasın.
-    df_goster["Sayım"] = df_goster["Ürün Adı"].apply(lambda u: st.session_state.sayim_girisler.get(u, {}).get("Sayım", ""))
-    df_goster["Personel"] = df_goster["Ürün Adı"].apply(lambda u: st.session_state.sayim_girisler.get(u, {}).get("Personel", ""))
-    df_goster = df_goster[["Ürün Adı", "Sayım", "Marka", "Kategori", "Personel", "Stok"]]
+    df_goster["Sayım"] = df_goster["Ürün Adı"].apply(lambda u: girisler.get(u, {}).get("Sayım", ""))
+    df_goster["Personel"] = df_goster["Ürün Adı"].apply(lambda u: girisler.get(u, {}).get("Personel", ""))
+    df_goster = df_goster[["Ürün Adı", "Sayım", "Marka", "Kategori", "Personel"]]
 
     edited = st.data_editor(
         df_goster, use_container_width=True, height=450,
-        key=f"stok_sayim_editor_{st.session_state.sayim_editor_key}",
-        disabled=["Ürün Adı", "Marka", "Kategori", "Stok"], hide_index=True,
+        key=f"stok_sayim_editor_{anahtar_onek}_{st.session_state[editor_key_key]}",
+        disabled=["Ürün Adı", "Marka", "Kategori"], hide_index=True,
     )
 
     # Kullanıcının bu görünümde yaptığı değişiklikleri kalıcı sözlüğe geri yaz
@@ -1195,9 +1258,9 @@ def _stok_sayim_bolumu():
         sayim_dolu = str(row["Sayım"]).strip() not in ("", "nan", "None")
         personel_dolu = str(row["Personel"]).strip() not in ("", "nan", "None")
         if sayim_dolu or personel_dolu:
-            st.session_state.sayim_girisler[urun] = {"Sayım": row["Sayım"], "Personel": row["Personel"]}
-        elif urun in st.session_state.sayim_girisler:
-            del st.session_state.sayim_girisler[urun]
+            girisler[urun] = {"Sayım": row["Sayım"], "Personel": row["Personel"]}
+        elif urun in girisler:
+            del girisler[urun]
 
     st.markdown("---")
     personeller = db.personel_listele()
@@ -1205,26 +1268,26 @@ def _stok_sayim_bolumu():
     cp1, cp2 = st.columns([3, 1])
     secilen_personel = cp1.selectbox(
         "Sayan personeli seçin — sayım girilmiş tüm satırlara otomatik atanır",
-        ["(Seçiniz)"] + personel_adlari, key="sayim_personel_secim",
+        ["(Seçiniz)"] + personel_adlari, key=f"{anahtar_onek}_personel_secim",
     )
-    if cp2.button("👤 Personeli Ata", use_container_width=True):
+    if cp2.button("👤 Personeli Ata", use_container_width=True, key=f"{anahtar_onek}_personel_ata_btn"):
         if secilen_personel == "(Seçiniz)":
             st.warning("Önce bir personel seçin.")
         else:
-            for urun, deger in st.session_state.sayim_girisler.items():
+            for urun, deger in girisler.items():
                 if str(deger.get("Sayım", "")).strip() not in ("", "nan", "None"):
                     deger["Personel"] = secilen_personel
-            st.session_state.sayim_editor_key += 1
+            st.session_state[editor_key_key] += 1
             st.rerun()
 
-    if st.button("✅ Sayımı Tamamla", type="primary"):
-        if not st.session_state.sayim_girisler:
+    if st.button("✅ Sayımı Tamamla", type="primary", key=f"{anahtar_onek}_tamamla_btn"):
+        if not girisler:
             st.warning("Lütfen en az bir ürün için sayım miktarı girin.")
         else:
             stok_haritasi = {row["Ürün Adı"]: row["Stok"] for _, row in df.iterrows()}
             farkli = []
             personel_ozet_set = set()
-            for urun, deger in st.session_state.sayim_girisler.items():
+            for urun, deger in girisler.items():
                 sayim_deger = deger.get("Sayım")
                 if str(sayim_deger).strip() in ("", "nan", "None"):
                     continue
@@ -1242,18 +1305,92 @@ def _stok_sayim_bolumu():
                         "fark": str(sayilan_sayi - guncel),
                     })
             toplam_sayilan = sum(
-                1 for d in st.session_state.sayim_girisler.values()
+                1 for d in girisler.values()
                 if str(d.get("Sayım", "")).strip() not in ("", "nan", "None")
             )
             personel_ozet = ", ".join(personel_ozet_set) if personel_ozet_set else None
             db.stok_sayim_oturumu_kaydet(date.today().isoformat(), personel_ozet, farkli)
-            st.session_state.sayim_girisler = {}
-            st.session_state.sayim_editor_key += 1
+            st.session_state[girisler_key] = {}
+            st.session_state[editor_key_key] += 1
             st.success(
                 f"Sayım kaydedildi ({toplam_sayilan} ürün sayıldı, {len(farkli)} tanesinde fark var). "
                 f"Depo Sayım Fişleri'ndeki haftalık takvimde de görünecek."
             )
             st.rerun()
+
+
+def _excel_stok_oku(dosya):
+    """Yüklenen bir stok/ürün excel'ini stok_utils ile aynı şekle
+    (Ürün Adı/Stok Kodu/Marka/Kategori/Stok) çevirir - esnek sütun eşleştirme
+    ile (XML kaynağı sorunlu olduğunda yedek olarak kullanılır)."""
+    df = excel_utils.excel_oku(dosya)
+    kw = {
+        "Ürün Adı": ["URUN ADI", "STOK ADI", "ACIKLAMA"],
+        "Stok Kodu": ["STOK KODU", "STOK KOD", "URUN KODU"],
+        "Marka": ["MARKA"],
+        "Kategori": ["KATEGORI"],
+        "Stok": ["STOK MIKTARI", "STOK ADEDI", "GUNCEL STOK", "MEVCUT STOK", "STOK"],
+    }
+    eslesme = {}
+    for alan, kelimeler in kw.items():
+        haric = ["KOD"] if alan == "Stok" else None
+        eslesme[alan] = excel_utils.bul_sutun(df.columns, kelimeler, haric=haric)
+
+    if eslesme["Ürün Adı"] is None:
+        raise ValueError(f"'Ürün Adı' sütunu bulunamadı. Dosyadaki sütunlar: {list(df.columns)}")
+
+    urunler = []
+    for _, row in df.iterrows():
+        urun_adi = row[eslesme["Ürün Adı"]]
+        if pd.isna(urun_adi) or not str(urun_adi).strip():
+            continue
+
+        def _al(alan):
+            col = eslesme[alan]
+            if col is None or pd.isna(row[col]):
+                return ""
+            return str(row[col]).strip()
+
+        urunler.append({
+            "Stok Kodu": _al("Stok Kodu"),
+            "Ürün Adı": str(urun_adi).strip(),
+            "Marka": _al("Marka"),
+            "Kategori": _al("Kategori"),
+            "Fiyat": "",
+            "Para Birimi": "",
+            "Stok": _al("Stok") or "0",
+            "Açıklama": "",
+        })
+    return urunler, eslesme
+
+
+def _excel_stok_sayim_bolumu():
+    st.caption(
+        "XML kaynağı sorunlu olduğunda yedek olarak kullanın: bir stok/ürün excel'i yükleyin, "
+        "aşağıda normal Stok Sayım ekranıyla birebir aynı şekilde sayım yapabilirsiniz."
+    )
+    yuklenen = st.file_uploader("Stok Excel Dosyasını Yükleyin", type=["xls", "xlsx"], key="excel_stok_uploader")
+    if yuklenen is None:
+        if "excel_stok_urunler" in st.session_state:
+            del st.session_state["excel_stok_urunler"]
+        st.info("Devam etmek için bir excel dosyası yükleyin.")
+        return
+
+    if st.session_state.get("excel_stok_dosya_adi") != yuklenen.name:
+        try:
+            urunler, eslesme = _excel_stok_oku(yuklenen)
+        except Exception as e:
+            st.error(f"Excel okunurken hata oluştu: {e}")
+            return
+        st.session_state.excel_stok_urunler = urunler
+        st.session_state.excel_stok_dosya_adi = yuklenen.name
+        eksik = [alan for alan, col in eslesme.items() if col is None and alan != "Fiyat"]
+        if eksik:
+            st.caption(f"Bu dosyada bulunamayan alanlar boş bırakıldı: {', '.join(eksik)}")
+
+    urunler = st.session_state.get("excel_stok_urunler", [])
+    st.success(f"{len(urunler)} ürün excel'den okundu.")
+    _stok_sayim_bolumu(urunler, anahtar_onek="excel_sayim")
 
 
 # ------------------------------------------------------------------
@@ -1573,6 +1710,79 @@ def _puantaj_bolumu():
 # ------------------------------------------------------------------
 # İADE
 # ------------------------------------------------------------------
+def _iade_bos_urun_df():
+    return pd.DataFrame({"Ürün Adı": [""] * 5, "Adet": [""] * 5, "Seri Numaraları": [""] * 5})
+
+
+def _iade_karti(iade):
+    durum = iade.get("durum", "Bekliyor")
+    yerlestirildi = bool(iade.get("yerlestirildi"))
+    tarih_str = iade.get("tarih") or ""
+
+    if durum == "Kabul Edildi":
+        bg, fg = "#EAF3DE", "#27500A"
+        durum_etiket = "Kabul Edildi"
+    else:
+        # Bekliyor durumundaki iade, girildiği tarihten geçen süreye göre
+        # renklendirilir - personelin gözünden kaçmasın diye.
+        gun_farki = None
+        if tarih_str:
+            try:
+                gun_farki = (date.today() - date.fromisoformat(tarih_str)).days
+            except ValueError:
+                gun_farki = None
+        if gun_farki is not None and gun_farki >= 21:
+            bg, fg = "#FCEBEB", "#791F1F"
+        elif gun_farki is not None and gun_farki >= 7:
+            bg, fg = "#E6F1FB", "#0C447C"
+        else:
+            bg, fg = "#FAEEDA", "#854F0B"
+        durum_etiket = "Bekliyor"
+
+    baslik = f"{iade['firma_adi']} — {iade['urun_adi']} ({iade.get('adet') or '?'} adet) — {tarih_str}"
+    guvenli_baslik = html.escape(baslik)
+    cizgi = (
+        "text-decoration:line-through;text-decoration-color:#111111;text-decoration-thickness:2px;"
+        if yerlestirildi else ""
+    )
+    st.markdown(
+        f"<div style='background:{bg};color:{fg};padding:12px 14px;border-radius:10px;"
+        f"font-weight:600;margin-bottom:6px;{cizgi}'>{guvenli_baslik}"
+        f"<div style='font-size:11px;font-weight:500;text-decoration:none;margin-top:4px;'>"
+        f"{durum_etiket}{' · 📍 Yerleştirildi' if yerlestirildi else ''}</div></div>",
+        unsafe_allow_html=True,
+    )
+
+    seriler = [s.strip() for s in (iade.get("seri_numaralari") or "").splitlines() if s.strip()]
+    if seriler:
+        st.caption("Seri numaraları: " + ", ".join(seriler))
+
+    c1, c2, c3 = st.columns(3)
+    if durum != "Kabul Edildi":
+        if c1.button("✓ Kabul Edildi", key=f"iade_kabul_{iade['id']}", use_container_width=True):
+            db.iade_durum_guncelle(iade["id"], "Kabul Edildi")
+            st.rerun()
+    else:
+        if c1.button("↺ Bekliyor'a al", key=f"iade_bekliyor_{iade['id']}", use_container_width=True):
+            db.iade_durum_guncelle(iade["id"], "Bekliyor")
+            st.rerun()
+
+    if not yerlestirildi:
+        if c2.button("📍 Yerleştirildi", key=f"iade_yerlestir_{iade['id']}", use_container_width=True):
+            db.iade_yerlestirildi_guncelle(iade["id"], True)
+            st.rerun()
+    else:
+        if c2.button("↺ Yerleştirmeyi geri al", key=f"iade_yerlestir_geri_{iade['id']}", use_container_width=True):
+            db.iade_yerlestirildi_guncelle(iade["id"], False)
+            st.rerun()
+
+    if c3.button("🗑 Sil", key=f"iade_sil_{iade['id']}", use_container_width=True):
+        db.iade_sil(iade["id"])
+        st.rerun()
+
+    st.markdown("---")
+
+
 def sayfa_iade():
     geri_butonu()
     st.header("İade")
@@ -1580,16 +1790,29 @@ def sayfa_iade():
 
     with st.expander("➕ Yeni iade ekle"):
         firma = st.text_input("Firma / Müşteri Adı", key="iade_firma")
-        urun = st.text_input("Ürün Adı", key="iade_urun")
-        adet = st.text_input("Adet", key="iade_adet")
         tarih_g = st.date_input("Tarih", value=date.today(), key="iade_tarih")
-        seri_no = st.text_area("Seri Numaraları (her satıra bir tane)", key="iade_seri", height=120)
+        st.caption("Aynı firmadan birden fazla ürün iade ediliyorsa hepsini aşağıdaki tabloya ekleyin.")
+        if "iade_urun_df" not in st.session_state:
+            st.session_state.iade_urun_df = _iade_bos_urun_df()
+        urun_df = st.data_editor(
+            st.session_state.iade_urun_df, num_rows="dynamic", use_container_width=True,
+            key="iade_urun_editor", height=220,
+            column_config={"Seri Numaraları": st.column_config.TextColumn("Seri Numaraları (virgülle ayırın)")},
+        )
         if st.button("Ekle", key="iade_ekle_btn"):
-            if not firma or not urun:
-                st.warning("Firma ve ürün adı girin.")
+            satirlar = [
+                row for _, row in urun_df.iterrows()
+                if str(row["Ürün Adı"]).strip() not in ("", "nan", "None")
+            ]
+            if not firma or not satirlar:
+                st.warning("Firma adı ve en az bir ürün satırı girin.")
             else:
-                db.iade_ekle(firma, urun, seri_no, adet, tarih_g.isoformat())
-                st.success("İade eklendi.")
+                for row in satirlar:
+                    seri_ham = str(row["Seri Numaraları"]) if str(row["Seri Numaraları"]) not in ("nan", "None") else ""
+                    seri_coklu_satir = "\n".join(s.strip() for s in seri_ham.split(",") if s.strip())
+                    db.iade_ekle(firma, row["Ürün Adı"], seri_coklu_satir, row["Adet"], tarih_g.isoformat())
+                st.success(f"{firma} için {len(satirlar)} ürün eklendi.")
+                st.session_state.iade_urun_df = _iade_bos_urun_df()
                 st.rerun()
 
     iadeler = db.iadeler_getir()
@@ -1598,30 +1821,7 @@ def sayfa_iade():
         return
 
     for iade in iadeler:
-        durum = iade.get("durum", "Bekliyor")
-        renk = "#EAF3DE" if durum == "Kabul Edildi" else "#FAEEDA"
-        yazi_renk = "#27500A" if durum == "Kabul Edildi" else "#854F0B"
-        with st.expander(f"{iade['firma_adi']} — {iade['urun_adi']} ({iade.get('adet') or '?'} adet) — {iade.get('tarih') or ''}"):
-            st.markdown(
-                f"<span style='background:{renk};color:{yazi_renk};font-size:12px;padding:3px 8px;border-radius:6px;'>{durum}</span>",
-                unsafe_allow_html=True,
-            )
-            seriler = [s.strip() for s in (iade.get("seri_numaralari") or "").splitlines() if s.strip()]
-            if seriler:
-                st.markdown("**Seri numaraları:**")
-                st.write(", ".join(seriler))
-            c1, c2 = st.columns(2)
-            if durum != "Kabul Edildi":
-                if c1.button("✓ Kabul Edildi olarak işaretle", key=f"iade_kabul_{iade['id']}"):
-                    db.iade_durum_guncelle(iade["id"], "Kabul Edildi")
-                    st.rerun()
-            else:
-                if c1.button("↺ Bekliyor'a al", key=f"iade_bekliyor_{iade['id']}"):
-                    db.iade_durum_guncelle(iade["id"], "Bekliyor")
-                    st.rerun()
-            if c2.button("🗑 Sil", key=f"iade_sil_{iade['id']}"):
-                db.iade_sil(iade["id"])
-                st.rerun()
+        _iade_karti(iade)
 
 
 # ------------------------------------------------------------------

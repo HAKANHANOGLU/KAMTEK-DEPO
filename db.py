@@ -339,6 +339,14 @@ def iade_durum_guncelle(iade_id, durum):
     r.raise_for_status()
 
 
+def iade_yerlestirildi_guncelle(iade_id, yerlestirildi):
+    r = requests.patch(
+        f"{_REST}/iadeler", headers=_HEADERS, params={"id": f"eq.{iade_id}"},
+        data=json.dumps({"yerlestirildi": bool(yerlestirildi)}), timeout=15,
+    )
+    r.raise_for_status()
+
+
 def iade_sil(iade_id):
     r = requests.delete(f"{_REST}/iadeler", headers=_HEADERS, params={"id": f"eq.{iade_id}"}, timeout=15)
     r.raise_for_status()
