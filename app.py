@@ -21,7 +21,6 @@ st.markdown("""
 <style>
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-header {visibility: hidden;}
 div[data-testid="stToolbar"] {visibility: hidden;}
 
 .st-key-kart1 button {
