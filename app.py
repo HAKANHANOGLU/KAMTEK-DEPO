@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 import calendar
 import io
 import base64
+import html
 
 import data
 import db
@@ -254,6 +255,14 @@ div[data-testid="stMetric"] {
     font-size: 12px !important;
     padding: 4px !important;
 }
+/* Telefon ekranında sidebar tüm sayfayı kaplıyordu - genişliğini sınırla. */
+@media (max-width: 640px) {
+    section[data-testid="stSidebar"] {
+        width: 76vw !important;
+        min-width: 76vw !important;
+        max-width: 300px !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -309,22 +318,43 @@ def _img_b64(path):
         return None
 
 
-def _bildirim_sayisi():
+@st.cache_data(ttl=20, show_spinner=False)
+def _bildirim_verileri():
+    """Bildirimle ilgili tüm veriyi TEK seferde çeker ve 20 saniye önbellekler.
+
+    Eskiden hem sidebar'da hem ana sayfada hem de Bildirim sayfasında her
+    bildirim için ayrı ayrı bildirim_okundu_mu() çağrılıyordu (N+1 istek) —
+    bu, her sayfa geçişinde onlarca sıralı ağ isteğine (dolayısıyla belirgin
+    bir bekleme süresine) sebep oluyordu. Artık 4 istek tek seferde yapılıp
+    20 saniye boyunca tüm kullanıcılar/sayfalar arasında paylaşılıyor.
+    """
     bugun_iso = date.today().isoformat()
     simdi_saat = datetime.now().strftime("%H:%M")
-    sayac = 0
     try:
-        for g in db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat):
-            if not db.bildirim_okundu_mu("gorev", g["id"], bugun_iso):
-                sayac += 1
-        for t in db.transfer_talepleri_getir("Bekliyor"):
-            if not db.bildirim_okundu_mu("transfer", t["id"], bugun_iso):
-                sayac += 1
-        for p in db.bugun_dogum_gunu_olanlar():
-            if not db.bildirim_okundu_mu("dogumgunu", p["id"], bugun_iso):
-                sayac += 1
+        gorevler = db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat)
     except Exception:
-        pass
+        gorevler = []
+    try:
+        transferler = db.transfer_talepleri_getir("Bekliyor")
+    except Exception:
+        transferler = []
+    try:
+        dogumgunler = db.bugun_dogum_gunu_olanlar()
+    except Exception:
+        dogumgunler = []
+    try:
+        okunmus = db.bildirim_okundu_getir_gun(bugun_iso)
+    except Exception:
+        okunmus = set()
+    return {"gorevler": gorevler, "transferler": transferler, "dogumgunler": dogumgunler, "okunmus": okunmus}
+
+
+def _bildirim_sayisi(veri=None):
+    veri = veri or _bildirim_verileri()
+    okunmus = veri["okunmus"]
+    sayac = sum(1 for g in veri["gorevler"] if ("gorev", str(g["id"])) not in okunmus)
+    sayac += sum(1 for t in veri["transferler"] if ("transfer", str(t["id"])) not in okunmus)
+    sayac += sum(1 for p in veri["dogumgunler"] if ("dogumgunu", str(p["id"])) not in okunmus)
     return sayac
 
 
@@ -383,7 +413,6 @@ def sayfa_home():
     st.markdown(f"<div style='color:#8A8A85; font-size:12px;'>Kamtek Depo / genel bakış</div>", unsafe_allow_html=True)
     st.markdown(f"<div style='font-size:22px; font-weight:600; margin-bottom:18px;'>Bugün, {date.today().strftime('%d.%m.%Y')}</div>", unsafe_allow_html=True)
 
-    bugun_iso = date.today().isoformat()
     try:
         bugun_sevkiyat = len(db.tamamlanan_kargolar_getir_ay(date.today().year, date.today().month))
     except Exception:
@@ -392,29 +421,25 @@ def sayfa_home():
         bekleyen_iade = len([i for i in db.iadeler_getir() if i.get("durum") != "Kabul Edildi"])
     except Exception:
         bekleyen_iade = 0
-    try:
-        bekleyen_transfer = len(db.transfer_talepleri_getir("Bekliyor"))
-    except Exception:
-        bekleyen_transfer = 0
-    bildirim_n = _bildirim_sayisi()
+    veri = _bildirim_verileri()
+    bildirim_n = _bildirim_sayisi(veri)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Bu ay tamamlanan kargo", bugun_sevkiyat)
     c2.metric("Bekleyen iade", bekleyen_iade)
-    c3.metric("Bekleyen transfer talebi", bekleyen_transfer)
+    c3.metric("Bekleyen transfer talebi", len(veri["transferler"]))
     c4.metric("Bekleyen bildirim", bildirim_n)
 
     st.write("")
     st.markdown("**Son bildirimler**")
-    simdi_saat = datetime.now().strftime("%H:%M")
     gosterildi = False
-    for p in db.bugun_dogum_gunu_olanlar():
+    for p in veri["dogumgunler"]:
         st.success(f"🎂 {p['ad_soyad']}'in bugün doğum günü!")
         gosterildi = True
-    for g in db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat):
+    for g in veri["gorevler"]:
         st.warning(f"⏰ {g.get('saat') or ''} — {g['aciklama']}")
         gosterildi = True
-    for t in db.transfer_talepleri_getir("Bekliyor"):
+    for t in veri["transferler"]:
         st.info(f"🔁 {t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet)")
         gosterildi = True
     if not gosterildi:
@@ -424,6 +449,69 @@ def sayfa_home():
 # ------------------------------------------------------------------
 # SEVKİYAT PLANLAMA
 # ------------------------------------------------------------------
+@st.cache_data(ttl=None, show_spinner=False)
+def _il_harita_verisi():
+    """Türkiye il sınırları + il ismi eşleştirme haritalarını GitHub'dan bir
+    kez çeker ve kalıcı önbellekler. Eskiden bu ağ isteği ve 81 ilin
+    centroid/bbox hesaplaması Sevkiyat Planlama sayfasına HER girişte yeniden
+    yapılıyordu — sayfa geçişini belirgin şekilde yavaşlatan asıl sebep
+    buydu. Veri statik olduğu için süresiz önbellekleniyor (uygulama yeniden
+    başlatılınca zaten temizlenir)."""
+    import requests
+    import excel_utils as _eu
+
+    geojson_url = "https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json"
+    geojson = requests.get(geojson_url, timeout=8).json()
+
+    # geojson'daki il isimleri bizim ALL-CAPS listemizle birebir eşleşmiyor
+    # (örn. "İstanbul", "Afyon"), bu yüzden normalize ederek eşleştiriyoruz.
+    EK_ESLESTIRME = {"AFYONKARAHİSAR": "AFYON", "MERSİN": "İÇEL"}
+
+    def norm_il(s):
+        s = EK_ESLESTIRME.get(s.upper(), s.upper())
+        return _eu.norm(s)
+
+    def _il_centroid_bbox(feature):
+        geom = feature["geometry"]
+        coords = geom["coordinates"]
+        depth = 2 if geom["type"] == "Polygon" else 3
+        pts = []
+
+        def collect(c, d):
+            if d == 0:
+                pts.append(c)
+            else:
+                for cc in c:
+                    collect(cc, d - 1)
+
+        collect(coords, depth)
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        return sum(xs) / len(xs), sum(ys) / len(ys), max(xs) - min(xs), max(ys) - min(ys)
+
+    geojson_isim_haritasi = {norm_il(f["properties"]["name"]): f["properties"]["name"] for f in geojson["features"]}
+    norm_to_il = {norm_il(il): il for il in data.IL_LISTESI}
+
+    lons, lats, texts, sizes = [], [], [], []
+    for f in geojson["features"]:
+        cx, cy, w, h = _il_centroid_bbox(f)
+        lons.append(cx)
+        lats.append(cy)
+        texts.append(f["properties"]["name"])
+        # küçük illerde küçük, büyük illerde biraz daha büyük yazı - sınırı taşmasın diye
+        alan = w * h
+        sizes.append(max(5, min(10, alan * 350)))
+
+    return {
+        "geojson": geojson,
+        "geojson_isim_haritasi": geojson_isim_haritasi,
+        "norm_to_il": norm_to_il,
+        "norm_il": norm_il,
+        "tum_isimler": [f["properties"]["name"] for f in geojson["features"]],
+        "lons": lons, "lats": lats, "texts": texts, "sizes": sizes,
+    }
+
+
 def sayfa_sevkiyat():
     geri_butonu()
     st.header("Sevkiyat Planlama")
@@ -442,58 +530,19 @@ def sayfa_sevkiyat():
         secili_il = st.selectbox("Varış İli", data.IL_LISTESI, key="secili_il")
         try:
             import plotly.graph_objects as go
-            import requests
-            import excel_utils as _eu
 
-            geojson_url = "https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json"
-            geojson = requests.get(geojson_url, timeout=8).json()
-
-            # geojson'daki il isimleri bizim ALL-CAPS listemizle birebir eşleşmiyor
-            # (örn. "İstanbul", "Afyon"), bu yüzden normalize ederek eşleştiriyoruz.
-            EK_ESLESTIRME = {"AFYONKARAHİSAR": "AFYON", "MERSİN": "İÇEL"}
-
-            def norm_il(s):
-                s = EK_ESLESTIRME.get(s.upper(), s.upper())
-                return _eu.norm(s)
-
-            geojson_isim_haritasi = {norm_il(f["properties"]["name"]): f["properties"]["name"] for f in geojson["features"]}
-            norm_to_il = {norm_il(il): il for il in data.IL_LISTESI}
-            gercek_isim = geojson_isim_haritasi.get(norm_il(secili_il))
+            hv = _il_harita_verisi()
+            geojson = hv["geojson"]
+            norm_il = hv["norm_il"]
+            norm_to_il = hv["norm_to_il"]
+            gercek_isim = hv["geojson_isim_haritasi"].get(norm_il(secili_il))
 
             if gercek_isim is None:
                 st.info(f"{secili_il} haritada bulunamadı, sadece il seçimiyle devam edebilirsiniz.")
             else:
-                tum_isimler = [f["properties"]["name"] for f in geojson["features"]]
-                df_map = pd.DataFrame({"il": tum_isimler})
+                df_map = pd.DataFrame({"il": hv["tum_isimler"]})
                 df_map["secili"] = df_map["il"].apply(lambda x: 1 if x == gercek_isim else 0)
-
-                def _il_centroid_bbox(feature):
-                    geom = feature["geometry"]
-                    coords = geom["coordinates"]
-                    depth = 2 if geom["type"] == "Polygon" else 3
-                    pts = []
-
-                    def collect(c, d):
-                        if d == 0:
-                            pts.append(c)
-                        else:
-                            for cc in c:
-                                collect(cc, d - 1)
-
-                    collect(coords, depth)
-                    xs = [p[0] for p in pts]
-                    ys = [p[1] for p in pts]
-                    return sum(xs) / len(xs), sum(ys) / len(ys), max(xs) - min(xs), max(ys) - min(ys)
-
-                lons, lats, texts, sizes = [], [], [], []
-                for f in geojson["features"]:
-                    cx, cy, w, h = _il_centroid_bbox(f)
-                    lons.append(cx)
-                    lats.append(cy)
-                    texts.append(f["properties"]["name"])
-                    # küçük illerde küçük, büyük illerde biraz daha büyük yazı - sınırı taşmasın diye
-                    alan = w * h
-                    sizes.append(max(5, min(10, alan * 350)))
+                lons, lats, texts, sizes = hv["lons"], hv["lats"], hv["texts"], hv["sizes"]
 
                 fig = go.Figure()
                 fig.add_trace(go.Choropleth(
@@ -1114,11 +1163,11 @@ def _stok_sayim_bolumu():
 
     # Filtreleri tablo başlıklarına bitişik, sütun genişlikleriyle hizalı şekilde yerleştiriyoruz
     # (Streamlit, Excel'deki gibi başlık içi filtre okunu desteklemiyor - buna en yakın görünüm bu).
-    fc = st.columns([3, 1.2, 1.3, 1, 1.5, 0.8])
+    fc = st.columns([3, 1, 1.2, 1.3, 1.5, 0.8])
     arama = fc[0].text_input("Ürün Adı", key="sayim_arama", placeholder="🔍 ara...", label_visibility="visible")
     fc[1].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
-    secili_kategori = fc[2].selectbox("Kategori", kategoriler, key="sayim_kategori")
-    fc[3].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    fc[2].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    secili_kategori = fc[3].selectbox("Kategori", kategoriler, key="sayim_kategori")
     fc[4].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
     fc[5].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
 
@@ -1128,9 +1177,11 @@ def _stok_sayim_bolumu():
     if secili_kategori != "(Tümü)":
         df_goster = df_goster[df_goster["Kategori"] == secili_kategori]
 
+    # Sayım sütunu Ürün Adı'ndan hemen sonra geliyor - sayım yapan personel
+    # ürünü görüp sayı yazarken Marka/Kategori'yi geçmesine gerek kalmasın.
     df_goster["Sayım"] = df_goster["Ürün Adı"].apply(lambda u: st.session_state.sayim_girisler.get(u, {}).get("Sayım", ""))
     df_goster["Personel"] = df_goster["Ürün Adı"].apply(lambda u: st.session_state.sayim_girisler.get(u, {}).get("Personel", ""))
-    df_goster = df_goster[["Ürün Adı", "Marka", "Kategori", "Sayım", "Personel", "Stok"]]
+    df_goster = df_goster[["Ürün Adı", "Sayım", "Marka", "Kategori", "Personel", "Stok"]]
 
     edited = st.data_editor(
         df_goster, use_container_width=True, height=450,
@@ -1698,54 +1749,57 @@ def sayfa_depotransfer():
 # ------------------------------------------------------------------
 # BİLDİRİM
 # ------------------------------------------------------------------
+def _bildirim_satiri(tip, anahtar, metin, renk, okunmus, bugun_iso):
+    """Bir bildirim satırını çizer. Okunmuşsa listeden KALDIRILMAZ — üzeri
+    silik bir çizgiyle işaretlenir ama metin okunabilir kalır."""
+    okundu = (tip, str(anahtar)) in okunmus
+    c1, c2 = st.columns([5, 1])
+    if okundu:
+        guvenli_metin = html.escape(metin)
+        c1.markdown(
+            "<div style='padding:0.75rem 1rem;border-radius:0.5rem;background:#F5F5F3;"
+            f"color:#8A8A85;text-decoration:line-through;text-decoration-color:#B8B8B4;'>{guvenli_metin}</div>",
+            unsafe_allow_html=True,
+        )
+        c2.caption("✓ Okundu")
+    else:
+        getattr(c1, renk)(metin)
+        if c2.button("✓ Okundu", key=f"bok_{tip}_{anahtar}"):
+            db.bildirim_okundu_isaretle(tip, anahtar, bugun_iso)
+            _bildirim_verileri.clear()
+            st.rerun()
+
+
 def sayfa_bildirim():
     geri_butonu()
     st.header("Bildirim")
 
     bugun_iso = date.today().isoformat()
-    simdi_saat = datetime.now().strftime("%H:%M")
+    veri = _bildirim_verileri()
+    okunmus = veri["okunmus"]
 
-    dogum_gunu_olanlar = [
-        p for p in db.bugun_dogum_gunu_olanlar()
-        if not db.bildirim_okundu_mu("dogumgunu", p["id"], bugun_iso)
-    ]
-    if dogum_gunu_olanlar:
+    gosterildi = False
+    if veri["dogumgunler"]:
         st.markdown("**🎂 Bugün doğum günü olanlar**")
-        for p in dogum_gunu_olanlar:
-            c1, c2 = st.columns([5, 1])
-            c1.success(f"🎉 {p['ad_soyad']}'in bugün doğum günü!")
-            if c2.button("✓ Okundu", key=f"bok_dogumgunu_{p['id']}"):
-                db.bildirim_okundu_isaretle("dogumgunu", p["id"], bugun_iso)
-                st.rerun()
+        for p in veri["dogumgunler"]:
+            _bildirim_satiri("dogumgunu", p["id"], f"🎉 {p['ad_soyad']}'in bugün doğum günü!", "success", okunmus, bugun_iso)
+            gosterildi = True
 
-    bekleyen_gorevler = [
-        g for g in db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat)
-        if not db.bildirim_okundu_mu("gorev", g["id"], bugun_iso)
-    ]
-    if bekleyen_gorevler:
+    if veri["gorevler"]:
         st.markdown("**⏰ Zamanı gelen planlanan işler**")
-        for g in bekleyen_gorevler:
-            c1, c2 = st.columns([5, 1])
-            c1.warning(f"{g.get('saat') or ''} — {g['aciklama']}")
-            if c2.button("✓ Okundu", key=f"bok_gorev_{g['id']}"):
-                db.bildirim_okundu_isaretle("gorev", g["id"], bugun_iso)
-                st.rerun()
+        for g in veri["gorevler"]:
+            _bildirim_satiri("gorev", g["id"], f"{g.get('saat') or ''} — {g['aciklama']}", "warning", okunmus, bugun_iso)
+            gosterildi = True
 
-    transfer_talepleri = [
-        t for t in db.transfer_talepleri_getir("Bekliyor")
-        if not db.bildirim_okundu_mu("transfer", t["id"], bugun_iso)
-    ]
-    if transfer_talepleri:
+    if veri["transferler"]:
         st.markdown("**🔁 Bekleyen depo transfer çağrıları**")
-        for t in transfer_talepleri:
+        for t in veri["transferler"]:
             not_metni = f" ({t['istenen_zaman_aciklama']})" if t.get("istenen_zaman_aciklama") else ""
-            c1, c2 = st.columns([5, 1])
-            c1.info(f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet){not_metni}")
-            if c2.button("✓ Okundu", key=f"bok_transfer_{t['id']}"):
-                db.bildirim_okundu_isaretle("transfer", t["id"], bugun_iso)
-                st.rerun()
+            metin = f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet){not_metni}"
+            _bildirim_satiri("transfer", t["id"], metin, "info", okunmus, bugun_iso)
+            gosterildi = True
 
-    if not bekleyen_gorevler and not transfer_talepleri and not dogum_gunu_olanlar:
+    if not gosterildi:
         st.info("Şu an bekleyen bir bildirim yok.")
 
 

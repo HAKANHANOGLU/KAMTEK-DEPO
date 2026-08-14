@@ -487,6 +487,19 @@ def bildirim_okundu_mu(tip, anahtar, tarih):
     return len(r.json()) > 0
 
 
+def bildirim_okundu_getir_gun(tarih):
+    """Bir güne ait TÜM okundu işaretlerini tek istekte döndürür ({(tip, anahtar), ...}).
+
+    bildirim_okundu_mu'yu her bildirim için ayrı ayrı çağırmak yerine (N+1 istek,
+    sayfa açılışını yavaşlatıyordu) bu fonksiyonla tek seferde çekilip yerelde
+    üyelik kontrolü yapılır.
+    """
+    params = {"tarih": f"eq.{tarih}", "select": "tip,anahtar"}
+    r = requests.get(f"{_REST}/bildirim_okundu", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return {(row["tip"], row["anahtar"]) for row in r.json()}
+
+
 # ---------- Stok Sayım ----------
 
 def stok_sayim_oturumu_kaydet(tarih, personel_adi, satirlar):
