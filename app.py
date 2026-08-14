@@ -21,8 +21,6 @@ st.markdown("""
 <style>
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-header {visibility: hidden;}
-div[data-testid="stToolbar"] {visibility: hidden;}
 
 .st-key-kart1 button {
     background-color: #E6F1FB !important; border: none !important; border-radius: 32px !important;
@@ -112,13 +110,11 @@ div[data-testid="stToolbar"] {visibility: hidden;}
 .stApp {
     background-color: #F5F5F3 !important;
 }
-.st-key-nav_panel {
+section[data-testid="stSidebar"] {
     background-color: #EDEDEA !important;
     border-right: 1px solid #DEDEDA !important;
-    border-radius: 10px !important;
-    padding: 14px 10px !important;
 }
-.st-key-nav_panel button {
+section[data-testid="stSidebar"] button {
     background-color: transparent !important;
     border: none !important;
     text-align: left !important;
@@ -127,7 +123,7 @@ div[data-testid="stToolbar"] {visibility: hidden;}
     font-weight: 500 !important;
     padding: 6px 10px !important;
 }
-.st-key-nav_panel button:hover {
+section[data-testid="stSidebar"] button:hover {
     background-color: #FFFFFF !important;
 }
 div[data-testid="stMetric"] {
@@ -220,7 +216,7 @@ def _bildirim_sayisi():
 
 
 def render_sidebar():
-    with st.container(key="nav_panel"):
+    with st.sidebar:
         b64 = _img_b64("kamtek_logo.png")
         if b64:
             st.markdown(
@@ -748,7 +744,7 @@ def _temizlik_kroki_svg(temizlenenler_bugun):
     def isaret_renk(oda):
         return "#1f7a33" if oda in temizlenenler_bugun else "#2f7d4f"
 
-    return f"""
+    html = f"""
 <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;">
   <div style="text-align:center;">
     <div style="font-size:13px;font-weight:700;letter-spacing:1px;color:#8a6d3b;margin-bottom:6px;">ZEMİN KAT</div>
@@ -811,6 +807,10 @@ def _temizlik_kroki_svg(temizlenenler_bugun):
   </div>
 </div>
 """
+    # Markdown, 4+ boşlukla başlayan satırları "kod bloğu" sayıp düz metin olarak
+    # bastığı için, HTML/SVG'yi render edebilmesi için her satır başındaki
+    # girintiyi temizliyoruz.
+    return "\n".join(line.strip() for line in html.strip().splitlines())
 
 
 def depo_temizlik_bolumu():
@@ -988,53 +988,105 @@ def _stok_sayim_bolumu():
         st.info("Stok verisi bulunamadı.")
         return
 
+    if "sayim_girisler" not in st.session_state:
+        st.session_state.sayim_girisler = {}  # {urun_adi: {"Sayım":.., "Personel":..}}
+    if "sayim_editor_key" not in st.session_state:
+        st.session_state.sayim_editor_key = 0
+
     df = pd.DataFrame(urunler)
     df["_stok_sayi"] = pd.to_numeric(df["Stok"], errors="coerce").fillna(0)
     df = df.sort_values("_stok_sayi", ascending=False).reset_index(drop=True)
 
-    c1, c2 = st.columns(2)
-    arama = c1.text_input("Ürün adı ara", key="sayim_arama", placeholder="Ürün adı ara...")
     kategoriler = ["(Tümü)"] + sorted([k for k in df["Kategori"].dropna().unique() if k])
-    secili_kategori = c2.selectbox("Kategori filtrele", kategoriler, key="sayim_kategori")
+
+    # Filtreleri tablo başlıklarına bitişik, sütun genişlikleriyle hizalı şekilde yerleştiriyoruz
+    # (Streamlit, Excel'deki gibi başlık içi filtre okunu desteklemiyor - buna en yakın görünüm bu).
+    fc = st.columns([3, 1.2, 1.3, 1, 1.5, 0.8])
+    arama = fc[0].text_input("Ürün Adı", key="sayim_arama", placeholder="🔍 ara...", label_visibility="visible")
+    fc[1].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    secili_kategori = fc[2].selectbox("Kategori", kategoriler, key="sayim_kategori")
+    fc[3].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    fc[4].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
+    fc[5].markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
 
     df_goster = df[["Ürün Adı", "Marka", "Kategori", "Stok"]].copy()
     if arama:
         df_goster = df_goster[df_goster["Ürün Adı"].str.contains(arama, case=False, na=False)]
     if secili_kategori != "(Tümü)":
         df_goster = df_goster[df_goster["Kategori"] == secili_kategori]
-    df_goster.insert(3, "Sayım", "")
-    df_goster.insert(4, "Personel", "")
+
+    df_goster["Sayım"] = df_goster["Ürün Adı"].apply(lambda u: st.session_state.sayim_girisler.get(u, {}).get("Sayım", ""))
+    df_goster["Personel"] = df_goster["Ürün Adı"].apply(lambda u: st.session_state.sayim_girisler.get(u, {}).get("Personel", ""))
+    df_goster = df_goster[["Ürün Adı", "Marka", "Kategori", "Sayım", "Personel", "Stok"]]
 
     edited = st.data_editor(
-        df_goster, use_container_width=True, height=450, key="stok_sayim_editor",
+        df_goster, use_container_width=True, height=450,
+        key=f"stok_sayim_editor_{st.session_state.sayim_editor_key}",
         disabled=["Ürün Adı", "Marka", "Kategori", "Stok"], hide_index=True,
     )
 
+    # Kullanıcının bu görünümde yaptığı değişiklikleri kalıcı sözlüğe geri yaz
+    for _, row in edited.iterrows():
+        urun = row["Ürün Adı"]
+        sayim_dolu = str(row["Sayım"]).strip() not in ("", "nan", "None")
+        personel_dolu = str(row["Personel"]).strip() not in ("", "nan", "None")
+        if sayim_dolu or personel_dolu:
+            st.session_state.sayim_girisler[urun] = {"Sayım": row["Sayım"], "Personel": row["Personel"]}
+        elif urun in st.session_state.sayim_girisler:
+            del st.session_state.sayim_girisler[urun]
+
+    st.markdown("---")
+    personeller = db.personel_listele()
+    personel_adlari = [p["ad_soyad"] for p in personeller]
+    cp1, cp2 = st.columns([3, 1])
+    secilen_personel = cp1.selectbox(
+        "Sayan personeli seçin — sayım girilmiş tüm satırlara otomatik atanır",
+        ["(Seçiniz)"] + personel_adlari, key="sayim_personel_secim",
+    )
+    if cp2.button("👤 Personeli Ata", use_container_width=True):
+        if secilen_personel == "(Seçiniz)":
+            st.warning("Önce bir personel seçin.")
+        else:
+            for urun, deger in st.session_state.sayim_girisler.items():
+                if str(deger.get("Sayım", "")).strip() not in ("", "nan", "None"):
+                    deger["Personel"] = secilen_personel
+            st.session_state.sayim_editor_key += 1
+            st.rerun()
+
     if st.button("✅ Sayımı Tamamla", type="primary"):
-        sayilan = edited[edited["Sayım"].apply(lambda v: str(v).strip() not in ("", "nan", "None"))]
-        if sayilan.empty:
+        if not st.session_state.sayim_girisler:
             st.warning("Lütfen en az bir ürün için sayım miktarı girin.")
         else:
+            stok_haritasi = {row["Ürün Adı"]: row["Stok"] for _, row in df.iterrows()}
             farkli = []
-            personel_adlari = set()
-            for _, row in sayilan.iterrows():
+            personel_ozet_set = set()
+            for urun, deger in st.session_state.sayim_girisler.items():
+                sayim_deger = deger.get("Sayım")
+                if str(sayim_deger).strip() in ("", "nan", "None"):
+                    continue
+                if deger.get("Personel"):
+                    personel_ozet_set.add(str(deger["Personel"]))
                 try:
-                    guncel = float(str(row["Stok"]).replace(",", "."))
-                    sayilan_deger = float(str(row["Sayım"]).replace(",", "."))
+                    guncel = float(str(stok_haritasi.get(urun, 0)).replace(",", "."))
+                    sayilan_sayi = float(str(sayim_deger).replace(",", "."))
                 except (ValueError, TypeError):
                     continue
-                if row.get("Personel"):
-                    personel_adlari.add(str(row["Personel"]))
-                if abs(guncel - sayilan_deger) > 1e-9:
+                if abs(guncel - sayilan_sayi) > 1e-9:
                     farkli.append({
-                        "urun_adi": row["Ürün Adı"], "stok_kodu": None,
-                        "guncel_stok": row["Stok"], "sayilan": row["Sayım"],
-                        "fark": str(sayilan_deger - guncel),
+                        "urun_adi": urun, "stok_kodu": None,
+                        "guncel_stok": stok_haritasi.get(urun), "sayilan": sayim_deger,
+                        "fark": str(sayilan_sayi - guncel),
                     })
-            personel_ozet = ", ".join(personel_adlari) if personel_adlari else None
+            toplam_sayilan = sum(
+                1 for d in st.session_state.sayim_girisler.values()
+                if str(d.get("Sayım", "")).strip() not in ("", "nan", "None")
+            )
+            personel_ozet = ", ".join(personel_ozet_set) if personel_ozet_set else None
             db.stok_sayim_oturumu_kaydet(date.today().isoformat(), personel_ozet, farkli)
+            st.session_state.sayim_girisler = {}
+            st.session_state.sayim_editor_key += 1
             st.success(
-                f"Sayım kaydedildi ({len(sayilan)} ürün sayıldı, {len(farkli)} tanesinde fark var). "
+                f"Sayım kaydedildi ({toplam_sayilan} ürün sayıldı, {len(farkli)} tanesinde fark var). "
                 f"Depo Sayım Fişleri'ndeki haftalık takvimde de görünecek."
             )
             st.rerun()
@@ -1693,8 +1745,5 @@ SAYFALAR = {
     "depotransfer": sayfa_depotransfer,
 }
 
-col_nav, col_content = st.columns([1, 4], gap="large")
-with col_nav:
-    render_sidebar()
-with col_content:
-    SAYFALAR[st.session_state.sayfa]()
+render_sidebar()
+SAYFALAR[st.session_state.sayfa]()
