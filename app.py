@@ -282,6 +282,7 @@ div[data-testid="stTextInput"] input,
 div[data-testid="stTextArea"] textarea,
 div[data-testid="stNumberInput"] input,
 div[data-testid="stDateInput"] input,
+div[data-baseweb="select"],
 div[data-baseweb="select"] > div,
 div[data-baseweb="base-input"] {
     background-color: #FFFFFF !important;
@@ -292,9 +293,16 @@ div[data-testid="stTextInput"] input:focus,
 div[data-testid="stTextArea"] textarea:focus,
 div[data-testid="stNumberInput"] input:focus,
 div[data-testid="stDateInput"] input:focus,
-div[data-baseweb="select"]:focus-within > div {
+div[data-baseweb="select"]:focus-within {
     border-color: #378ADD !important;
     box-shadow: 0 0 0 1px #378ADD !important;
+}
+/* BaseWeb select'in görünür kutusu bazı sürümlerde data-baseweb="select"
+   elementinin kendisi, bazılarında bir alt div - ikisini de kapsayınca
+   iç içe iki border oluşabiliyor, iç div'in kendi border'ını kaldırıyoruz. */
+div[data-baseweb="select"] > div {
+    border: none !important;
+    background-color: transparent !important;
 }
 /* Telefon ekranında sidebar tüm sayfayı kaplıyordu - genişliğini sınırla. */
 @media (max-width: 640px) {
