@@ -1304,33 +1304,27 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
     if secili_kategori != "(Tümü)":
         df_goster = df_goster[df_goster["Kategori"] == secili_kategori]
 
-    # Marka ve Personel sütunları çok daraltıldı - içerik de kısaltılarak
-    # (marka: sadece sessiz harfler, personel: baş harfleri) tabloyu telefon
-    # ekranına yatay kaydırma gerektirmeden tam sığdırıyoruz. Kategori sütunu
-    # (filtre olarak hâlâ kullanılabiliyor) tablodan tamamen kaldırıldı.
-    df_goster["Marka"] = df_goster["Marka"].apply(_marka_kisalt)
+    # Tabloda ARTIK SADECE Ürün Adı + Sayım var - Marka/Personel/Kategori
+    # dahil edildiğinde daraltılsalar bile telefon ekranında hafif yatay
+    # kaydırma kalıyordu ("hiç kıpırdamasın" istendi). Marka hâlâ arama/
+    # kategori filtresinde kullanılıyor, sadece tablo sütunu olarak
+    # gösterilmiyor. Personel ataması "Personeli Ata" düğmesinden yapılıyor.
     df_goster["Sayım"] = df_goster["Ürün Adı"].apply(lambda u: girisler.get(u, {}).get("Sayım", ""))
-    df_goster["Personel"] = df_goster["Ürün Adı"].apply(lambda u: _personel_kisalt(girisler.get(u, {}).get("Personel", "")))
-    df_goster = df_goster[["Ürün Adı", "Sayım", "Marka", "Personel"]]
+    df_goster = df_goster[["Ürün Adı", "Sayım"]]
 
     edited = st.data_editor(
         df_goster, use_container_width=True, height=450,
         key=f"stok_sayim_editor_{anahtar_onek}_{st.session_state[editor_key_key]}",
-        disabled=["Ürün Adı", "Marka", "Personel"], hide_index=True,
+        disabled=["Ürün Adı"], hide_index=True,
         column_config={
-            # Ürün Adı + Sayım telefon ekranına kaydırmadan sığsın diye dar;
-            # Marka/Personel içerik zaten kısaltıldığı için "small" yetiyor.
             "Ürün Adı": st.column_config.TextColumn("Ürün Adı", width="medium"),
             "Sayım": st.column_config.TextColumn("Sayım", width="small"),
-            "Marka": st.column_config.TextColumn("Marka", width="small"),
-            "Personel": st.column_config.TextColumn("Personel", width="small"),
         },
     )
 
     # Kullanıcının bu görünümde girdiği Sayım değerlerini kalıcı sözlüğe geri
-    # yaz. Personel artık tabloda salt-okunur (kısaltılmış) gösterildiği için
-    # buradan DEĞİL, aşağıdaki "Personeli Ata" düğmesinden güncelleniyor -
-    # mevcut tam ismi koru, kısaltmayı üzerine yazma.
+    # yaz. Personel tabloda hiç gösterilmiyor, sadece "Personeli Ata"
+    # düğmesinden atanıyor - burada mevcut değeri koru.
     for _, row in edited.iterrows():
         urun = row["Ürün Adı"]
         sayim_deger = row["Sayım"]
