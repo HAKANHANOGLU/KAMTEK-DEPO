@@ -272,8 +272,10 @@ div[data-testid="stMetric"] {
    oluyordu. Sarmalayıcıları position:static'e sabitleyip gerçek konumlama
    referansını dıştaki karta ([class*="st-key-kpi_"], position:relative)
    geri veriyoruz. */
-[class*="st-key-kpi_"] > div {
+[class*="st-key-kpi_"] div[data-testid="stElementContainer"],
+[class*="st-key-kpi_"] div[data-testid="element-container"] {
     position: static !important;
+    width: 100% !important;
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] {
     position: absolute !important;
