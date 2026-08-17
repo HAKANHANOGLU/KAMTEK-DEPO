@@ -306,11 +306,11 @@ div[data-testid="stMetric"] {
     color: #A32E20 !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button {
-    height: 20px !important;
+    height: 13px !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button p,
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button span {
-    font-size: 15px !important;
+    font-size: 11px !important;
 }
 .kpi-stat-num {
     font-size: 30px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
