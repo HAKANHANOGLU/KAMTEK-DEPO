@@ -246,27 +246,51 @@ div[data-testid="stMetric"] {
     border-radius: 10px !important;
     padding: 14px !important;
 }
-/* Ana sayfadaki KPI kutucukları artık tıklanabilir (button) - metrik kartı
-   görünümünü koruyoruz. */
-.st-key-kpi_kargo button, .st-key-kpi_iade button,
-.st-key-kpi_transfer button, .st-key-kpi_bildirim button {
+/* Ana sayfadaki istatistik kutucukları - büyük rakam + etiket, görünmez bir
+   buton tüm kartın üzerine bindirilip tıklanabilir hale getiriliyor (rakamın
+   kendisi artık ayrı bir HTML elemanı olduğu için büyük/net yazılabiliyor). */
+[class*="st-key-kpi_"] {
+    position: relative !important;
     background-color: #FFFFFF !important;
     border: 1px solid #E4E4E0 !important;
-    border-radius: 10px !important;
-    padding: 14px !important;
-    min-height: 90px !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    align-items: flex-start !important;
-    white-space: pre-line !important;
-    color: #2C2C2A !important;
-    font-weight: 600 !important;
-    line-height: 1.6 !important;
+    border-radius: 14px !important;
+    padding: 18px 20px !important;
+    min-height: 104px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    transition: border-color .15s ease, box-shadow .15s ease;
 }
-.st-key-kpi_kargo button:hover, .st-key-kpi_iade button:hover,
-.st-key-kpi_transfer button:hover, .st-key-kpi_bildirim button:hover {
+[class*="st-key-kpi_"]:hover {
     border-color: #378ADD !important;
+    box-shadow: 0 4px 14px rgba(55, 138, 221, .15) !important;
 }
+[class*="st-key-kpi_"] div[data-testid="stButton"] {
+    position: absolute !important;
+    inset: 0 !important;
+    margin: 0 !important;
+}
+[class*="st-key-kpi_"] div[data-testid="stButton"] button {
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 0 !important;
+    cursor: pointer !important;
+    border: none !important;
+    background: transparent !important;
+}
+.kpi-stat-num {
+    font-size: 38px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
+}
+.kpi-stat-label {
+    font-size: 14px; font-weight: 600; color: #6B6B66; margin-top: 4px;
+}
+.st-key-kpi_bildirim_panel {
+    min-height: 0 !important;
+    text-align: center !important;
+    align-items: center !important;
+}
+.st-key-kpi_bildirim_panel .kpi-stat-num { font-size: 44px; }
+.st-key-kpi_bildirim_panel .kpi-stat-label { margin-bottom: 2px; }
 [class*="st-key-kl_gun_kutu_"] button {
     background-color: #FFFFFF !important;
     border: 1px solid #E4E4E0 !important;
@@ -330,6 +354,30 @@ div[data-testid="stMetric"] {
     0% { opacity: 0; transform: translateY(44px) rotate(-3deg) scale(.96); }
     60% { opacity: 1; transform: translateY(-4px) rotate(.6deg) scale(1.01); }
     100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+/* Genel Bakış'taki küçük "dünkü yaprak" varyantı */
+[class*="st-key-kl_leaf_"][class*="_kucuk"] {
+    max-width: 220px !important;
+    padding: 12px 14px 10px 14px !important;
+    margin-top: 26px !important;
+    opacity: .85;
+}
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-no { font-size: 36px; }
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-adi { font-size: 12px; margin-bottom: 4px; }
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-ay { font-size: 10px; padding-right: 18px; }
+/* Genel Bakış'taki yapraklar tıklanabilir - görünmez bir buton tüm kartın
+   üzerine bindiriliyor (Kontrol Listesi'ndeki kendi yaprağında checkbox/sil
+   gibi gerçek etkileşimler olduğu için bu overlay SADECE "_acilabilir"
+   sınıflı ana sayfa yapraklarına uygulanıyor). */
+[class*="st-key-kl_leaf_"][class*="_acilabilir"] div[data-testid="stButton"] {
+    position: absolute !important; inset: 0 !important; margin: 0 !important;
+}
+[class*="st-key-kl_leaf_"][class*="_acilabilir"] div[data-testid="stButton"] button {
+    width: 100% !important; height: 100% !important; opacity: 0 !important;
+    cursor: pointer !important; border: none !important; background: transparent !important;
+}
+[class*="st-key-kl_leaf_"][class*="_acilabilir"]:hover {
+    box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
 }
 /* Form alanları (metin/sayı/tarih girişi, seçim kutuları) arkaplanla aynı
    renkte kaybolup tıklanabilir/doldurulabilir olduğu belli olmuyordu.
@@ -525,17 +573,72 @@ def render_sidebar():
             git("bildirim")
 
 
+_KL_GUN_ISIMLERI_UZUN = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+_KL_AY_ISIMLERI = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz",
+                    "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+
+
+def _kl_gun_ozet(gun_iso):
+    """Bir günün Kontrol Listesi maddelerini ve tamamlanma durumunu döndürür.
+
+    Genel Bakış'taki takvim yaprakları ile Kontrol Listesi sayfasının kendi
+    yaprağı AYNI bu fonksiyonu kullanıyor - iki sayfa da aynı veriye
+    bakıyor, birbirinden bağımsız kopya mantık yok."""
+    maddeler = db.kontrol_listesi_getir(gun_iso)
+    toplam = len(maddeler)
+    tamam = sum(1 for m in maddeler if m.get("tamamlandi"))
+    return {"maddeler": maddeler, "toplam": toplam, "tamam": tamam, "tumu_tamam": toplam > 0 and tamam == toplam}
+
+
+def _kl_leaf_markup(gun_iso):
+    g = date.fromisoformat(gun_iso)
+    return (
+        f'<div class="kl-leaf-ay">{_KL_AY_ISIMLERI[g.month - 1]} {g.year}</div>'
+        f'<div class="kl-leaf-gun-no">{g.day}</div>'
+        f'<div class="kl-leaf-gun-adi">{_KL_GUN_ISIMLERI_UZUN[g.weekday()]}</div>'
+    )
+
+
 # ------------------------------------------------------------------
 # ANA SAYFA
 # ------------------------------------------------------------------
+def _kpi_tile(key, sayi, etiket, hedef_sayfa):
+    """Büyük rakam + etiket gösteren, tamamı tıklanabilir istatistik kartı."""
+    with st.container(key=key):
+        st.markdown(
+            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("Aç", key=f"{key}_btn"):
+            git(hedef_sayfa)
+
+
 def sayfa_home():
     st.markdown(f"<div style='color:#8A8A85; font-size:12px;'>Kamtek Depo / genel bakış</div>", unsafe_allow_html=True)
     st.markdown(f"<div style='font-size:22px; font-weight:600; margin-bottom:18px;'>Bugün, {date.today().strftime('%d.%m.%Y')}</div>", unsafe_allow_html=True)
 
+    bugun = date.today()
+    bugun_iso = bugun.isoformat()
+    hafta_baslangic_tarih = bugun - timedelta(days=bugun.weekday())
+    hafta_baslangic_iso = hafta_baslangic_tarih.isoformat()
     try:
-        bugun_sevkiyat = len(db.tamamlanan_kargolar_getir_ay(date.today().year, date.today().month))
+        kargolar_ay = db.tamamlanan_kargolar_getir_ay(bugun.year, bugun.month)
     except Exception:
-        bugun_sevkiyat = 0
+        kargolar_ay = []
+    kargo_ay = len(kargolar_ay)
+    kargo_bugun = sum(1 for k in kargolar_ay if k.get("tarih") == bugun_iso)
+
+    if hafta_baslangic_tarih.month == bugun.month:
+        kargo_hafta = sum(1 for k in kargolar_ay if (k.get("tarih") or "") >= hafta_baslangic_iso)
+    else:
+        # Hafta başlangıcı bir önceki aya taşıyorsa (ayın ilk günleri), o ayın
+        # kayıtlarını da çekip birleştiriyoruz - "kargo_ay" bundan etkilenmiyor.
+        try:
+            kargolar_onceki_ay = db.tamamlanan_kargolar_getir_ay(hafta_baslangic_tarih.year, hafta_baslangic_tarih.month)
+        except Exception:
+            kargolar_onceki_ay = []
+        kargo_hafta = sum(1 for k in kargolar_ay + kargolar_onceki_ay if (k.get("tarih") or "") >= hafta_baslangic_iso)
+
     try:
         bekleyen_iade = len([i for i in db.iadeler_getir() if i.get("durum") != "Kabul Edildi"])
     except Exception:
@@ -543,38 +646,73 @@ def sayfa_home():
     veri = _bildirim_verileri()
     bildirim_n = _bildirim_sayisi(veri)
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        with st.container(key="kpi_kargo"):
-            if st.button(f"{bugun_sevkiyat}\n\nBu ay tamamlanan kargo", key="kpi_kargo_btn", use_container_width=True):
-                git("tamamlanankargolar")
-    with c2:
-        with st.container(key="kpi_iade"):
-            if st.button(f"{bekleyen_iade}\n\nBekleyen iade", key="kpi_iade_btn", use_container_width=True):
-                git("iade")
-    with c3:
-        with st.container(key="kpi_transfer"):
-            if st.button(f"{len(veri['transferler'])}\n\nBekleyen transfer talebi", key="kpi_transfer_btn", use_container_width=True):
-                git("depotransfer")
-    with c4:
-        with st.container(key="kpi_bildirim"):
-            if st.button(f"{bildirim_n}\n\nBekleyen bildirim", key="kpi_bildirim_btn", use_container_width=True):
+    ana_col, yan_col = st.columns([2.2, 1], gap="large")
+
+    with ana_col:
+        st.markdown("**📦 Kargo**")
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            _kpi_tile("kpi_kargo_bugun", kargo_bugun, "Bugün tamamlanan kargo", "tamamlanankargolar")
+        with k2:
+            _kpi_tile("kpi_kargo_hafta", kargo_hafta, "Bu hafta tamamlanan kargo", "tamamlanankargolar")
+        with k3:
+            _kpi_tile("kpi_kargo_ay", kargo_ay, "Bu ay tamamlanan kargo", "tamamlanankargolar")
+
+        st.write("")
+        d1, d2 = st.columns(2)
+        with d1:
+            _kpi_tile("kpi_iade", bekleyen_iade, "Bekleyen iade", "iade")
+        with d2:
+            _kpi_tile("kpi_transfer", len(veri["transferler"]), "Bekleyen transfer talebi", "depotransfer")
+
+        st.write("")
+        st.write("")
+        dun_iso = (bugun - timedelta(days=1)).isoformat()
+        bugun_ozet = _kl_gun_ozet(bugun_iso)
+        dun_ozet = _kl_gun_ozet(dun_iso)
+
+        lc1, lc2, lc3 = st.columns([1, 2, 1])
+        with lc1:
+            st.write("")
+            st.write("")
+            dun_key = f"kl_leaf_home_dun_{dun_iso}" + ("_yesil" if dun_ozet["tumu_tamam"] else "") + "_kucuk_acilabilir"
+            with st.container(key=dun_key):
+                st.markdown(_kl_leaf_markup(dun_iso), unsafe_allow_html=True)
+                if st.button("Dün", key="kl_home_dun_btn"):
+                    st.session_state.kl_secili_gun = dun_iso
+                    git("kontrollistesi")
+        with lc2:
+            bugun_key = f"kl_leaf_home_bugun_{bugun_iso}" + ("_yesil" if bugun_ozet["tumu_tamam"] else "") + "_acilabilir"
+            with st.container(key=bugun_key):
+                st.markdown(_kl_leaf_markup(bugun_iso), unsafe_allow_html=True)
+                alt_metin = f"{bugun_ozet['tamam']}/{bugun_ozet['toplam']} tamamlandı" if bugun_ozet["toplam"] else "Bugün için not yok"
+                st.markdown(f"<div style='text-align:center;color:#8A8A85;font-size:13px;margin-top:-6px;'>{alt_metin}</div>", unsafe_allow_html=True)
+                if st.button("Kontrol Listesini Aç", key="kl_home_bugun_btn"):
+                    st.session_state.kl_secili_gun = bugun_iso
+                    git("kontrollistesi")
+
+    with yan_col:
+        with st.container(key="kpi_bildirim_panel"):
+            st.markdown(
+                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Tümünü Gör", key="kpi_bildirim_panel_btn", use_container_width=True):
                 git("bildirim")
 
-    st.write("")
-    st.markdown("**Son bildirimler**")
-    gosterildi = False
-    for p in veri["dogumgunler"]:
-        st.success(f"🎂 {p['ad_soyad']}'in bugün doğum günü!")
-        gosterildi = True
-    for g in veri["gorevler"]:
-        st.warning(f"⏰ {g.get('saat') or ''} — {g['aciklama']}")
-        gosterildi = True
-    for t in veri["transferler"]:
-        st.info(f"🔁 {t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet)")
-        gosterildi = True
-    if not gosterildi:
-        st.caption("Şu an bekleyen bir bildirim yok.")
+        st.write("")
+        gosterildi = False
+        for p in veri["dogumgunler"]:
+            st.success(f"🎂 {p['ad_soyad']}'in bugün doğum günü!")
+            gosterildi = True
+        for g in veri["gorevler"]:
+            st.warning(f"⏰ {g.get('saat') or ''} — {g['aciklama']}")
+            gosterildi = True
+        for t in veri["transferler"]:
+            st.info(f"🔁 {t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet)")
+            gosterildi = True
+        if not gosterildi:
+            st.caption("Şu an bekleyen bir bildirim yok.")
 
 
 # ------------------------------------------------------------------
@@ -2281,11 +2419,6 @@ def sayfa_bildirim():
 # ------------------------------------------------------------------
 # KONTROL LİSTESİ
 # ------------------------------------------------------------------
-_KL_GUN_ISIMLERI_UZUN = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
-_KL_AY_ISIMLERI = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz",
-                    "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
-
-
 def sayfa_kontrollistesi():
     geri_butonu()
     st.header("Kontrol Listesi")
@@ -2314,17 +2447,12 @@ def sayfa_kontrollistesi():
         st.session_state.kl_secili_gun = (secili_gun_obj + timedelta(days=1)).isoformat()
         st.rerun()
 
-    maddeler = db.kontrol_listesi_getir(secili_gun)
-    tumu_tamam = bool(maddeler) and all(m.get("tamamlandi") for m in maddeler)
-    leaf_key = f"kl_leaf_{secili_gun}" + ("_yesil" if tumu_tamam else "")
+    ozet = _kl_gun_ozet(secili_gun)
+    maddeler = ozet["maddeler"]
+    leaf_key = f"kl_leaf_{secili_gun}" + ("_yesil" if ozet["tumu_tamam"] else "")
 
     with st.container(key=leaf_key):
-        st.markdown(
-            f'<div class="kl-leaf-ay">{_KL_AY_ISIMLERI[secili_gun_obj.month - 1]} {secili_gun_obj.year}</div>'
-            f'<div class="kl-leaf-gun-no">{secili_gun_obj.day}</div>'
-            f'<div class="kl-leaf-gun-adi">{_KL_GUN_ISIMLERI_UZUN[secili_gun_obj.weekday()]}</div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown(_kl_leaf_markup(secili_gun), unsafe_allow_html=True)
 
         if not maddeler:
             st.info("Bu gün için henüz not eklenmedi.")
