@@ -254,8 +254,8 @@ div[data-testid="stMetric"] {
     background-color: #FFFFFF !important;
     border: 1px solid #E4E4E0 !important;
     border-radius: 14px !important;
-    padding: 18px 20px !important;
-    min-height: 104px !important;
+    padding: 12px 16px !important;
+    min-height: 78px !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
@@ -276,12 +276,12 @@ div[data-testid="stMetric"] {
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button {
     width: 100% !important;
-    height: 60px !important;
+    height: 40px !important;
     background: #FBEAEA !important;
     border: none !important;
     box-shadow: none !important;
     color: #C0392B !important;
-    font-size: 42px !important;
+    font-size: 28px !important;
     font-weight: 900 !important;
     display: flex !important;
     align-items: center !important;
@@ -296,11 +296,11 @@ div[data-testid="stMetric"] {
     color: #A32E20 !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button {
-    height: 40px !important;
-    font-size: 24px !important;
+    height: 28px !important;
+    font-size: 18px !important;
 }
 .kpi-stat-num {
-    font-size: 38px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
+    font-size: 30px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
 }
 .kpi-stat-label {
     font-size: 14px; font-weight: 600; color: #6B6B66; margin-top: 4px;
@@ -344,9 +344,9 @@ div[data-testid="stMetric"] {
     border: 1px solid #E4E4E0 !important;
     border-radius: 8px 8px 22px 22px !important;
     box-shadow: 0 12px 30px rgba(0,0,0,.12) !important;
-    padding: 34px 40px 28px 40px !important;
-    max-width: 820px !important;
-    margin: 4px auto 16px auto !important;
+    padding: 20px 28px 16px 28px !important;
+    max-width: 640px !important;
+    margin: 0 auto 8px auto !important;
     text-align: center !important;
     animation: klLeafIn .5s cubic-bezier(.2,.8,.2,1);
 }
@@ -374,13 +374,13 @@ div[data-testid="stMetric"] {
     border-color: transparent #C9EAD0 transparent transparent !important;
 }
 .kl-leaf-ay {
-    font-size: 18px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    color: #C0392B; text-align: right; padding-right: 36px; margin-bottom: 6px;
+    font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: #C0392B; text-align: right; padding-right: 30px; margin-bottom: 4px;
 }
 [class*="st-key-kl_leaf_"][class*="_yesil"] .kl-leaf-ay { color: #1F8A3B; }
-.kl-leaf-gun-no { font-size: 108px; font-weight: 800; color: #2C2C2A; line-height: 1; }
+.kl-leaf-gun-no { font-size: 76px; font-weight: 800; color: #2C2C2A; line-height: 1; }
 [class*="st-key-kl_leaf_"][class*="_yesil"] .kl-leaf-gun-no { color: #1F8A3B; }
-.kl-leaf-gun-adi { font-size: 26px; font-weight: 600; color: #6B6B66; margin-bottom: 16px; }
+.kl-leaf-gun-adi { font-size: 20px; font-weight: 600; color: #6B6B66; margin-bottom: 10px; }
 @keyframes klLeafIn {
     0% { opacity: 0; transform: translateY(44px) rotate(-3deg) scale(.96); }
     60% { opacity: 1; transform: translateY(-4px) rotate(.6deg) scale(1.01); }
@@ -389,14 +389,14 @@ div[data-testid="stMetric"] {
 /* Genel Bakış'taki küçük "dünkü yaprak" varyantı - küçük ama madde listesi
    yine tam olarak görünüyor. */
 [class*="st-key-kl_leaf_"][class*="_kucuk"] {
-    max-width: 400px !important;
-    padding: 18px 20px 16px 20px !important;
-    margin-top: 40px !important;
+    max-width: 320px !important;
+    padding: 12px 16px 10px 16px !important;
+    margin-top: 4px !important;
     opacity: .9;
 }
-[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-no { font-size: 58px; }
-[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-adi { font-size: 16px; margin-bottom: 8px; }
-[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-ay { font-size: 13px; padding-right: 20px; }
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-no { font-size: 40px; }
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-adi { font-size: 13px; margin-bottom: 6px; }
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-ay { font-size: 11px; padding-right: 16px; }
 /* Form alanları (metin/sayı/tarih girişi, seçim kutuları) arkaplanla aynı
    renkte kaybolup tıklanabilir/doldurulabilir olduğu belli olmuyordu.
    Not: bu Streamlit sürümünde selectbox/multiselect BaseWeb değil
@@ -705,23 +705,18 @@ def sayfa_home():
         with k3:
             _kpi_tile("kpi_kargo_ay", kargo_ay, "Bu ay tamamlanan kargo", "tamamlanankargolar")
 
-        st.write("")
         d1, d2 = st.columns(2)
         with d1:
             _kpi_tile("kpi_iade", bekleyen_iade, "Bekleyen iade", "iade", kucuk=True)
         with d2:
             _kpi_tile("kpi_transfer", len(veri["transferler"]), "Bekleyen transfer talebi", "depotransfer", kucuk=True)
 
-        st.write("")
-        st.write("")
         dun_iso = (bugun - timedelta(days=1)).isoformat()
         bugun_ozet = _kl_gun_ozet(bugun_iso)
         dun_ozet = _kl_gun_ozet(dun_iso)
 
         lc1, lc2 = st.columns([1, 2.2])
         with lc1:
-            st.write("")
-            st.write("")
             dun_key = f"kl_leaf_home_dun_{dun_iso}" + ("_yesil" if dun_ozet["tumu_tamam"] else "") + "_kucuk"
             with st.container(key=dun_key):
                 st.markdown(_kl_leaf_markup(dun_iso), unsafe_allow_html=True)
