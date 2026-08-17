@@ -276,61 +276,6 @@ div[data-testid="stMetric"] {
     font-size: 12px !important;
     padding: 4px !important;
 }
-[class*="st-key-kl_gun_kutu_"][class*="_yesil"] button {
-    background-color: #DCF3E0 !important;
-    border-color: #8FD19E !important;
-    color: #1F8A3B !important;
-    font-weight: 700 !important;
-}
-/* Kontrol Listesi - yırtılabilir takvim yaprağı görünümü */
-[class*="st-key-kl_leaf_"] {
-    position: relative;
-    background: linear-gradient(180deg, #FFFFFF 0%, #FDFBF6 100%) !important;
-    border: 1px solid #E4E4E0 !important;
-    border-radius: 6px 6px 16px 16px !important;
-    box-shadow: 0 8px 20px rgba(0,0,0,.10) !important;
-    padding: 22px 26px 20px 26px !important;
-    max-width: 460px !important;
-    margin: 4px auto 16px auto !important;
-    text-align: center !important;
-    animation: klLeafIn .5s cubic-bezier(.2,.8,.2,1);
-}
-[class*="st-key-kl_leaf_"]::before {
-    content: "";
-    position: absolute; top: 0; left: 0; right: 0; height: 12px;
-    background-image: radial-gradient(circle at 13px 0, transparent 6px, #F5F5F3 6.5px);
-    background-size: 26px 12px;
-    background-repeat: repeat-x;
-}
-[class*="st-key-kl_leaf_"]::after {
-    content: "";
-    position: absolute; top: 0; right: 0;
-    width: 0; height: 0;
-    border-style: solid;
-    border-width: 0 28px 28px 0;
-    border-color: transparent #EDE8DA transparent transparent;
-    filter: drop-shadow(-2px 2px 3px rgba(0,0,0,.18));
-}
-[class*="st-key-kl_leaf_"][class*="_yesil"] {
-    background: linear-gradient(180deg, #EAF7EC 0%, #DCF3E0 100%) !important;
-    border-color: #8FD19E !important;
-}
-[class*="st-key-kl_leaf_"][class*="_yesil"]::after {
-    border-color: transparent #C9EAD0 transparent transparent !important;
-}
-.kl-leaf-ay {
-    font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    color: #C0392B; text-align: right; padding-right: 26px; margin-bottom: 4px;
-}
-[class*="st-key-kl_leaf_"][class*="_yesil"] .kl-leaf-ay { color: #1F8A3B; }
-.kl-leaf-gun-no { font-size: 64px; font-weight: 800; color: #2C2C2A; line-height: 1; }
-[class*="st-key-kl_leaf_"][class*="_yesil"] .kl-leaf-gun-no { color: #1F8A3B; }
-.kl-leaf-gun-adi { font-size: 18px; font-weight: 600; color: #6B6B66; margin-bottom: 10px; }
-@keyframes klLeafIn {
-    0% { opacity: 0; transform: translateY(44px) rotate(-3deg) scale(.96); }
-    60% { opacity: 1; transform: translateY(-4px) rotate(.6deg) scale(1.01); }
-    100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
-}
 /* Form alanları (metin/sayı/tarih girişi, seçim kutuları) arkaplanla aynı
    renkte kaybolup tıklanabilir/doldurulabilir olduğu belli olmuyordu.
    Not: bu Streamlit sürümünde selectbox/multiselect BaseWeb değil
@@ -2281,11 +2226,6 @@ def sayfa_bildirim():
 # ------------------------------------------------------------------
 # KONTROL LİSTESİ
 # ------------------------------------------------------------------
-_KL_GUN_ISIMLERI_UZUN = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
-_KL_AY_ISIMLERI = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz",
-                    "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
-
-
 def sayfa_kontrollistesi():
     geri_butonu()
     st.header("Kontrol Listesi")
@@ -2293,84 +2233,9 @@ def sayfa_kontrollistesi():
     if "kl_secili_gun" not in st.session_state:
         st.session_state.kl_secili_gun = date.today().isoformat()
 
-    secili_gun = st.session_state.kl_secili_gun
-    secili_gun_obj = date.fromisoformat(secili_gun)
-
-    # --- Gezinme: dün / bugün / tarihe git / yarın ---
-    nav1, nav2, nav3, nav4 = st.columns([1, 1, 2, 1])
-    if nav1.button("◀ Dün", key="kl_nav_dun", use_container_width=True):
-        st.session_state.kl_secili_gun = (secili_gun_obj - timedelta(days=1)).isoformat()
-        st.rerun()
-    if nav2.button("Bugün", key="kl_nav_bugun", use_container_width=True):
-        st.session_state.kl_secili_gun = date.today().isoformat()
-        st.rerun()
-    secilen_tarih = nav3.date_input(
-        "Tarihe git", value=secili_gun_obj, key=f"kl_tarih_sec_{secili_gun}", label_visibility="collapsed",
-    )
-    if secilen_tarih.isoformat() != secili_gun:
-        st.session_state.kl_secili_gun = secilen_tarih.isoformat()
-        st.rerun()
-    if nav4.button("Yarın ▶", key="kl_nav_yarin", use_container_width=True):
-        st.session_state.kl_secili_gun = (secili_gun_obj + timedelta(days=1)).isoformat()
-        st.rerun()
-
-    maddeler = db.kontrol_listesi_getir(secili_gun)
-    tumu_tamam = bool(maddeler) and all(m.get("tamamlandi") for m in maddeler)
-    leaf_key = f"kl_leaf_{secili_gun}" + ("_yesil" if tumu_tamam else "")
-
-    with st.container(key=leaf_key):
-        st.markdown(
-            f'<div class="kl-leaf-ay">{_KL_AY_ISIMLERI[secili_gun_obj.month - 1]} {secili_gun_obj.year}</div>'
-            f'<div class="kl-leaf-gun-no">{secili_gun_obj.day}</div>'
-            f'<div class="kl-leaf-gun-adi">{_KL_GUN_ISIMLERI_UZUN[secili_gun_obj.weekday()]}</div>',
-            unsafe_allow_html=True,
-        )
-
-        if not maddeler:
-            st.info("Bu gün için henüz not eklenmedi.")
-        for m in maddeler:
-            c1, c2, c3 = st.columns([0.5, 4, 0.5])
-            tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{m['id']}")
-            if tik != m.get("tamamlandi", False):
-                db.kontrol_maddesi_tamamla(m["id"], tik)
-                st.rerun()
-            if m.get("tamamlandi"):
-                c2.markdown(
-                    f"<span style='color:#1F8A3B;font-weight:700;'>✔ {html.escape(m['madde'])}</span>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                c2.write(m["madde"])
-            if c3.button("🗑", key=f"kl_sil_{m['id']}"):
-                db.kontrol_maddesi_sil(m["id"])
-                st.rerun()
-
-    st.markdown("**Not ekle**")
-    with st.form("kl_yeni_form", clear_on_submit=True):
-        c1, c2 = st.columns([3, 2])
-        madde = c1.text_input("Kontrol edilecek iş / not")
-        kapsam = c2.selectbox(
-            "Hangi güne(lere) eklensin?",
-            ["Sadece bu gün", "Bu haftanın her gününe ata", "Bu ayın her gününe ata"],
-        )
-        if st.form_submit_button("➕ Ekle") and madde:
-            if kapsam == "Bu haftanın her gününe ata":
-                hafta_baslangic = secili_gun_obj - timedelta(days=secili_gun_obj.weekday())
-                gunler = [hafta_baslangic + timedelta(days=i) for i in range(7)]
-            elif kapsam == "Bu ayın her gününe ata":
-                gun_sayisi_ay = calendar.monthrange(secili_gun_obj.year, secili_gun_obj.month)[1]
-                gunler = [date(secili_gun_obj.year, secili_gun_obj.month, g) for g in range(1, gun_sayisi_ay + 1)]
-            else:
-                gunler = [secili_gun_obj]
-            for g in gunler:
-                db.kontrol_maddesi_ekle(g.isoformat(), madde)
-            st.rerun()
-
-    st.markdown("---")
-    st.markdown("**Aylık genel görünüm**")
     col1, col2 = st.columns(2)
-    yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=secili_gun_obj.year, key="kl_yil")
-    ay = col2.selectbox("Ay", list(range(1, 13)), index=secili_gun_obj.month - 1,
+    yil = col1.number_input("Yıl", min_value=2024, max_value=2100, value=date.today().year, key="kl_yil")
+    ay = col2.selectbox("Ay", list(range(1, 13)), index=date.today().month - 1,
                          format_func=lambda x: calendar.month_name[x], key="kl_ay")
 
     gun_sayisi = calendar.monthrange(yil, ay)[1]
@@ -2412,13 +2277,40 @@ def sayfa_kontrollistesi():
             etiket = f"{gun_no}"
             if sayac:
                 etiket += f"\n{sayac['tamam']}/{sayac['toplam']}"
-            tamam_mi = bool(sayac) and sayac["toplam"] > 0 and sayac["tamam"] == sayac["toplam"]
-            kutu_key = f"kl_gun_kutu_{gun_iso}" + ("_yesil" if tamam_mi else "")
+            secili = gun_iso == st.session_state.kl_secili_gun
             with col:
-                with st.container(key=kutu_key):
+                with st.container(key=f"kl_gun_kutu_{gun_iso}"):
                     if st.button(etiket, key=f"kl_gun_{gun_iso}", use_container_width=True):
                         st.session_state.kl_secili_gun = gun_iso
                         st.rerun()
+
+    st.markdown("---")
+    secili_gun = st.session_state.kl_secili_gun
+    secili_gun_fmt = datetime.fromisoformat(secili_gun).strftime("%d.%m.%Y")
+    st.markdown(f"**{secili_gun_fmt} kontrol listesi**")
+
+    with st.form("yeni_kontrol_form", clear_on_submit=True):
+        madde = st.text_input("Kontrol edilecek iş")
+        if st.form_submit_button("➕ Ekle") and madde:
+            db.kontrol_maddesi_ekle(secili_gun, madde)
+            st.rerun()
+
+    maddeler = db.kontrol_listesi_getir(secili_gun)
+    if not maddeler:
+        st.info(f"{secili_gun_fmt} için henüz madde eklenmedi.")
+    for m in maddeler:
+        c1, c2, c3 = st.columns([0.5, 4, 0.5])
+        tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{m['id']}")
+        if tik != m.get("tamamlandi", False):
+            db.kontrol_maddesi_tamamla(m["id"], tik)
+            st.rerun()
+        if m.get("tamamlandi"):
+            c2.markdown(f"<span style='text-decoration:line-through;color:#888;'>{m['madde']}</span>", unsafe_allow_html=True)
+        else:
+            c2.write(m["madde"])
+        if c3.button("🗑", key=f"kl_sil_{m['id']}"):
+            db.kontrol_maddesi_sil(m["id"])
+            st.rerun()
 
 
 # ------------------------------------------------------------------
