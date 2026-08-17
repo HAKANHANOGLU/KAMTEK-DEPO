@@ -284,13 +284,28 @@ div[data-testid="stMetric"] {
 .kpi-stat-label {
     font-size: 14px; font-weight: 600; color: #6B6B66; margin-top: 4px;
 }
-.st-key-kpi_bildirim_panel {
+.kpi-git-ok {
+    position: absolute; left: 16px; bottom: 12px;
+    font-size: 24px; font-weight: 900; color: #C0392B;
+    pointer-events: none;
+}
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-git-ok { font-size: 15px; left: 10px; bottom: 8px; }
+[class*="st-key-kpi_bildirim_panel"] {
     min-height: 0 !important;
     text-align: center !important;
     align-items: center !important;
 }
-.st-key-kpi_bildirim_panel .kpi-stat-num { font-size: 44px; }
-.st-key-kpi_bildirim_panel .kpi-stat-label { margin-bottom: 2px; }
+[class*="st-key-kpi_bildirim_panel"] .kpi-stat-num { font-size: 44px; }
+[class*="st-key-kpi_bildirim_panel"] .kpi-stat-label { margin-bottom: 2px; }
+/* Bekleyen iade / transfer talebi / bildirim kutucukları - kargo
+   kutucuklarının yarısı boyutunda. */
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] {
+    padding: 9px 12px !important;
+    min-height: 52px !important;
+}
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 19px; }
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-label { font-size: 11px; margin-top: 1px; }
+[class*="st-key-kpi_bildirim_panel"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 22px; }
 [class*="st-key-kl_gun_kutu_"] button {
     background-color: #FFFFFF !important;
     border: 1px solid #E4E4E0 !important;
@@ -306,24 +321,25 @@ div[data-testid="stMetric"] {
     color: #1F8A3B !important;
     font-weight: 700 !important;
 }
-/* Kontrol Listesi - yırtılabilir takvim yaprağı görünümü */
+/* Kontrol Listesi - yırtılabilir takvim yaprağı görünümü (Genel Bakış ile
+   ortak - aynı CSS sınıfları, aynı görünüm, tek kaynak). */
 [class*="st-key-kl_leaf_"] {
     position: relative;
     background: linear-gradient(180deg, #FFFFFF 0%, #FDFBF6 100%) !important;
     border: 1px solid #E4E4E0 !important;
-    border-radius: 6px 6px 16px 16px !important;
-    box-shadow: 0 8px 20px rgba(0,0,0,.10) !important;
-    padding: 22px 26px 20px 26px !important;
-    max-width: 460px !important;
+    border-radius: 8px 8px 22px 22px !important;
+    box-shadow: 0 12px 30px rgba(0,0,0,.12) !important;
+    padding: 34px 40px 28px 40px !important;
+    max-width: 820px !important;
     margin: 4px auto 16px auto !important;
     text-align: center !important;
     animation: klLeafIn .5s cubic-bezier(.2,.8,.2,1);
 }
 [class*="st-key-kl_leaf_"]::before {
     content: "";
-    position: absolute; top: 0; left: 0; right: 0; height: 12px;
-    background-image: radial-gradient(circle at 13px 0, transparent 6px, #F5F5F3 6.5px);
-    background-size: 26px 12px;
+    position: absolute; top: 0; left: 0; right: 0; height: 16px;
+    background-image: radial-gradient(circle at 17px 0, transparent 8px, #F5F5F3 8.5px);
+    background-size: 34px 16px;
     background-repeat: repeat-x;
 }
 [class*="st-key-kl_leaf_"]::after {
@@ -331,9 +347,9 @@ div[data-testid="stMetric"] {
     position: absolute; top: 0; right: 0;
     width: 0; height: 0;
     border-style: solid;
-    border-width: 0 28px 28px 0;
+    border-width: 0 40px 40px 0;
     border-color: transparent #EDE8DA transparent transparent;
-    filter: drop-shadow(-2px 2px 3px rgba(0,0,0,.18));
+    filter: drop-shadow(-3px 3px 4px rgba(0,0,0,.18));
 }
 [class*="st-key-kl_leaf_"][class*="_yesil"] {
     background: linear-gradient(180deg, #EAF7EC 0%, #DCF3E0 100%) !important;
@@ -343,42 +359,29 @@ div[data-testid="stMetric"] {
     border-color: transparent #C9EAD0 transparent transparent !important;
 }
 .kl-leaf-ay {
-    font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    color: #C0392B; text-align: right; padding-right: 26px; margin-bottom: 4px;
+    font-size: 18px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: #C0392B; text-align: right; padding-right: 36px; margin-bottom: 6px;
 }
 [class*="st-key-kl_leaf_"][class*="_yesil"] .kl-leaf-ay { color: #1F8A3B; }
-.kl-leaf-gun-no { font-size: 64px; font-weight: 800; color: #2C2C2A; line-height: 1; }
+.kl-leaf-gun-no { font-size: 108px; font-weight: 800; color: #2C2C2A; line-height: 1; }
 [class*="st-key-kl_leaf_"][class*="_yesil"] .kl-leaf-gun-no { color: #1F8A3B; }
-.kl-leaf-gun-adi { font-size: 18px; font-weight: 600; color: #6B6B66; margin-bottom: 10px; }
+.kl-leaf-gun-adi { font-size: 26px; font-weight: 600; color: #6B6B66; margin-bottom: 16px; }
 @keyframes klLeafIn {
     0% { opacity: 0; transform: translateY(44px) rotate(-3deg) scale(.96); }
     60% { opacity: 1; transform: translateY(-4px) rotate(.6deg) scale(1.01); }
     100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
 }
-/* Genel Bakış'taki küçük "dünkü yaprak" varyantı */
+/* Genel Bakış'taki küçük "dünkü yaprak" varyantı - küçük ama madde listesi
+   yine tam olarak görünüyor. */
 [class*="st-key-kl_leaf_"][class*="_kucuk"] {
-    max-width: 220px !important;
-    padding: 12px 14px 10px 14px !important;
-    margin-top: 26px !important;
-    opacity: .85;
+    max-width: 400px !important;
+    padding: 18px 20px 16px 20px !important;
+    margin-top: 40px !important;
+    opacity: .9;
 }
-[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-no { font-size: 36px; }
-[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-adi { font-size: 12px; margin-bottom: 4px; }
-[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-ay { font-size: 10px; padding-right: 18px; }
-/* Genel Bakış'taki yapraklar tıklanabilir - görünmez bir buton tüm kartın
-   üzerine bindiriliyor (Kontrol Listesi'ndeki kendi yaprağında checkbox/sil
-   gibi gerçek etkileşimler olduğu için bu overlay SADECE "_acilabilir"
-   sınıflı ana sayfa yapraklarına uygulanıyor). */
-[class*="st-key-kl_leaf_"][class*="_acilabilir"] div[data-testid="stButton"] {
-    position: absolute !important; inset: 0 !important; margin: 0 !important;
-}
-[class*="st-key-kl_leaf_"][class*="_acilabilir"] div[data-testid="stButton"] button {
-    width: 100% !important; height: 100% !important; opacity: 0 !important;
-    cursor: pointer !important; border: none !important; background: transparent !important;
-}
-[class*="st-key-kl_leaf_"][class*="_acilabilir"]:hover {
-    box-shadow: 0 10px 26px rgba(0,0,0,.16) !important;
-}
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-no { font-size: 58px; }
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-adi { font-size: 16px; margin-bottom: 8px; }
+[class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-ay { font-size: 13px; padding-right: 20px; }
 /* Form alanları (metin/sayı/tarih girişi, seçim kutuları) arkaplanla aynı
    renkte kaybolup tıklanabilir/doldurulabilir olduğu belli olmuyordu.
    Not: bu Streamlit sürümünde selectbox/multiselect BaseWeb değil
@@ -599,14 +602,44 @@ def _kl_leaf_markup(gun_iso):
     )
 
 
+def _kl_leaf_govde(ozet, anahtar_onek):
+    """Bir takvim yaprağının madde listesini (checkbox + metin + sil) çizer.
+
+    Genel Bakış ve Kontrol Listesi AYNI bu fonksiyonu çağırıyor - ikisi de
+    gerçek zamanlı aynı veriyi gösterip düzenliyor, kopya mantık yok.
+    anahtar_onek farklı sayfalarda aynı madde id'si için widget key
+    çakışmasını önlüyor."""
+    maddeler = ozet["maddeler"]
+    if not maddeler:
+        st.caption("Bu gün için henüz not eklenmedi.")
+    for m in maddeler:
+        c1, c2, c3 = st.columns([0.5, 4, 0.5])
+        tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"{anahtar_onek}_tik_{m['id']}")
+        if tik != m.get("tamamlandi", False):
+            db.kontrol_maddesi_tamamla(m["id"], tik)
+            st.rerun()
+        if m.get("tamamlandi"):
+            c2.markdown(
+                f"<span style='color:#1F8A3B;font-weight:700;'>✔ {html.escape(m['madde'])}</span>",
+                unsafe_allow_html=True,
+            )
+        else:
+            c2.write(m["madde"])
+        if c3.button("🗑", key=f"{anahtar_onek}_sil_{m['id']}"):
+            db.kontrol_maddesi_sil(m["id"])
+            st.rerun()
+
+
 # ------------------------------------------------------------------
 # ANA SAYFA
 # ------------------------------------------------------------------
-def _kpi_tile(key, sayi, etiket, hedef_sayfa):
+def _kpi_tile(key, sayi, etiket, hedef_sayfa, kucuk=False):
     """Büyük rakam + etiket gösteren, tamamı tıklanabilir istatistik kartı."""
-    with st.container(key=key):
+    kutu_key = f"{key}_kucuk_kpi" if kucuk else key
+    with st.container(key=kutu_key):
         st.markdown(
-            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>',
+            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>'
+            f'<div class="kpi-git-ok">↗</div>',
             unsafe_allow_html=True,
         )
         if st.button("Aç", key=f"{key}_btn"):
@@ -646,7 +679,7 @@ def sayfa_home():
     veri = _bildirim_verileri()
     bildirim_n = _bildirim_sayisi(veri)
 
-    ana_col, yan_col = st.columns([2.2, 1], gap="large")
+    ana_col, yan_col = st.columns([2.6, 1], gap="large")
 
     with ana_col:
         st.markdown("**📦 Kargo**")
@@ -661,9 +694,9 @@ def sayfa_home():
         st.write("")
         d1, d2 = st.columns(2)
         with d1:
-            _kpi_tile("kpi_iade", bekleyen_iade, "Bekleyen iade", "iade")
+            _kpi_tile("kpi_iade", bekleyen_iade, "Bekleyen iade", "iade", kucuk=True)
         with d2:
-            _kpi_tile("kpi_transfer", len(veri["transferler"]), "Bekleyen transfer talebi", "depotransfer")
+            _kpi_tile("kpi_transfer", len(veri["transferler"]), "Bekleyen transfer talebi", "depotransfer", kucuk=True)
 
         st.write("")
         st.write("")
@@ -671,33 +704,34 @@ def sayfa_home():
         bugun_ozet = _kl_gun_ozet(bugun_iso)
         dun_ozet = _kl_gun_ozet(dun_iso)
 
-        lc1, lc2, lc3 = st.columns([1, 2, 1])
+        lc1, lc2 = st.columns([1, 2.2])
         with lc1:
             st.write("")
             st.write("")
-            dun_key = f"kl_leaf_home_dun_{dun_iso}" + ("_yesil" if dun_ozet["tumu_tamam"] else "") + "_kucuk_acilabilir"
+            dun_key = f"kl_leaf_home_dun_{dun_iso}" + ("_yesil" if dun_ozet["tumu_tamam"] else "") + "_kucuk"
             with st.container(key=dun_key):
                 st.markdown(_kl_leaf_markup(dun_iso), unsafe_allow_html=True)
-                if st.button("Dün", key="kl_home_dun_btn"):
+                _kl_leaf_govde(dun_ozet, anahtar_onek="klh_dun")
+                if st.button("Kontrol Listesinde Aç", key="kl_home_dun_btn", use_container_width=True):
                     st.session_state.kl_secili_gun = dun_iso
                     git("kontrollistesi")
         with lc2:
-            bugun_key = f"kl_leaf_home_bugun_{bugun_iso}" + ("_yesil" if bugun_ozet["tumu_tamam"] else "") + "_acilabilir"
+            bugun_key = f"kl_leaf_home_bugun_{bugun_iso}" + ("_yesil" if bugun_ozet["tumu_tamam"] else "")
             with st.container(key=bugun_key):
                 st.markdown(_kl_leaf_markup(bugun_iso), unsafe_allow_html=True)
-                alt_metin = f"{bugun_ozet['tamam']}/{bugun_ozet['toplam']} tamamlandı" if bugun_ozet["toplam"] else "Bugün için not yok"
-                st.markdown(f"<div style='text-align:center;color:#8A8A85;font-size:13px;margin-top:-6px;'>{alt_metin}</div>", unsafe_allow_html=True)
-                if st.button("Kontrol Listesini Aç", key="kl_home_bugun_btn"):
+                _kl_leaf_govde(bugun_ozet, anahtar_onek="klh_bugun")
+                if st.button("Kontrol Listesini Aç", key="kl_home_bugun_btn", use_container_width=True):
                     st.session_state.kl_secili_gun = bugun_iso
                     git("kontrollistesi")
 
     with yan_col:
         with st.container(key="kpi_bildirim_panel"):
             st.markdown(
-                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>',
+                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>'
+                f'<div class="kpi-git-ok">↗</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Tümünü Gör", key="kpi_bildirim_panel_btn", use_container_width=True):
+            if st.button("Aç", key="kpi_bildirim_panel_btn"):
                 git("bildirim")
 
         st.write("")
@@ -2448,30 +2482,11 @@ def sayfa_kontrollistesi():
         st.rerun()
 
     ozet = _kl_gun_ozet(secili_gun)
-    maddeler = ozet["maddeler"]
     leaf_key = f"kl_leaf_{secili_gun}" + ("_yesil" if ozet["tumu_tamam"] else "")
 
     with st.container(key=leaf_key):
         st.markdown(_kl_leaf_markup(secili_gun), unsafe_allow_html=True)
-
-        if not maddeler:
-            st.info("Bu gün için henüz not eklenmedi.")
-        for m in maddeler:
-            c1, c2, c3 = st.columns([0.5, 4, 0.5])
-            tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"kl_tik_{m['id']}")
-            if tik != m.get("tamamlandi", False):
-                db.kontrol_maddesi_tamamla(m["id"], tik)
-                st.rerun()
-            if m.get("tamamlandi"):
-                c2.markdown(
-                    f"<span style='color:#1F8A3B;font-weight:700;'>✔ {html.escape(m['madde'])}</span>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                c2.write(m["madde"])
-            if c3.button("🗑", key=f"kl_sil_{m['id']}"):
-                db.kontrol_maddesi_sil(m["id"])
-                st.rerun()
+        _kl_leaf_govde(ozet, anahtar_onek="kl")
 
     st.markdown("**Not ekle**")
     with st.form("kl_yeni_form", clear_on_submit=True):
