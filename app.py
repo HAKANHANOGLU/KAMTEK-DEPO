@@ -282,8 +282,8 @@ div[data-testid="stMetric"] {
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button {
     width: 100% !important;
-    height: 44px !important;
-    background: #FBEAEA !important;
+    height: 30px !important;
+    background: transparent !important;
     border: none !important;
     box-shadow: none !important;
     display: flex !important;
@@ -297,23 +297,20 @@ div[data-testid="stMetric"] {
 [class*="st-key-kpi_"] div[data-testid="stButton"] button span,
 [class*="st-key-kpi_"] div[data-testid="stButton"] button div {
     color: #C0392B !important;
-    font-size: 30px !important;
+    font-size: 22px !important;
     font-weight: 900 !important;
     line-height: 1 !important;
-}
-[class*="st-key-kpi_"] div[data-testid="stButton"] button:hover {
-    background: #F6D5D5 !important;
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button:hover p,
 [class*="st-key-kpi_"] div[data-testid="stButton"] button:hover span {
     color: #A32E20 !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button {
-    height: 34px !important;
+    height: 20px !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button p,
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button span {
-    font-size: 22px !important;
+    font-size: 15px !important;
 }
 .kpi-stat-num {
     font-size: 30px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
@@ -333,16 +330,16 @@ div[data-testid="stMetric"] {
    Streamlit'in eleman aralarına eklediği boşluk (margin) bu küçük
    kutularda orantısız kaldığı için burada da sıfırlanıyor. */
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] {
-    padding: 8px 14px !important;
+    padding: 10px 16px !important;
     min-height: 0 !important;
-    gap: 2px !important;
+    gap: 6px !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stElementContainer"] {
     margin: 0 !important;
 }
-[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 26px; }
-[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-label { font-size: 13px; margin-top: 1px; }
-[class*="st-key-kpi_bildirim_panel"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 26px; }
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 32px; }
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-label { font-size: 15px; margin-top: 2px; }
+[class*="st-key-kpi_bildirim_panel"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 32px; }
 [class*="st-key-kl_gun_kutu_"] button {
     background-color: #FFFFFF !important;
     border: 1px solid #E4E4E0 !important;
@@ -413,7 +410,7 @@ div[data-testid="stMetric"] {
 [class*="st-key-kl_leaf_"][class*="_kucuk"] {
     max-width: 320px !important;
     padding: 12px 16px 10px 16px !important;
-    margin-top: 64px !important;
+    margin-top: 4px !important;
     opacity: .9;
 }
 [class*="st-key-kl_leaf_"][class*="_kucuk"] .kl-leaf-gun-no { font-size: 40px; }
