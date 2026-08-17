@@ -644,17 +644,27 @@ def _kl_leaf_markup(gun_iso):
     )
 
 
-def _kl_leaf_govde(ozet, anahtar_onek):
-    """Bir takvim yaprağının madde listesini (checkbox + metin + sil) çizer.
+def _kl_leaf_govde(ozet, anahtar_onek, duzenlenebilir=True):
+    """Bir takvim yaprağının madde listesini çizer.
 
     Genel Bakış ve Kontrol Listesi AYNI bu fonksiyonu çağırıyor - ikisi de
-    gerçek zamanlı aynı veriyi gösterip düzenliyor, kopya mantık yok.
-    anahtar_onek farklı sayfalarda aynı madde id'si için widget key
-    çakışmasını önlüyor."""
+    gerçek zamanlı aynı veriye bakıyor, kopya mantık yok. anahtar_onek
+    farklı sayfalarda aynı madde id'si için widget key çakışmasını
+    önlüyor. duzenlenebilir=False iken (Genel Bakış) sadece durum
+    gösteriliyor - tik atma/silme sadece Kontrol Listesi sayfasında."""
     maddeler = ozet["maddeler"]
     if not maddeler:
         st.caption("Bu gün için henüz not eklenmedi.")
     for m in maddeler:
+        if not duzenlenebilir:
+            if m.get("tamamlandi"):
+                st.markdown(
+                    f"<div style='color:#1F8A3B;font-weight:700;'>✔ {html.escape(m['madde'])}</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(f"<div>☐ {html.escape(m['madde'])}</div>", unsafe_allow_html=True)
+            continue
         c1, c2, c3 = st.columns([0.5, 4, 0.5])
         tik = c1.checkbox("", value=m.get("tamamlandi", False), key=f"{anahtar_onek}_tik_{m['id']}")
         if tik != m.get("tamamlandi", False):
@@ -747,7 +757,7 @@ def sayfa_home():
             dun_key = f"kl_leaf_home_dun_{dun_iso}" + ("_yesil" if dun_ozet["tumu_tamam"] else "") + "_kucuk"
             with st.container(key=dun_key):
                 st.markdown(_kl_leaf_markup(dun_iso), unsafe_allow_html=True)
-                _kl_leaf_govde(dun_ozet, anahtar_onek="klh_dun")
+                _kl_leaf_govde(dun_ozet, anahtar_onek="klh_dun", duzenlenebilir=False)
                 if st.button("Kontrol Listesinde Aç", key="kl_home_dun_btn", use_container_width=True):
                     st.session_state.kl_secili_gun = dun_iso
                     git("kontrollistesi")
@@ -755,7 +765,7 @@ def sayfa_home():
             bugun_key = f"kl_leaf_home_bugun_{bugun_iso}" + ("_yesil" if bugun_ozet["tumu_tamam"] else "")
             with st.container(key=bugun_key):
                 st.markdown(_kl_leaf_markup(bugun_iso), unsafe_allow_html=True)
-                _kl_leaf_govde(bugun_ozet, anahtar_onek="klh_bugun")
+                _kl_leaf_govde(bugun_ozet, anahtar_onek="klh_bugun", duzenlenebilir=False)
                 if st.button("Kontrol Listesini Aç", key="kl_home_bugun_btn", use_container_width=True):
                     st.session_state.kl_secili_gun = bugun_iso
                     git("kontrollistesi")
