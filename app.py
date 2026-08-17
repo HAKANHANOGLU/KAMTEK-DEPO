@@ -306,11 +306,11 @@ div[data-testid="stMetric"] {
     color: #A32E20 !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button {
-    height: 13px !important;
+    height: 26px !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button p,
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button span {
-    font-size: 11px !important;
+    font-size: 22px !important;
 }
 .kpi-stat-num {
     font-size: 30px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
@@ -332,13 +332,13 @@ div[data-testid="stMetric"] {
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] {
     padding: 10px 16px !important;
     min-height: 0 !important;
-    gap: 6px !important;
+    gap: 10px !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stElementContainer"] {
     margin: 0 !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 32px; }
-[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-label { font-size: 15px; margin-top: 2px; }
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-label { font-size: 16px; margin-top: 6px; }
 [class*="st-key-kpi_bildirim_panel"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 32px; }
 [class*="st-key-kl_gun_kutu_"] button {
     background-color: #FFFFFF !important;
