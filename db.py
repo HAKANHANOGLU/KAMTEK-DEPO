@@ -572,7 +572,7 @@ def bildirim_okundu_getir_gun(tarih):
 # ---------- Stok Sayım ----------
 
 def stok_sayim_oturumu_kaydet(tarih, personel_adi, satirlar):
-    """satirlar: [{urun_adi, stok_kodu, guncel_stok, sayilan, fark}, ...] - sadece fark olanlar"""
+    """satirlar: [{urun_adi, stok_kodu, guncel_stok, sayilan, fark}, ...] - sayılan tüm ürünler"""
     row = {"tarih": tarih, "personel_adi": personel_adi, "olusturma_zamani": date.today().isoformat()}
     headers = dict(_HEADERS)
     headers["Prefer"] = "return=representation"
