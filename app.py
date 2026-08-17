@@ -1182,14 +1182,33 @@ def sayfa_stoktakip():
     with tab_liste:
         _stok_listesi_bolumu()
     with tab_sayim:
-        try:
-            with st.spinner("Stok verisi çekiliyor..."):
-                urunler = _stok_verisi_cache()
-        except Exception as e:
-            st.error(f"Stok verisi alınamadı: {e}")
+        # "Excel ile Stok Sayım"a bir excel yüklendiyse, Stok Sayım ekranı
+        # XML yerine HER ZAMAN en son yüklenen o excel'i kaynak olarak
+        # kullanır (XML kaynağı sorunlu olduğunda uygulama genelinde tutarlı
+        # kalması için).
+        en_son_excel = db.excel_stok_sayim_getir_en_son()
+        if en_son_excel is not None:
+            try:
+                urunler, _eslesme = _excel_stok_oku(io.BytesIO(en_son_excel["dosya_icerik"]))
+            except Exception as e:
+                st.error(f"En son yüklenen excel okunurken hata oluştu: {e}")
+                urunler = None
+            if urunler is not None:
+                tarih_fmt = en_son_excel.get("tarih") or ""
+                st.caption(
+                    f"📥 Kaynak: {en_son_excel['dosya_adi']} ({tarih_fmt}, {en_son_excel.get('yuklenme_zamani') or ''}) "
+                    "— 'Excel ile Stok Sayım' sekmesinden yüklenen en son dosya kullanılıyor."
+                )
+                _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
         else:
-            st.caption("Ürünleri fiilen sayıp buraya girin. Yalnızca girdiğiniz sayım tutarları kaydedilir.")
-            _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
+            try:
+                with st.spinner("Stok verisi çekiliyor..."):
+                    urunler = _stok_verisi_cache()
+            except Exception as e:
+                st.error(f"Stok verisi alınamadı: {e}")
+            else:
+                st.caption("Ürünleri fiilen sayıp buraya girin. Yalnızca girdiğiniz sayım tutarları kaydedilir.")
+                _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
     with tab_excel:
         _excel_stok_sayim_bolumu()
 
@@ -1879,6 +1898,24 @@ def _iade_karti(iade):
     st.markdown("---")
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _aktif_stok_urun_adlari():
+    """İade'deki ürün arama filtresi için ürün adı listesi - Stok Sayım'ın
+    kullandığı kaynakla birebir aynı (varsa en son yüklenen excel, yoksa XML)."""
+    en_son_excel = db.excel_stok_sayim_getir_en_son()
+    if en_son_excel is not None:
+        try:
+            urunler, _eslesme = _excel_stok_oku(io.BytesIO(en_son_excel["dosya_icerik"]))
+        except Exception:
+            urunler = []
+    else:
+        try:
+            urunler = _stok_verisi_cache()
+        except Exception:
+            urunler = []
+    return sorted({u["Ürün Adı"] for u in urunler if u.get("Ürün Adı")})
+
+
 def sayfa_iade():
     geri_butonu()
     st.header("İade")
@@ -1890,11 +1927,47 @@ def sayfa_iade():
         st.caption("Aynı firmadan birden fazla ürün iade ediliyorsa hepsini aşağıdaki tabloya ekleyin.")
         if "iade_urun_df" not in st.session_state:
             st.session_state.iade_urun_df = _iade_bos_urun_df()
-        urun_df = st.data_editor(
-            st.session_state.iade_urun_df, num_rows="dynamic", use_container_width=True,
-            key="iade_urun_editor", height=220,
-            column_config={"Seri Numaraları": st.column_config.TextColumn("Seri Numaraları (virgülle ayırın)")},
+
+        c_ara, c_ara_ekle = st.columns([4, 1])
+        secilen_urun = c_ara.selectbox(
+            "Ürün ara ve seç", [""] + _aktif_stok_urun_adlari(), key="iade_urun_arama_secim",
+            format_func=lambda v: "🔍 ürün ara..." if v == "" else v,
         )
+        if c_ara_ekle.button("➕ Ekle", key="iade_urun_arama_ekle_btn", use_container_width=True):
+            if not secilen_urun:
+                st.warning("Önce listeden bir ürün seçin.")
+            else:
+                mevcut = st.session_state.iade_urun_df
+                bos_maske = mevcut["Ürün Adı"].astype(str).str.strip() == ""
+                if bos_maske.any():
+                    mevcut.loc[bos_maske.idxmax(), "Ürün Adı"] = secilen_urun
+                else:
+                    yeni_satir = pd.DataFrame([{"Ürün Adı": secilen_urun, "Adet": "", "Seri Numaraları": ""}])
+                    st.session_state.iade_urun_df = pd.concat([mevcut, yeni_satir], ignore_index=True)
+                st.rerun()
+
+        # Yanlışlıkla eklenen satırları kolayca çıkarabilmek için "Sil" onay
+        # kutusu sütunu ekleniyor (Tamamlanmış Kargolar sayfasındaki aynı desen).
+        df_duzenle = st.session_state.iade_urun_df.copy()
+        df_duzenle.insert(0, "Sil", False)
+        urun_df_duzenlenmis = st.data_editor(
+            df_duzenle, num_rows="dynamic", use_container_width=True,
+            key="iade_urun_editor", height=220,
+            column_config={
+                "Sil": st.column_config.CheckboxColumn("Sil"),
+                "Seri Numaraları": st.column_config.TextColumn("Seri Numaraları (virgülle ayırın)"),
+            },
+        )
+        if st.button("🗑 Seçili satırları sil", key="iade_urun_satir_sil_btn"):
+            if not urun_df_duzenlenmis["Sil"].any():
+                st.warning("Silmek için en az bir satırı işaretleyin.")
+            else:
+                st.session_state.iade_urun_df = (
+                    urun_df_duzenlenmis[~urun_df_duzenlenmis["Sil"]].drop(columns=["Sil"]).reset_index(drop=True)
+                )
+                st.rerun()
+
+        urun_df = urun_df_duzenlenmis.drop(columns=["Sil"])
         if st.button("Ekle", key="iade_ekle_btn"):
             satirlar = [
                 row for _, row in urun_df.iterrows()

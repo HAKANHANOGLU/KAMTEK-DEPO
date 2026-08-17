@@ -139,6 +139,29 @@ def excel_stok_sayim_sil(kayit_id: int):
     r.raise_for_status()
 
 
+def excel_stok_sayim_getir_en_son():
+    """Tarihten bağımsız, en son yüklenen tek excel kaydını döndürür (yoksa None).
+    Stok Sayım ekranı, XML yerine bunu kullanmayı tercih eder."""
+    params = {
+        "select": "id,dosya_adi,dosya_icerik_b64,yuklenme_zamani,tarih",
+        "order": "id.desc",
+        "limit": 1,
+    }
+    r = requests.get(f"{_REST}/excel_stok_sayim", headers=_HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    satirlar = r.json()
+    if not satirlar:
+        return None
+    row = satirlar[0]
+    return {
+        "id": row["id"],
+        "dosya_adi": row["dosya_adi"],
+        "dosya_icerik": base64.b64decode(row["dosya_icerik_b64"]),
+        "yuklenme_zamani": row.get("yuklenme_zamani"),
+        "tarih": row.get("tarih"),
+    }
+
+
 # ---------- Depo Temizlik ----------
 
 def temizlik_kaydet(tarih: str, personel_adi: str):
