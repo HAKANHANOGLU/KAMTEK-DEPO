@@ -276,24 +276,28 @@ div[data-testid="stMetric"] {
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button {
     width: 100% !important;
-    background: transparent !important;
+    height: 60px !important;
+    background: #FBEAEA !important;
     border: none !important;
     box-shadow: none !important;
     color: #C0392B !important;
-    font-size: 26px !important;
+    font-size: 42px !important;
     font-weight: 900 !important;
-    text-align: right !important;
-    justify-content: flex-end !important;
-    padding: 0 2px 0 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 0 !important;
     min-height: 0 !important;
-    height: auto !important;
-    line-height: 1.2 !important;
+    line-height: 1 !important;
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button:hover {
+    background: #F6D5D5 !important;
     color: #A32E20 !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button {
-    font-size: 17px !important;
+    height: 40px !important;
+    font-size: 24px !important;
 }
 .kpi-stat-num {
     font-size: 38px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
