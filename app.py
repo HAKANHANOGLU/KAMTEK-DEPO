@@ -265,53 +265,39 @@ div[data-testid="stMetric"] {
     border-color: #378ADD !important;
     box-shadow: 0 4px 14px rgba(55, 138, 221, .15) !important;
 }
-/* Konumlama (position:absolute) hilesi Streamlit'in iç sarmalayıcı
-   yapısına göre kırılgan çıktı (sürümden sürüme değişebiliyor) - bunun
-   yerine butonun kendisini normal akışta, görünür ve kırmızı ok
-   şeklinde, karta sağa yaslı gösteriyoruz. Daha kırılgan olmayan,
-   garanti çalışan bir çözüm. Streamlit buton metnini kendi iç <p>/<span>
-   elemanına koyup ORADA ayrı bir font-size veriyor - butonun kendi
-   font-size'ı miras yoluyla değil, doğrudan çocuk elemanı hedeflemek
-   gerekiyor, yoksa override etkisiz kalıyor. */
-[class*="st-key-kpi_"] div[data-testid="stElementContainer"]:has(div[data-testid="stButton"]) {
-    margin: 2px 0 0 0 !important;
-}
+/* Streamlit'in kendi buton metnini (iç <p>/<span>) CSS ile büyütme
+   denemeleri güvenilir çalışmadı (Streamlit sürümüne göre farklı iç
+   yapı kullanıyor). Bunun yerine ok işaretini KENDİ HTML'imizle
+   (.kpi-ok-gorsel) çiziyoruz - bu, bu sayfadaki diğer tüm özel
+   sınıflar gibi garanti render oluyor. Gerçek <button> tamamen
+   görünmez bırakılıp sadece tıklama alanı olarak altta duruyor. */
 [class*="st-key-kpi_"] div[data-testid="stButton"] {
     width: 100% !important;
-    margin: 0 !important;
+    margin-top: 4px !important;
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button {
     width: 100% !important;
-    height: 30px !important;
+    height: 34px !important;
+    opacity: 0 !important;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
     padding: 0 !important;
     min-height: 0 !important;
-    min-width: 0 !important;
-}
-[class*="st-key-kpi_"] div[data-testid="stButton"] button p,
-[class*="st-key-kpi_"] div[data-testid="stButton"] button span,
-[class*="st-key-kpi_"] div[data-testid="stButton"] button div {
-    color: #C0392B !important;
-    font-size: 22px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
-}
-[class*="st-key-kpi_"] div[data-testid="stButton"] button:hover p,
-[class*="st-key-kpi_"] div[data-testid="stButton"] button:hover span {
-    color: #A32E20 !important;
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button {
-    height: 26px !important;
+    height: 24px !important;
 }
-[class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button p,
-[class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button span {
-    font-size: 22px !important;
+.kpi-ok-gorsel {
+    color: #C0392B;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    pointer-events: none;
+    margin-top: 4px;
+    font-size: 44px;
 }
+[class*="st-key-kpi_bildirim_panel"] .kpi-ok-gorsel { font-size: 48px; }
 .kpi-stat-num {
     font-size: 30px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
 }
@@ -327,8 +313,9 @@ div[data-testid="stMetric"] {
 [class*="st-key-kpi_bildirim_panel"] .kpi-stat-label { margin-bottom: 2px; }
 /* Bekleyen iade / transfer talebi / bildirim kutucukları - kargo
    kutucuklarının yarısı boyutunda ama içindeki yazı/rakam daha büyük.
-   Streamlit'in eleman aralarına eklediği boşluk (margin) bu küçük
-   kutularda orantısız kaldığı için burada da sıfırlanıyor. */
+   Ok görselinin genişliği (dolayısıyla iç boşluğu) burada %50
+   küçültülüyor. Streamlit'in eleman aralarına eklediği boşluk (margin)
+   bu küçük kutularda orantısız kaldığı için sıfırlanıyor. */
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] {
     padding: 10px 16px !important;
     min-height: 0 !important;
@@ -339,6 +326,12 @@ div[data-testid="stMetric"] {
 }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 32px; }
 [class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-stat-label { font-size: 16px; margin-top: 6px; }
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-ok-gorsel {
+    font-size: 26px;
+    width: 50%;
+    margin-left: auto;
+    margin-right: auto;
+}
 [class*="st-key-kpi_bildirim_panel"][class*="_kucuk_kpi"] .kpi-stat-num { font-size: 32px; }
 [class*="st-key-kl_gun_kutu_"] button {
     background-color: #FFFFFF !important;
@@ -690,10 +683,11 @@ def _kpi_tile(key, sayi, etiket, hedef_sayfa, kucuk=False):
     kutu_key = f"{key}_kucuk_kpi" if kucuk else key
     with st.container(key=kutu_key):
         st.markdown(
-            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>',
+            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>'
+            f'<div class="kpi-ok-gorsel">↗</div>',
             unsafe_allow_html=True,
         )
-        if st.button("↗", key=f"{key}_btn", use_container_width=True):
+        if st.button("Aç", key=f"{key}_btn", use_container_width=True):
             git(hedef_sayfa)
 
 
@@ -773,10 +767,11 @@ def sayfa_home():
     with yan_col:
         with st.container(key="kpi_bildirim_panel"):
             st.markdown(
-                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>',
+                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>'
+                f'<div class="kpi-ok-gorsel">↗</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("↗", key="kpi_bildirim_panel_btn", use_container_width=True):
+            if st.button("Aç", key="kpi_bildirim_panel_btn", use_container_width=True):
                 git("bildirim")
 
         st.write("")
