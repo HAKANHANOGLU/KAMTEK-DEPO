@@ -265,10 +265,21 @@ div[data-testid="stMetric"] {
     border-color: #378ADD !important;
     box-shadow: 0 4px 14px rgba(55, 138, 221, .15) !important;
 }
+/* Streamlit her elemanı kendi "element container" sarmalayıcısına koyuyor
+   ve bu sarmalayıcılar bazen kendi position:relative'ini taşıyor - bu da
+   içindeki mutlak konumlu elemanların (ok işareti, görünmez buton) TÜM
+   karta değil sadece o dar sarmalayıcıya göre konumlanmasına sebep
+   oluyordu. Sarmalayıcıları position:static'e sabitleyip gerçek konumlama
+   referansını dıştaki karta ([class*="st-key-kpi_"], position:relative)
+   geri veriyoruz. */
+[class*="st-key-kpi_"] > div {
+    position: static !important;
+}
 [class*="st-key-kpi_"] div[data-testid="stButton"] {
     position: absolute !important;
     inset: 0 !important;
     margin: 0 !important;
+    z-index: 3 !important;
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button {
     width: 100% !important;
@@ -285,11 +296,11 @@ div[data-testid="stMetric"] {
     font-size: 14px; font-weight: 600; color: #6B6B66; margin-top: 4px;
 }
 .kpi-git-ok {
-    position: absolute; left: 16px; bottom: 12px;
-    font-size: 24px; font-weight: 900; color: #C0392B;
-    pointer-events: none;
+    position: absolute; right: 16px; bottom: 10px;
+    font-size: 30px; font-weight: 900; color: #C0392B;
+    pointer-events: none; z-index: 1; line-height: 1;
 }
-[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-git-ok { font-size: 15px; left: 10px; bottom: 8px; }
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-git-ok { font-size: 18px; right: 10px; bottom: 8px; }
 [class*="st-key-kpi_bildirim_panel"] {
     min-height: 0 !important;
     text-align: center !important;
