@@ -265,31 +265,35 @@ div[data-testid="stMetric"] {
     border-color: #378ADD !important;
     box-shadow: 0 4px 14px rgba(55, 138, 221, .15) !important;
 }
-/* Streamlit her elemanı kendi "element container" sarmalayıcısına koyuyor
-   ve bu sarmalayıcılar bazen kendi position:relative'ini taşıyor - bu da
-   içindeki mutlak konumlu elemanların (ok işareti, görünmez buton) TÜM
-   karta değil sadece o dar sarmalayıcıya göre konumlanmasına sebep
-   oluyordu. Sarmalayıcıları position:static'e sabitleyip gerçek konumlama
-   referansını dıştaki karta ([class*="st-key-kpi_"], position:relative)
-   geri veriyoruz. */
-[class*="st-key-kpi_"] div[data-testid="stElementContainer"],
-[class*="st-key-kpi_"] div[data-testid="element-container"] {
-    position: static !important;
-    width: 100% !important;
-}
+/* Konumlama (position:absolute) hilesi Streamlit'in iç sarmalayıcı
+   yapısına göre kırılgan çıktı (sürümden sürüme değişebiliyor) - bunun
+   yerine butonun kendisini normal akışta, görünür ve kırmızı ok
+   şeklinde, karta sağa yaslı gösteriyoruz. Daha kırılgan olmayan,
+   garanti çalışan bir çözüm. */
 [class*="st-key-kpi_"] div[data-testid="stButton"] {
-    position: absolute !important;
-    inset: 0 !important;
-    margin: 0 !important;
-    z-index: 3 !important;
+    width: 100% !important;
+    margin-top: 2px !important;
 }
 [class*="st-key-kpi_"] div[data-testid="stButton"] button {
     width: 100% !important;
-    height: 100% !important;
-    opacity: 0 !important;
-    cursor: pointer !important;
-    border: none !important;
     background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #C0392B !important;
+    font-size: 26px !important;
+    font-weight: 900 !important;
+    text-align: right !important;
+    justify-content: flex-end !important;
+    padding: 0 2px 0 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    line-height: 1.2 !important;
+}
+[class*="st-key-kpi_"] div[data-testid="stButton"] button:hover {
+    color: #A32E20 !important;
+}
+[class*="st-key-kpi_"][class*="_kucuk_kpi"] div[data-testid="stButton"] button {
+    font-size: 17px !important;
 }
 .kpi-stat-num {
     font-size: 38px; font-weight: 800; color: #2C2C2A; line-height: 1.1;
@@ -297,12 +301,6 @@ div[data-testid="stMetric"] {
 .kpi-stat-label {
     font-size: 14px; font-weight: 600; color: #6B6B66; margin-top: 4px;
 }
-.kpi-git-ok {
-    position: absolute; right: 16px; bottom: 10px;
-    font-size: 30px; font-weight: 900; color: #C0392B;
-    pointer-events: none; z-index: 1; line-height: 1;
-}
-[class*="st-key-kpi_"][class*="_kucuk_kpi"] .kpi-git-ok { font-size: 18px; right: 10px; bottom: 8px; }
 [class*="st-key-kpi_bildirim_panel"] {
     min-height: 0 !important;
     text-align: center !important;
@@ -651,11 +649,10 @@ def _kpi_tile(key, sayi, etiket, hedef_sayfa, kucuk=False):
     kutu_key = f"{key}_kucuk_kpi" if kucuk else key
     with st.container(key=kutu_key):
         st.markdown(
-            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>'
-            f'<div class="kpi-git-ok">↗</div>',
+            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>',
             unsafe_allow_html=True,
         )
-        if st.button("Aç", key=f"{key}_btn"):
+        if st.button("↗", key=f"{key}_btn"):
             git(hedef_sayfa)
 
 
@@ -740,11 +737,10 @@ def sayfa_home():
     with yan_col:
         with st.container(key="kpi_bildirim_panel"):
             st.markdown(
-                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>'
-                f'<div class="kpi-git-ok">↗</div>',
+                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Aç", key="kpi_bildirim_panel_btn"):
+            if st.button("↗", key="kpi_bildirim_panel_btn"):
                 git("bildirim")
 
         st.write("")
