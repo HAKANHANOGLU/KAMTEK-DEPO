@@ -924,30 +924,16 @@ def depo_sayim_bolumu():
         if not otomatik:
             st.info(f"{gun_str} için Stok Sayım'dan gelen bir otomatik sayım yok.")
         else:
-            st.markdown(f"**{gun_str} — Stok Sayım'dan gelen otomatik sayımlar:**")
+            st.markdown(f"**{gun_str} — Stok Sayım'dan gelen otomatik sayımlar (sadece farkı olan ürünler):**")
             for oturum in otomatik:
                 personel_str = f" — {oturum['personel_adi']}" if oturum.get("personel_adi") else ""
                 st.caption(f"🔢 Sayım #{oturum['id']}{personel_str}")
                 detaylar = db.stok_sayim_detay_getir(oturum["id"])
                 if not detaylar:
-                    st.write("Bu sayımda kayıtlı ürün yok.")
+                    st.write("Bu sayımda fark bulunan ürün yok (her şey stokla uyumlu).")
                 else:
                     df_detay = pd.DataFrame(detaylar)[["urun_adi", "guncel_stok", "sayilan", "fark"]]
                     df_detay.columns = ["Ürün Adı", "Güncel Stok", "Sayılan", "Fark"]
-
-                    def _fark_var_mi(f):
-                        try:
-                            return abs(float(str(f).replace(",", "."))) > 1e-9
-                        except (ValueError, TypeError):
-                            return False
-
-                    df_farkli = df_detay[df_detay["Fark"].apply(_fark_var_mi)]
-                    if df_farkli.empty:
-                        st.write("Bu sayımda fark bulunan ürün yok (her şey stokla uyumlu).")
-                    else:
-                        st.dataframe(df_farkli, use_container_width=True, hide_index=True)
-
-                    st.markdown("Sayılan tüm ürünler:")
                     st.dataframe(df_detay, use_container_width=True, hide_index=True)
         return
 
@@ -1391,8 +1377,7 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
             st.warning("Lütfen en az bir ürün için sayım miktarı girin.")
         else:
             stok_haritasi = {row["Ürün Adı"]: row["Stok"] for _, row in df.iterrows()}
-            tum_sayilan = []
-            fark_sayisi = 0
+            farkli = []
             personel_ozet_set = set()
             for urun, deger in girisler.items():
                 sayim_deger = deger.get("Sayım")
@@ -1403,23 +1388,24 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
                 try:
                     guncel = float(str(stok_haritasi.get(urun, 0)).replace(",", "."))
                     sayilan_sayi = float(str(sayim_deger).replace(",", "."))
-                    fark_deger = str(sayilan_sayi - guncel)
-                    if abs(sayilan_sayi - guncel) > 1e-9:
-                        fark_sayisi += 1
                 except (ValueError, TypeError):
-                    fark_deger = ""
-                tum_sayilan.append({
-                    "urun_adi": urun, "stok_kodu": None,
-                    "guncel_stok": stok_haritasi.get(urun), "sayilan": sayim_deger,
-                    "fark": fark_deger,
-                })
-            toplam_sayilan = len(tum_sayilan)
+                    continue
+                if abs(guncel - sayilan_sayi) > 1e-9:
+                    farkli.append({
+                        "urun_adi": urun, "stok_kodu": None,
+                        "guncel_stok": stok_haritasi.get(urun), "sayilan": sayim_deger,
+                        "fark": str(sayilan_sayi - guncel),
+                    })
+            toplam_sayilan = sum(
+                1 for d in girisler.values()
+                if str(d.get("Sayım", "")).strip() not in ("", "nan", "None")
+            )
             personel_ozet = ", ".join(personel_ozet_set) if personel_ozet_set else None
-            db.stok_sayim_oturumu_kaydet(date.today().isoformat(), personel_ozet, tum_sayilan)
+            db.stok_sayim_oturumu_kaydet(date.today().isoformat(), personel_ozet, farkli)
             st.session_state[girisler_key] = {}
             st.session_state[editor_key_key] += 1
             st.success(
-                f"Sayım kaydedildi ({toplam_sayilan} ürün sayıldı, {fark_sayisi} tanesinde fark var). "
+                f"Sayım kaydedildi ({toplam_sayilan} ürün sayıldı, {len(farkli)} tanesinde fark var). "
                 f"Depo Sayım Fişleri'ndeki haftalık takvimde de görünecek."
             )
             st.rerun()
