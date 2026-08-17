@@ -2051,6 +2051,10 @@ def _planlama_gorevler_bolumu():
             st.markdown(f"**{gun_fmt}**: " + ", ".join(gun_bazinda[gun]))
 
 
+def _transfer_bos_sepet_df():
+    return pd.DataFrame({"Ürün Adı": [], "Stok Kodu": [], "İstenen Adet": []})
+
+
 def sayfa_depotransfer():
     geri_butonu()
     st.header("Depolar Arası Transfer")
@@ -2074,27 +2078,60 @@ def sayfa_depotransfer():
     df = pd.DataFrame(urunler)
     df["_stok_sayi"] = pd.to_numeric(df["Stok"], errors="coerce").fillna(0)
     df = df.sort_values("_stok_sayi", ascending=False).reset_index(drop=True)
+    stok_kodu_map = dict(zip(df["Ürün Adı"], df["Stok Kodu"]))
 
-    arama = st.text_input("Ürün adı veya stok kodu ara", key="transfer_arama", placeholder="Aramak için yazın...")
-    df_goster = df[["Ürün Adı", "Stok Kodu", "Stok"]].copy()
-    if arama:
-        mask = df_goster["Ürün Adı"].str.contains(arama, case=False, na=False) | df_goster["Stok Kodu"].str.contains(arama, case=False, na=False)
-        df_goster = df_goster[mask]
-    df_goster.insert(len(df_goster.columns), "İstenen Adet", "")
+    if "transfer_sepet_df" not in st.session_state:
+        st.session_state.transfer_sepet_df = _transfer_bos_sepet_df()
 
-    edited = st.data_editor(
-        df_goster, use_container_width=True, height=450, key="transfer_urun_editor",
-        disabled=["Ürün Adı", "Stok Kodu", "Stok"], hide_index=True,
+    c_ara, c_ara_ekle = st.columns([4, 1])
+    secilen_urun = c_ara.selectbox(
+        "Ürün ara ve seç", [""] + sorted(df["Ürün Adı"].dropna().unique().tolist()), key="transfer_urun_arama_secim",
+        format_func=lambda v: "🔍 ürün ara..." if v == "" else v,
     )
+    if c_ara_ekle.button("➕ Ekle", key="transfer_urun_arama_ekle_btn", use_container_width=True):
+        if not secilen_urun:
+            st.warning("Önce listeden bir ürün seçin.")
+        else:
+            mevcut = st.session_state.transfer_sepet_df
+            if secilen_urun in mevcut["Ürün Adı"].values:
+                st.warning("Bu ürün zaten sepette.")
+            else:
+                yeni_satir = pd.DataFrame([{
+                    "Ürün Adı": secilen_urun,
+                    "Stok Kodu": stok_kodu_map.get(secilen_urun, ""),
+                    "İstenen Adet": "",
+                }])
+                st.session_state.transfer_sepet_df = pd.concat([mevcut, yeni_satir], ignore_index=True)
+            st.rerun()
+
+    df_duzenle = st.session_state.transfer_sepet_df.copy()
+    df_duzenle.insert(0, "Sil", False)
+    sepet_duzenlenmis = st.data_editor(
+        df_duzenle, use_container_width=True, height=280, key="transfer_sepet_editor",
+        disabled=["Ürün Adı", "Stok Kodu"], hide_index=True,
+        column_config={"Sil": st.column_config.CheckboxColumn("Sil")},
+    )
+    if st.button("🗑 Seçili satırları sil", key="transfer_sepet_satir_sil_btn"):
+        if not sepet_duzenlenmis["Sil"].any():
+            st.warning("Silmek için en az bir satırı işaretleyin.")
+        else:
+            st.session_state.transfer_sepet_df = (
+                sepet_duzenlenmis[~sepet_duzenlenmis["Sil"]].drop(columns=["Sil"]).reset_index(drop=True)
+            )
+            st.rerun()
+
+    sepet_df = sepet_duzenlenmis.drop(columns=["Sil"])
+    st.session_state.transfer_sepet_df = sepet_df
 
     if st.button("📣 Çağır", type="primary"):
-        secili_satirlar = edited[edited["İstenen Adet"].apply(lambda v: str(v).strip() not in ("", "nan", "None"))]
+        secili_satirlar = sepet_df[sepet_df["İstenen Adet"].apply(lambda v: str(v).strip() not in ("", "nan", "None"))]
         if secili_satirlar.empty:
             st.warning("Lütfen en az bir ürün için istenen adet girin.")
         else:
             for _, row in secili_satirlar.iterrows():
                 db.transfer_talebi_ekle(talep_eden, hedef, row["Ürün Adı"], row["İstenen Adet"], ne_zaman)
             st.success(f"{len(secili_satirlar)} ürün için talep oluşturuldu, Bildirim ekranına düştü.")
+            st.session_state.transfer_sepet_df = _transfer_bos_sepet_df()
             st.rerun()
 
     st.markdown("---")
