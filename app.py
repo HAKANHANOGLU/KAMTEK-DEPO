@@ -579,7 +579,6 @@ section[data-testid="stSidebar"] .gb-logo-alt { color: #7C8AA0 !important; }
 .gb-nav-baslik {
     font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
     padding: 18px 0 8px 8px; margin: 0;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 /* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
