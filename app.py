@@ -695,6 +695,12 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
     background: none !important; border: none !important; color: var(--gb-accent) !important;
     font-weight: 500 !important; font-size: 12px !important; padding: 6px 0 0 0 !important;
 }
+/* Son Sevkiyatlar / Bugünkü Kontrol Listesi / Bildirimler panelleri - KPI
+   kartlarındaki gibi ince sol renk çizgisi + üstte kırmızı bir bar. */
+.gb-panel, .st-key-kl_home_panel, .st-key-son_sevkiyat_panel {
+    border-top: 3px solid var(--gb-danger) !important;
+    border-left: 3px solid var(--gb-accent) !important;
+}
 /* Son Sevkiyatlar: görünürde ~5 satır yüksekliğinde, taşan (teslim edilmemiş)
    satırlar kaydırarak görülüyor - başlık satırı kaydırırken üstte sabit kalır. */
 .gb-table-scroll { max-height: 268px; overflow-y: auto; }
