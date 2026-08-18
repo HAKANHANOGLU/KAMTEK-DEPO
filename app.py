@@ -699,6 +699,44 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
    satırlar kaydırarak görülüyor - başlık satırı kaydırırken üstte sabit kalır. */
 .gb-table-scroll { max-height: 268px; overflow-y: auto; }
 .gb-table-scroll .gb-table th { position: sticky; top: 0; background: #FFFFFF; }
+
+/* Kargo Takip - DHL/MNG panosundan ilham alan üst şablonlar + özet tablosu */
+[class*="st-key-kt_tile_"] div[data-testid="stButton"] button {
+    width: 100% !important; border: none !important; border-radius: 8px !important;
+    padding: 24px 10px !important; font-weight: 700 !important; font-size: 16px !important;
+    min-height: 64px !important;
+}
+[class*="st-key-kt_tile_"] div[data-testid="stButton"] button div,
+[class*="st-key-kt_tile_"] div[data-testid="stButton"] button p {
+    font-weight: 700 !important; font-size: 16px !important;
+}
+.st-key-kt_tile_sec div[data-testid="stButton"] button,
+.st-key-kt_tile_sec div[data-testid="stButton"] button div,
+.st-key-kt_tile_sec div[data-testid="stButton"] button p {
+    background: #C3CE94 !important; color: #33421A !important;
+}
+.st-key-kt_tile_takip div[data-testid="stButton"] button,
+.st-key-kt_tile_takip div[data-testid="stButton"] button div,
+.st-key-kt_tile_takip div[data-testid="stButton"] button p {
+    background: #93CBA6 !important; color: #163A25 !important;
+}
+.st-key-kt_tile_rapor div[data-testid="stButton"] button,
+.st-key-kt_tile_rapor div[data-testid="stButton"] button div,
+.st-key-kt_tile_rapor div[data-testid="stButton"] button p {
+    background: #D7DAF0 !important; color: #262C52 !important;
+}
+.kt-banner {
+    background: var(--gb-danger); color: #FFFFFF; border-radius: 8px; padding: 12px 18px;
+    display: flex; justify-content: space-between; align-items: center; font-weight: 600;
+    margin: 16px 0 14px 0;
+}
+.kt-banner-pill { background: #FFFFFF; color: var(--gb-danger); padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; }
+.kt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; background: #FFFFFF; border: 1px solid var(--gb-border); border-radius: 10px; padding: 20px; }
+@media (max-width: 900px) { .kt-grid { grid-template-columns: repeat(2, 1fr); } }
+.kt-box-num { font-size: 28px; font-weight: 800; color: var(--gb-text-dark); }
+.kt-box-lbl { font-size: 12px; color: var(--gb-text-mid); margin-top: 2px; }
+.kt-box-bar { height: 6px; background: #EEEEEA; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.kt-box-bar-fill { height: 100%; background: var(--gb-accent); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -934,6 +972,40 @@ def _aras_satir_html(s, takip_no=None):
         f"<td>Aras</td>"
         f"<td><span class='gb-tag {sinif}'>{html.escape(metni.title())}</span></td></tr>"
     )
+
+
+_KT_KATEGORILER = [
+    "Gönderi Hazırlandı", "Transfer Aşamasında", "Varış Birimine Ulaştı",
+    "Alıcı Adresine Yönlendirildi", "Teslim Edildi", "Teslim Edilemedi",
+    "Geri Geliyor", "Destek Gerekiyor", "Gönderi İptal",
+]
+
+
+def _aras_durum_kategori(durumu):
+    """Aras'ın serbest metin durumunu (DURUMU) MNG'nin gönderi durum
+    dashboard'undaki 9 kategoriden birine eşler - Aras bu taksonomiyi
+    doğrudan vermiyor, anahtar kelime eşleştirmesiyle yaklaşık olarak
+    sınıflandırılıyor."""
+    u = (durumu or "").upper()
+    if "İPTAL" in u:
+        return "Gönderi İptal"
+    if "TESLİM EDİLEMEDİ" in u:
+        return "Teslim Edilemedi"
+    if "TESLİM EDİL" in u:
+        return "Teslim Edildi"
+    if "İADE" in u or "GERİ" in u:
+        return "Geri Geliyor"
+    if "DESTEK" in u:
+        return "Destek Gerekiyor"
+    if "ADRES" in u or "TESLİMATTA" in u or "DAĞITIM" in u:
+        return "Alıcı Adresine Yönlendirildi"
+    if "ŞUBE" in u and ("ULAŞ" in u or "VARIŞ" in u):
+        return "Varış Birimine Ulaştı"
+    if "TRANSFER" in u or "AKTARMA" in u:
+        return "Transfer Aşamasında"
+    return "Gönderi Hazırlandı"
+
+
 def sayfa_home():
     bugun = date.today()
     bugun_iso = bugun.isoformat()
@@ -1371,63 +1443,133 @@ def sayfa_kargotakip():
     geri_butonu()
     st.header("Kargo Takip")
 
-    st.subheader("Canlı Takip")
-    kargo_firmalari = ["Aras Kargo"]  # ileride başka firmaların API'si eklenince buraya katılacak
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        secili_firma = st.selectbox("Kargo Firması", kargo_firmalari, key="canli_takip_firma")
-    with c2:
-        canli_tarih = st.date_input("Gün Seçin", value=date.today(), key="canli_takip_tarih")
+    if "kt_view" not in st.session_state:
+        st.session_state.kt_view = "sec"
+    if "kt_firma" not in st.session_state:
+        st.session_state.kt_firma = "Aras Kargo"
+    if "kt_tarih" not in st.session_state:
+        st.session_state.kt_tarih = date.today()
 
-    if secili_firma == "Aras Kargo":
+    t1, t2, t3 = st.columns(3)
+    with t1:
+        with st.container(key="kt_tile_sec"):
+            if st.button("Kargo Seç", key="kt_btn_sec", use_container_width=True):
+                st.session_state.kt_view = "sec"
+    with t2:
+        with st.container(key="kt_tile_takip"):
+            if st.button("Takip Et", key="kt_btn_takip", use_container_width=True):
+                st.session_state.kt_view = "takip"
+    with t3:
+        with st.container(key="kt_tile_rapor"):
+            if st.button("Kargo Raporları", key="kt_btn_rapor", use_container_width=True):
+                st.session_state.kt_view = "rapor"
+
+    kargo_firmalari = ["Tüm Kargolar", "Aras Kargo"]  # MNG Kargo API'si hazır olunca eklenecek
+
+    if st.session_state.kt_view == "sec":
+        c1, c2 = st.columns(2)
+        with c1:
+            varsayilan_dizin = kargo_firmalari.index(st.session_state.kt_firma) if st.session_state.kt_firma in kargo_firmalari else 0
+            st.session_state.kt_firma = st.selectbox("Kargo Firması", kargo_firmalari, index=varsayilan_dizin, key="kt_firma_secim")
+        with c2:
+            st.session_state.kt_tarih = st.date_input("Gün Seçin", value=st.session_state.kt_tarih, key="kt_tarih_secim")
+
+    firma = st.session_state.kt_firma
+    tarih = st.session_state.kt_tarih
+
+    # ---- Veriyi topla (şu an sadece Aras canlı entegre - "Tüm Kargolar" da
+    # bu yüzden Aras'la aynı; başka firmaların API'si eklenince buraya katılacak) ----
+    aras_liste = []
+    if firma in ("Aras Kargo", "Tüm Kargolar") and db._aras_ayarli_mi():
+        aras_liste = db.aras_gunluk_sevkiyatlar(tarih.strftime("%d/%m/%Y"))
+
+    durumlu = []  # (s, takip_no, metni, sinif, kategori)
+    for s in aras_liste:
+        takip_no = s.get("TRACKINGNUMBER") or "—"
+        metni, sinif, _ = _aras_durum_bilgisi(takip_no)
+        durumlu.append((s, takip_no, metni, sinif, _aras_durum_kategori(metni)))
+
+    if st.session_state.kt_view == "takip":
+        st.subheader("Gönderi Ara")
+        arama = st.text_input("Takip no veya alıcı adı ile ara", key="kt_arama")
+        sonuc = [d for d in durumlu if not arama or arama.lower() in f"{d[1]} {d[0].get('ALICI_ADI') or ''}".lower()]
         if not db._aras_ayarli_mi():
             st.info("Aras Kargo API bağlantısı henüz yapılandırılmadı (Streamlit Cloud Secrets).")
+        elif not sonuc:
+            st.caption("Sonuç bulunamadı.")
         else:
-            aras_liste = db.aras_gunluk_sevkiyatlar(canli_tarih.strftime("%d/%m/%Y"))
-            if not aras_liste:
-                st.caption(f"{canli_tarih.strftime('%d.%m.%Y')} için Aras'a verilmiş gönderi bulunamadı.")
+            rows_html = "".join(
+                f"<tr><td class='gb-mono'>{html.escape(takip_no)}</td>"
+                f"<td>{html.escape(s.get('ALICI_ADI') or '—')}</td>"
+                f"<td>{html.escape(s.get('SEHIR') or '—')}</td>"
+                f"<td>Aras</td>"
+                f"<td><span class='gb-tag {sinif}'>{html.escape(metni.title())}</span></td></tr>"
+                for s, takip_no, metni, sinif, _kat in sonuc
+            )
+            st.markdown(
+                f"""<div class="gb-panel"><table class="gb-table">
+                    <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
+                    {rows_html}
+                </table></div>""",
+                unsafe_allow_html=True,
+            )
+            st.caption(f"{len(sonuc)} / {len(durumlu)} gönderi gösteriliyor.")
+
+    elif st.session_state.kt_view == "rapor":
+        st.subheader("Kargo Raporları")
+        if not db._aras_ayarli_mi() or not aras_liste:
+            st.info("Rapor için veri bulunamadı.")
+        else:
+            toplam_tutar = sum(float(s.get("TUTAR") or 0) for s in aras_liste)
+            ort_tutar = toplam_tutar / len(aras_liste) if aras_liste else 0
+            teslim_suresi_gunler = []
+            for s, takip_no, _metni, _sinif, _kat in durumlu:
+                durum_detay = db.aras_kargo_durumu(takip_no) or {}
+                planlanan = durum_detay.get("PLANLANAN_TESLIMTARIHI")
+                cikis_str = (s.get("DUZENLEME_TARIHI") or "")[:10]
+                if planlanan and cikis_str:
+                    try:
+                        cikis = datetime.strptime(cikis_str, "%Y-%m-%d")
+                        hedef = datetime.strptime(planlanan, "%d/%m/%Y")
+                        teslim_suresi_gunler.append((hedef - cikis).days)
+                    except Exception:
+                        pass
+            r1, r2, r3 = st.columns(3)
+            r1.metric("Toplam Gönderi", len(aras_liste))
+            r2.metric("Toplam Tutar", f"{toplam_tutar:,.2f} ₺")
+            r3.metric("Ortalama Tutar", f"{ort_tutar:,.2f} ₺")
+            if teslim_suresi_gunler:
+                st.metric("Ortalama Planlanan Teslim Süresi", f"{sum(teslim_suresi_gunler) / len(teslim_suresi_gunler):.1f} gün")
             else:
-                f1, f2 = st.columns([1, 1.6])
-                with f1:
-                    durum_filtre = st.selectbox(
-                        "Durum", ["Tümü", "Yolda / Aktarmada", "Teslim Edildi"], key="canli_takip_durum_filtre"
-                    )
-                with f2:
-                    arama = st.text_input("Ara (takip no veya alıcı adı)", key="canli_takip_arama")
+                st.caption("Teslim süresi hesaplamak için yeterli veri yok.")
 
-                satirlar = []
-                for s in reversed(aras_liste):
-                    takip_no = s.get("TRACKINGNUMBER") or "—"
-                    metni, sinif, teslim_edildi = _aras_durum_bilgisi(takip_no)
-                    if durum_filtre == "Yolda / Aktarmada" and teslim_edildi:
-                        continue
-                    if durum_filtre == "Teslim Edildi" and not teslim_edildi:
-                        continue
-                    if arama and arama.lower() not in f"{takip_no} {s.get('ALICI_ADI') or ''}".lower():
-                        continue
-                    satirlar.append((s, takip_no, metni, sinif))
+    # ---- Genel özet - her zaman görünür ----
+    kategori_sayilari = {ad: 0 for ad in _KT_KATEGORILER}
+    for _s, _t, _m, _sinif, kategori in durumlu:
+        kategori_sayilari[kategori] = kategori_sayilari.get(kategori, 0) + 1
+    toplam = len(durumlu)
 
-                if not satirlar:
-                    st.caption("Filtreye uyan sonuç yok.")
-                else:
-                    rows_html = "".join(
-                        f"<tr><td class='gb-mono'>{html.escape(takip_no)}</td>"
-                        f"<td>{html.escape(s.get('ALICI_ADI') or '—')}</td>"
-                        f"<td>{html.escape(s.get('SEHIR') or '—')}</td>"
-                        f"<td>Aras</td>"
-                        f"<td><span class='gb-tag {sinif}'>{html.escape(metni.title())}</span></td></tr>"
-                        for s, takip_no, metni, sinif in satirlar
-                    )
-                    st.markdown(
-                        f"""<div class="gb-panel">
-                            <table class="gb-table">
-                                <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
-                                {rows_html}
-                            </table>
-                        </div>""",
-                        unsafe_allow_html=True,
-                    )
-                    st.caption(f"{len(satirlar)} / {len(aras_liste)} gönderi gösteriliyor.")
+    st.markdown(
+        f"""<div class="kt-banner">
+            <div>{tarih.strftime('%d.%m.%Y')} · {firma}</div>
+            <div class="kt-banner-pill">Toplam Gönderi: {toplam} Adet</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    if not db._aras_ayarli_mi():
+        st.info("Aras Kargo API bağlantısı henüz yapılandırılmadı (Streamlit Cloud Secrets).")
+    else:
+        kutu_html = "<div class='kt-grid'>"
+        for ad in _KT_KATEGORILER:
+            sayi = kategori_sayilari.get(ad, 0)
+            oran = (sayi / toplam * 100) if toplam else 0
+            kutu_html += (
+                f"<div class='kt-box'><div class='kt-box-num'>{sayi}</div><div class='kt-box-lbl'>{html.escape(ad)}</div>"
+                f"<div class='kt-box-bar'><div class='kt-box-bar-fill' style='width:{oran:.0f}%;'></div></div></div>"
+            )
+        kutu_html += "</div>"
+        st.markdown(kutu_html, unsafe_allow_html=True)
+
     st.markdown("---")
 
     col1, col2 = st.columns(2)
