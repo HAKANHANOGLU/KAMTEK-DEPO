@@ -540,7 +540,7 @@ section[data-testid="stSidebar"] div[data-testid="stSidebarHeader"] {
    bu tasarım kararını yanlışlıkla düzleştirmişti. Taban gap küçültüldü,
    kategori başlığına kendi üst boşluğu (aşağıda margin-top) geri verildi. */
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
-    gap: 0.15rem !important;
+    gap: 0.3rem !important;
 }
 /* NOT: yukarıdaki "section[data-testid='stSidebar'] *" kuralı !important ile
    TÜM alt elemanları (iç metin p/div'leri dahil) #DCE3EC yapıyor. Sadece
@@ -560,19 +560,21 @@ section[data-testid="stSidebar"] .gb-logo-baslik { color: #FFFFFF !important; }
 }
 section[data-testid="stSidebar"] .gb-logo-alt { color: #7C8AA0 !important; }
 /* Logo bloğunu (KAMTEK DEPO + alt yazı) nav listesinden ayırıp yukarıda
-   tutan ayraç - altında biraz boşluk bırakıp öyle çiziliyor. */
+   tutan ayraç - hem üstünde hem altında boşluk var, "Genel Bakış" ile
+   birbirine yapışmasın diye. */
 .gb-sidebar-divider {
-    border-top: 1px solid rgba(255,255,255,0.08); margin: 10px 0 0 0;
+    border-top: 1px solid rgba(255,255,255,0.08); margin: 10px 0 10px 0;
 }
+/* DÜZELTME: ".gb-nav-baslik:first-of-type" YANLIŞ bir varsayıma dayanıyordu
+   - her kategori başlığı Streamlit'te kendi ayrı stElementContainer'ının
+   TEK çocuğu olduğu için ":first-of-type" hepsine (3'üne de) eşleşiyordu,
+   bu yüzden hiçbiri istenen üst boşluğu almıyordu (hepsi 8px'te kalmıştı).
+   Kural tamamen kaldırıldı, tek ve garanti çalışan margin-top aşağıda. */
 .gb-nav-baslik {
     font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-    padding: 0 0 6px 8px; margin-top: 12px; margin-bottom: 2px;
+    padding: 0 0 8px 8px; margin-top: 18px !important; margin-bottom: 4px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-/* İlk kategori (Sevkiyat & Kargo) "Genel Bakış"ın hemen altında - önündeki
-   ekstra üst boşluğa gerek yok, mockup'ta da nav-label'lar arasında bu
-   fark yok, sadece ilk öğeye özgü bir durum. */
-.gb-nav-baslik:first-of-type { margin-top: 8px; }
 section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 /* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
    "görünmez buton üstte" tekniği Streamlit'in kendi stElementContainer'ına
