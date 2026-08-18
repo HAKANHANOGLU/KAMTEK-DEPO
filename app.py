@@ -1631,8 +1631,8 @@ def sayfa_depo():
             st.session_state.depo_alt_sayfa = "sayim"
             st.rerun()
     with c2:
-        if st.button("🧹\n\nDepo Temizlik Çizelgesi", use_container_width=True):
-            st.session_state.depo_alt_sayfa = "temizlik"
+        if st.button("🗓️\n\nHaftalık Depo Kontrol Şablonu", use_container_width=True):
+            st.session_state.depo_alt_sayfa = "haftalik_kontrol"
             st.rerun()
 
     st.markdown("---")
@@ -1641,6 +1641,116 @@ def sayfa_depo():
         depo_sayim_bolumu()
     elif st.session_state.depo_alt_sayfa == "temizlik":
         depo_temizlik_bolumu()
+    elif st.session_state.depo_alt_sayfa == "haftalik_kontrol":
+        haftalik_kontrol_bolumu()
+
+
+def _fark_var_mi(f):
+    try:
+        return abs(float(str(f).replace(",", "."))) > 1e-9
+    except (ValueError, TypeError):
+        return False
+
+
+def _sayim_ozet_df(oturumlar):
+    """Bir güne ait TÜM otomatik sayım oturumlarını (kronolojik id sırasıyla)
+    birleştirip her ürün için SON sayım sonucunu hesaplar. Bir ürün birden
+    fazla oturumda sayılmışsa (önce yanlış çıkıp personel tekrar saymışsa)
+    son sayım esas alınır ve öncesinde yanlış varsa "Düzeltildi" olarak
+    işaretlenir."""
+    urun_gecmisi = {}
+    for oturum in oturumlar:
+        for d in db.stok_sayim_detay_getir(oturum["id"]):
+            urun_gecmisi.setdefault(d["urun_adi"], []).append(d)
+
+    satirlar = []
+    for urun, gecmis in urun_gecmisi.items():
+        son = gecmis[-1]
+        son_yanlis = _fark_var_mi(son.get("fark"))
+        onceden_yanlis = any(_fark_var_mi(g.get("fark")) for g in gecmis[:-1])
+        if son_yanlis:
+            durum = "Yanlış"
+        elif onceden_yanlis:
+            durum = "Düzeltildi"
+        else:
+            durum = "Doğru"
+        satirlar.append({
+            "Ürün Adı": urun, "Güncel Stok": son.get("guncel_stok"),
+            "Sayım": son.get("sayilan"), "Fark": son.get("fark"), "Durum": durum,
+        })
+    return pd.DataFrame(satirlar)
+
+
+def _sayim_ozet_renklendir(row):
+    renk = {"Doğru": "#DCF3E0", "Yanlış": "#FBE1E1", "Düzeltildi": "#DBEAFB"}.get(row["Durum"], "")
+    return [f"background-color: {renk}"] * len(row) if renk else [""] * len(row)
+
+
+def haftalik_kontrol_bolumu():
+    st.subheader("Haftalık Depo Kontrol Şablonu")
+    st.caption(
+        "Bu haftanın (Pazartesi–Pazar) tüm otomatik sayım oturumları, güncel ürün listesiyle "
+        "birleştirilerek gösterilir - hiç sayılmamış ürünler de dahildir."
+    )
+
+    bugun = date.today()
+    hafta_baslangic = bugun - timedelta(days=bugun.weekday())
+    gun_isimleri = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+    hafta_gunleri = [hafta_baslangic + timedelta(days=i) for i in range(7)]
+
+    urun_sayim = {}
+    for gun, isim in zip(hafta_gunleri, gun_isimleri):
+        for oturum in db.stok_sayim_oturumlari_getir(gun.isoformat()):
+            for d in db.stok_sayim_detay_getir(oturum["id"]):
+                urun_sayim[d["urun_adi"]] = {"Sayım": d.get("sayilan"), "Fark": d.get("fark"), "Gün": isim}
+
+    try:
+        en_son_excel = db.excel_stok_sayim_getir_en_son()
+        if en_son_excel is not None:
+            urunler, _eslesme = _excel_stok_oku(io.BytesIO(en_son_excel["dosya_icerik"]))
+        else:
+            urunler = _stok_verisi_cache()
+    except Exception as e:
+        st.error(f"Ürün listesi alınamadı: {e}")
+        urunler = []
+
+    satirlar = []
+    for u in urunler:
+        urun_adi = u.get("Ürün Adı")
+        if not urun_adi:
+            continue
+        bilgi = urun_sayim.get(urun_adi)
+        satirlar.append({
+            "Ürün Adı": urun_adi, "Güncel Stok": u.get("Stok"),
+            "Sayım": bilgi["Sayım"] if bilgi else "", "Fark": bilgi["Fark"] if bilgi else "",
+            "Sayıldığı Gün": bilgi["Gün"] if bilgi else "Sayılmadı",
+            "_sayildi": 1 if bilgi else 0,
+        })
+    if not satirlar:
+        st.info("Ürün listesi bulunamadı.")
+        return
+
+    df = pd.DataFrame(satirlar)
+
+    siralama = st.radio(
+        "Sıralama", ["Varsayılan", "Sayılmayanlar Önce", "Sayılanlar Önce"],
+        horizontal=True, key="hk_siralama",
+    )
+    if siralama == "Sayılmayanlar Önce":
+        df = df.sort_values("_sayildi", ascending=True)
+    elif siralama == "Sayılanlar Önce":
+        df = df.sort_values("_sayildi", ascending=False)
+    df = df.drop(columns=["_sayildi"])
+
+    def _renklendir(row):
+        renk = "#DCF3E0" if row["Sayıldığı Gün"] != "Sayılmadı" else "#FBE1E1"
+        return [f"background-color: {renk}"] * len(row)
+
+    st.dataframe(
+        df.style.apply(_renklendir, axis=1), use_container_width=True, height=520, hide_index=True,
+    )
+    sayilan_adet = int((df["Sayıldığı Gün"] != "Sayılmadı").sum())
+    st.caption(f"🟢 Sayıldı: {sayilan_adet} · 🔴 Sayılmadı: {len(df) - sayilan_adet} · Sütun başlıklarına tıklayarak sıralayabilirsiniz.")
 
 
 def depo_sayim_bolumu():
@@ -1722,6 +1832,15 @@ def depo_sayim_bolumu():
         if not otomatik:
             st.info(f"{gun_str} için Stok Sayım'dan gelen bir otomatik sayım yok.")
         else:
+            st.markdown(f"**{gun_str} — Sayım Özeti**")
+            ozet_df = _sayim_ozet_df(otomatik)
+            if not ozet_df.empty:
+                st.dataframe(
+                    ozet_df.style.apply(_sayim_ozet_renklendir, axis=1),
+                    use_container_width=True, height=320, hide_index=True,
+                )
+                st.caption("🟢 Doğru sayıldı · 🔴 Sayım stokla uyuşmuyor · 🔵 Önce yanlış sayılıp sonra düzeltildi")
+
             st.markdown(f"**{gun_str} — Stok Sayım'dan gelen otomatik sayımlar:**")
             for oturum in otomatik:
                 personel_str = f" — {oturum['personel_adi']}" if oturum.get("personel_adi") else ""
@@ -1732,12 +1851,6 @@ def depo_sayim_bolumu():
                 else:
                     df_detay = pd.DataFrame(detaylar)[["urun_adi", "guncel_stok", "sayilan", "fark"]]
                     df_detay.columns = ["Ürün Adı", "Güncel Stok", "Sayılan", "Fark"]
-
-                    def _fark_var_mi(f):
-                        try:
-                            return abs(float(str(f).replace(",", "."))) > 1e-9
-                        except (ValueError, TypeError):
-                            return False
 
                     df_farkli = df_detay[df_detay["Fark"].apply(_fark_var_mi)]
                     if df_farkli.empty:
@@ -2093,10 +2206,27 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
         st.info("Stok verisi bulunamadı.")
         return
 
+    # Aynı gün içindeki taslağı veritabanında tutan anahtar - sayım sırasında
+    # telefon çalıp Streamlit bağlantısı kopup session_state sıfırlansa bile
+    # (mobilde sekme arka planda öldürülünce olan buydu) sayfa yeniden
+    # açıldığında bu anahtardan kaldığı yerden devam edilebiliyor.
+    oturum_anahtari = f"{anahtar_onek}_{date.today().isoformat()}"
+
     girisler_key = f"{anahtar_onek}_girisler"
     editor_key_key = f"{anahtar_onek}_editor_key"
     if girisler_key not in st.session_state:
-        st.session_state[girisler_key] = {}  # {urun_adi: {"Sayım":.., "Personel":..}}
+        # Önce veritabanındaki taslağı geri yükle (bağlantı kopması sonrası
+        # kurtarma) - hiç taslak yoksa (ilk kez sayım başlıyor) boş sözlük.
+        try:
+            taslak_satirlar = db.stok_sayim_taslak_getir(oturum_anahtari)
+        except Exception:
+            taslak_satirlar = []
+        st.session_state[girisler_key] = {
+            t["urun_adi"]: {"Sayım": t.get("sayim") or "", "Personel": t.get("personel") or ""}
+            for t in taslak_satirlar if t.get("sayim") not in (None, "")
+        }
+        if taslak_satirlar:
+            st.info(f"Kaydedilmemiş {len(st.session_state[girisler_key])} ürünlük bir sayım taslağı bulundu, kaldığınız yerden devam edebilirsiniz.")
     if editor_key_key not in st.session_state:
         st.session_state[editor_key_key] = 0
     girisler = st.session_state[girisler_key]
@@ -2155,16 +2285,26 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
 
     # Kullanıcının bu görünümde girdiği Sayım değerlerini kalıcı sözlüğe geri
     # yaz. Personel tabloda hiç gösterilmiyor, sadece "Personeli Ata"
-    # düğmesinden atanıyor - burada mevcut değeri koru.
+    # düğmesinden atanıyor - burada mevcut değeri koru. Değişen her satır
+    # AYNI ANDA veritabanına da (taslak olarak) yazılıyor ki bağlantı kopsa
+    # bile veri kaybolmasın - sadece GERÇEKTEN değişen satırlar için (her
+    # sayfa yenilemesinde tüm satırları yeniden yazmamak için).
     for _, row in edited.iterrows():
         urun = row["Ürün Adı"]
         sayim_deger = row["Sayım"]
         sayim_dolu = str(sayim_deger).strip() not in ("", "nan", "None")
         mevcut_personel = girisler.get(urun, {}).get("Personel", "")
+        onceki_sayim = girisler.get(urun, {}).get("Sayım")
+        degisti = (sayim_dolu and sayim_deger != onceki_sayim) or (not sayim_dolu and urun in girisler)
         if sayim_dolu or mevcut_personel:
             girisler[urun] = {"Sayım": sayim_deger, "Personel": mevcut_personel}
         elif urun in girisler:
             del girisler[urun]
+        if degisti:
+            try:
+                db.stok_sayim_taslak_kaydet(oturum_anahtari, urun, sayim_deger if sayim_dolu else None, mevcut_personel)
+            except Exception:
+                pass
 
     st.markdown("---")
     personeller = db.personel_listele()
@@ -2181,6 +2321,10 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
             for urun, deger in girisler.items():
                 if str(deger.get("Sayım", "")).strip() not in ("", "nan", "None"):
                     deger["Personel"] = secilen_personel
+                    try:
+                        db.stok_sayim_taslak_kaydet(oturum_anahtari, urun, deger.get("Sayım"), secilen_personel)
+                    except Exception:
+                        pass
             st.session_state[editor_key_key] += 1
             st.rerun()
 
@@ -2214,6 +2358,10 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
             toplam_sayilan = len(tum_sayilan)
             personel_ozet = ", ".join(personel_ozet_set) if personel_ozet_set else None
             db.stok_sayim_oturumu_kaydet(date.today().isoformat(), personel_ozet, tum_sayilan)
+            try:
+                db.stok_sayim_taslak_temizle(oturum_anahtari)
+            except Exception:
+                pass
             st.session_state[girisler_key] = {}
             st.session_state[editor_key_key] += 1
             st.success(

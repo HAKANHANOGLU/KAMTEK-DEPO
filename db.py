@@ -602,6 +602,40 @@ def stok_sayim_detay_getir(oturum_id):
     return r.json()
 
 
+# ---------- Stok Sayım Taslağı ----------
+# Sayım sırasında telefon çalıp Streamlit bağlantısı koptuğunda (mobil
+# tarayıcı sekmeyi arka planda öldürüyor) session_state tamamen sıfırlanıyor
+# ve o ana kadar girilen tüm sayımlar kayboluyordu. Artık her hücre
+# değiştiğinde satır tek tek burada da (veritabanında) upsert ediliyor,
+# sayfa yeniden açıldığında session_state boşsa buradan geri yükleniyor.
+def stok_sayim_taslak_kaydet(oturum_anahtari, urun_adi, sayim, personel=None):
+    row = {
+        "oturum_anahtari": oturum_anahtari, "urun_adi": urun_adi,
+        "sayim": None if sayim in (None, "") else str(sayim), "personel": personel,
+        "guncellenme_zamani": datetime.now().isoformat(),
+    }
+    headers = dict(_HEADERS)
+    headers["Prefer"] = "resolution=merge-duplicates"
+    r = requests.post(
+        f"{_REST}/stok_sayim_taslak", headers=headers,
+        params={"on_conflict": "oturum_anahtari,urun_adi"}, data=json.dumps(row), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def stok_sayim_taslak_getir(oturum_anahtari):
+    params = {"oturum_anahtari": f"eq.{oturum_anahtari}"}
+    r = requests.get(f"{_REST}/stok_sayim_taslak", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+def stok_sayim_taslak_temizle(oturum_anahtari):
+    params = {"oturum_anahtari": f"eq.{oturum_anahtari}"}
+    r = requests.delete(f"{_REST}/stok_sayim_taslak", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+
+
 # ---------- Depo Temizlik (kroki bazlı) ----------
 
 def temizlik_kaydet_oda(oda, tarih, personel_adi):
