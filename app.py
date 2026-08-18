@@ -567,7 +567,7 @@ section[data-testid="stSidebar"] .gb-logo-alt { color: #7C8AA0 !important; }
    olup görsel olarak üstteki elemanla üst üste biniyordu (canlıda DOM
    ölçülerek doğrulandı). Padding asla collapse olmaz, garanti çalışır. */
 .gb-sidebar-divider {
-    padding-top: 10px; margin: 0;
+    padding-top: 20px; margin: 0;
 }
 /* DÜZELTME 1: ".gb-nav-baslik:first-of-type" YANLIŞ bir varsayıma dayanıyordu
    - her kategori başlığı Streamlit'te kendi ayrı stElementContainer'ının
