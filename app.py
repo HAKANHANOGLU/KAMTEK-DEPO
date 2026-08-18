@@ -555,24 +555,30 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
 }
 section[data-testid="stSidebar"] .gb-logo-baslik { color: #FFFFFF !important; }
 .gb-logo-alt {
-    font-size: 11.5px; margin-top: 7px; letter-spacing: .04em;
-    text-transform: uppercase; padding: 0;
+    font-size: 11.5px; letter-spacing: .04em;
+    text-transform: uppercase; padding-top: 7px; margin: 0;
 }
 section[data-testid="stSidebar"] .gb-logo-alt { color: #7C8AA0 !important; }
 /* Logo bloğunu (KAMTEK DEPO + alt yazı) nav listesinden ayırıp yukarıda
-   tutan ayraç - hem üstünde hem altında boşluk var, "Genel Bakış" ile
-   birbirine yapışmasın diye. */
+   tutan ayraç. NOT: margin YERİNE padding-top kullanılıyor - Streamlit
+   her elemanı kendi sarmalayıcısına (stMarkdownContainer/stElementContainer)
+   koyuyor ve bu sarmalayıcılar "auto" yükseklikte olduğu için child'ın
+   margin'i sarmalayıcının İÇİNE değil, sarmalayıcıyla birlikte collapse
+   olup görsel olarak üstteki elemanla üst üste biniyordu (canlıda DOM
+   ölçülerek doğrulandı). Padding asla collapse olmaz, garanti çalışır. */
 .gb-sidebar-divider {
-    border-top: 1px solid rgba(255,255,255,0.08); margin: 10px 0 10px 0;
+    border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; margin: 0;
 }
-/* DÜZELTME: ".gb-nav-baslik:first-of-type" YANLIŞ bir varsayıma dayanıyordu
+/* DÜZELTME 1: ".gb-nav-baslik:first-of-type" YANLIŞ bir varsayıma dayanıyordu
    - her kategori başlığı Streamlit'te kendi ayrı stElementContainer'ının
    TEK çocuğu olduğu için ":first-of-type" hepsine (3'üne de) eşleşiyordu,
-   bu yüzden hiçbiri istenen üst boşluğu almıyordu (hepsi 8px'te kalmıştı).
-   Kural tamamen kaldırıldı, tek ve garanti çalışan margin-top aşağıda. */
+   bu yüzden hiçbiri istenen üst boşluğu almıyordu.
+   DÜZELTME 2: margin-top de aynı collapse sorununu yaşıyordu (yukarıdaki
+   nota bakın) - kategori başlığı bir önceki maddenin hemen dibinde
+   görünüyordu. İkisi de padding-top'a çevrildi. */
 .gb-nav-baslik {
     font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-    padding: 0 0 8px 8px; margin-top: 18px !important; margin-bottom: 4px;
+    padding: 18px 0 8px 8px; margin: 0;
     border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
