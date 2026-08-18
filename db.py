@@ -628,3 +628,77 @@ def temizlik_getir_son_gunler(oda, gun_listesi):
     r = requests.get(f"{_REST}/depo_temizlik_kayitlari", headers=_HEADERS, params=params, timeout=15)
     r.raise_for_status()
     return r.json()
+
+
+# ---------- Aras Kargo Entegrasyonu ----------
+# Aras'ın GetQueryJSON SOAP servisi (WCF) - kimlik bilgileri (kullanıcı adı,
+# şifre, müşteri kodu) ASLA koda yazılmıyor, sadece Streamlit Cloud'un
+# Settings > Secrets kısmına ARAS_USERNAME / ARAS_PASSWORD / ARAS_CUSTOMER_CODE
+# olarak eklenmesi gerekiyor. Kimlik bilgileri girilmemişse tüm fonksiyonlar
+# sessizce boş/None döner - site bu entegrasyon olmadan da çalışmaya devam eder.
+import xml.etree.ElementTree as _ET
+
+_ARAS_URL = "https://customerservices.araskargo.com.tr/ArasCargoCustomerIntegrationService/ArasCargoIntegrationService.svc"
+_ARAS_SOAP_ACTION = "http://tempuri.org/IArasCargoIntegrationService/GetQueryJSON"
+
+
+def _aras_ayarli_mi():
+    return bool(
+        st.secrets.get("ARAS_USERNAME") and st.secrets.get("ARAS_PASSWORD") and st.secrets.get("ARAS_CUSTOMER_CODE")
+    )
+
+
+def _aras_sorgu(query_info_xml):
+    """Aras Kargo GetQueryJSON servisine tek bir SOAP isteği gönderir, ayrıştırılmış JSON (dict) döner."""
+    import xml.sax.saxutils as xmlsax
+
+    login_xml = (
+        f"<LoginInfo><UserName>{xmlsax.escape(st.secrets['ARAS_USERNAME'])}</UserName>"
+        f"<Password>{xmlsax.escape(st.secrets['ARAS_PASSWORD'])}</Password>"
+        f"<CustomerCode>{xmlsax.escape(st.secrets['ARAS_CUSTOMER_CODE'])}</CustomerCode></LoginInfo>"
+    )
+    zarf = (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">'
+        "<soap:Body><tem:GetQueryJSON>"
+        f"<tem:loginInfo>{xmlsax.escape(login_xml)}</tem:loginInfo>"
+        f"<tem:queryInfo>{xmlsax.escape(query_info_xml)}</tem:queryInfo>"
+        "</tem:GetQueryJSON></soap:Body></soap:Envelope>"
+    )
+    headers = {"Content-Type": "text/xml; charset=utf-8", "SOAPAction": _ARAS_SOAP_ACTION}
+    r = requests.post(_ARAS_URL, headers=headers, data=zarf.encode("utf-8"), timeout=15)
+    r.raise_for_status()
+    kok = _ET.fromstring(r.text)
+    sonuc_el = kok.find(".//{http://tempuri.org/}GetQueryJSONResult")
+    if sonuc_el is None or not sonuc_el.text:
+        return None
+    return json.loads(sonuc_el.text)
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def aras_gunluk_sevkiyatlar(tarih_gg_aa_yyyy):
+    """Verilen günde (GG/AA/YYYY formatında) çıkışı yapılmış tüm Aras gönderilerini döner."""
+    if not _aras_ayarli_mi():
+        return []
+    query_info = f"<QueryInfo><QueryType>2</QueryType><Date>{tarih_gg_aa_yyyy}</Date></QueryInfo>"
+    try:
+        veri = _aras_sorgu(query_info)
+    except Exception:
+        return []
+    kargo = ((veri or {}).get("QueryResult") or {}).get("Cargo")
+    if not kargo:
+        return []
+    return kargo if isinstance(kargo, list) else [kargo]
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def aras_kargo_durumu(takip_no):
+    """Tek bir Aras takip numarasının güncel teslimat durumunu (DURUMU, DURUM_EN vb.) döner."""
+    if not _aras_ayarli_mi() or not takip_no:
+        return None
+    query_info = f"<QueryInfo><QueryType>1</QueryType><TrackingNumber>{takip_no}</TrackingNumber></QueryInfo>"
+    try:
+        veri = _aras_sorgu(query_info)
+    except Exception:
+        return None
+    return ((veri or {}).get("QueryResult") or {}).get("Cargo")

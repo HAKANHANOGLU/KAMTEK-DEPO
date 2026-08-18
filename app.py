@@ -909,19 +909,27 @@ def sayfa_home():
     dun = bugun - timedelta(days=1)
     dun_iso = dun.isoformat()
 
-    try:
-        kargolar_ay = db.tamamlanan_kargolar_getir_ay(bugun.year, bugun.month)
-    except Exception:
-        kargolar_ay = []
-    kargo_bugun = sum(1 for k in kargolar_ay if k.get("tarih") == bugun_iso)
-    if dun.month == bugun.month:
-        kargo_dun = sum(1 for k in kargolar_ay if k.get("tarih") == dun_iso)
+    aras_aktif = db._aras_ayarli_mi()
+    if aras_aktif:
+        aras_bugun = db.aras_gunluk_sevkiyatlar(bugun.strftime("%d/%m/%Y"))
+        aras_dun = db.aras_gunluk_sevkiyatlar(dun.strftime("%d/%m/%Y"))
+        kargo_bugun = len(aras_bugun)
+        kargo_dun = len(aras_dun)
     else:
+        aras_bugun = []
         try:
-            kargolar_dun_ay = db.tamamlanan_kargolar_getir_ay(dun.year, dun.month)
+            kargolar_ay = db.tamamlanan_kargolar_getir_ay(bugun.year, bugun.month)
         except Exception:
-            kargolar_dun_ay = []
-        kargo_dun = sum(1 for k in kargolar_dun_ay if k.get("tarih") == dun_iso)
+            kargolar_ay = []
+        kargo_bugun = sum(1 for k in kargolar_ay if k.get("tarih") == bugun_iso)
+        if dun.month == bugun.month:
+            kargo_dun = sum(1 for k in kargolar_ay if k.get("tarih") == dun_iso)
+        else:
+            try:
+                kargolar_dun_ay = db.tamamlanan_kargolar_getir_ay(dun.year, dun.month)
+            except Exception:
+                kargolar_dun_ay = []
+            kargo_dun = sum(1 for k in kargolar_dun_ay if k.get("tarih") == dun_iso)
 
     try:
         iadeler = db.iadeler_getir()
@@ -934,16 +942,19 @@ def sayfa_home():
     bugun_ozet = _kl_gun_ozet(bugun_iso)
     kl_tamam, kl_toplam = bugun_ozet["tamam"], bugun_ozet["toplam"]
 
-    try:
-        son_sevkiyatlar = db.kargo_takip_getir(bugun_iso)
-    except Exception:
-        son_sevkiyatlar = []
-    if not son_sevkiyatlar:
+    if aras_aktif:
+        son_sevkiyatlar = list(reversed(aras_bugun))[:5]
+    else:
         try:
-            son_sevkiyatlar = db.kargo_takip_getir(dun_iso)
+            son_sevkiyatlar = db.kargo_takip_getir(bugun_iso)
         except Exception:
             son_sevkiyatlar = []
-    son_sevkiyatlar = list(reversed(son_sevkiyatlar))[:5]
+        if not son_sevkiyatlar:
+            try:
+                son_sevkiyatlar = db.kargo_takip_getir(dun_iso)
+            except Exception:
+                son_sevkiyatlar = []
+        son_sevkiyatlar = list(reversed(son_sevkiyatlar))[:5]
 
     # ---- Başlık ----
     st.markdown(
@@ -984,14 +995,34 @@ def sayfa_home():
 
     with ana_col:
         rows_html = ""
-        for s in son_sevkiyatlar:
-            rows_html += (
-                f"<tr><td class='gb-mono'>{html.escape(s.get('gonderi_no') or '—')}</td>"
-                f"<td>{html.escape(s.get('alici_adi') or '—')}</td>"
-                f"<td>{html.escape(s.get('varis_il') or '—')}</td>"
-                f"<td>{html.escape(s.get('kargo_firmasi') or '—')}</td>"
-                f"<td><span class='gb-tag notr'>Yüklendi</span></td></tr>"
-            )
+        if aras_aktif:
+            for s in son_sevkiyatlar:
+                takip_no = s.get("TRACKINGNUMBER") or "—"
+                durum = db.aras_kargo_durumu(takip_no) or {}
+                durum_metni = durum.get("DURUMU") or "Bilgi bekleniyor"
+                durum_metni_upper = durum_metni.upper()
+                if "TESLİM EDİL" in durum_metni_upper:
+                    tag_sinif = "ok"
+                elif "İADE" in durum_metni_upper or "GECİK" in durum_metni_upper:
+                    tag_sinif = "danger"
+                else:
+                    tag_sinif = "warn"
+                rows_html += (
+                    f"<tr><td class='gb-mono'>{html.escape(takip_no)}</td>"
+                    f"<td>{html.escape(s.get('ALICI_ADI') or '—')}</td>"
+                    f"<td>{html.escape(s.get('SEHIR') or '—')}</td>"
+                    f"<td>Aras</td>"
+                    f"<td><span class='gb-tag {tag_sinif}'>{html.escape(durum_metni.title())}</span></td></tr>"
+                )
+        else:
+            for s in son_sevkiyatlar:
+                rows_html += (
+                    f"<tr><td class='gb-mono'>{html.escape(s.get('gonderi_no') or '—')}</td>"
+                    f"<td>{html.escape(s.get('alici_adi') or '—')}</td>"
+                    f"<td>{html.escape(s.get('varis_il') or '—')}</td>"
+                    f"<td>{html.escape(s.get('kargo_firmasi') or '—')}</td>"
+                    f"<td><span class='gb-tag notr'>Yüklendi</span></td></tr>"
+                )
         if not rows_html:
             rows_html = "<tr><td colspan='5' style='color:#9A9A94;'>Henüz kargo takip kaydı yok.</td></tr>"
         st.markdown(
