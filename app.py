@@ -513,29 +513,37 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button {
     font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: #5E6C82 !important;
     padding: 14px 8px 6px 8px;
 }
+/* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
+   "görünmez buton üstte" tekniği Streamlit'in kendi stElementContainer'ına
+   position:relative vermesi yüzünden tıklamaları hiç yakalamıyordu (buton
+   görünür satırın üstünde değil, kendi küçük kutusunun içinde kalıyordu).
+   Nokta artık butonun kendi ::before'u - tek DOM elemanı, tıklama garanti. */
 [class*="st-key-navrow_"] {
-    position: relative; padding: 9px 12px; margin: 2px 6px 2px 12px; border-radius: 8px;
+    position: relative; margin: 2px 6px 2px 12px;
 }
-[class*="st-key-navrow_"]:hover { background: rgba(255,255,255,0.05) !important; }
-[class*="st-key-navrow_"]:hover .gb-nav-text { color: #FFFFFF !important; }
-[class*="st-key-navrow_"][class*="_active"] { background: var(--gb-bg-sidebar-active) !important; }
+[class*="st-key-navrow_"] div[data-testid="stButton"] button {
+    display: flex !important; align-items: center !important; gap: 10px !important;
+    width: 100% !important; text-align: left !important; justify-content: flex-start !important;
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    padding: 9px 12px !important; border-radius: 8px !important; min-height: 0 !important;
+    color: #B7C1D1 !important; font-size: 13.5px !important; font-weight: 500 !important;
+}
+[class*="st-key-navrow_"] div[data-testid="stButton"] button::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: #3E4C63;
+    flex-shrink: 0; display: inline-block;
+}
+[class*="st-key-navrow_"] div[data-testid="stButton"] button:hover {
+    background: rgba(255,255,255,0.05) !important; color: #FFFFFF !important;
+}
+[class*="st-key-navrow_"][class*="_active"] div[data-testid="stButton"] button {
+    background: var(--gb-bg-sidebar-active) !important; color: #FFFFFF !important;
+}
+[class*="st-key-navrow_"][class*="_active"] div[data-testid="stButton"] button::before {
+    background: var(--gb-accent) !important;
+}
 [class*="st-key-navrow_"][class*="_active"]::before {
     content: ""; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 3px;
     background: var(--gb-accent); border-radius: 2px;
-}
-[class*="st-key-navrow_"][class*="_active"] .gb-nav-dot { background: var(--gb-accent) !important; }
-[class*="st-key-navrow_"][class*="_active"] .gb-nav-text { color: #FFFFFF !important; }
-.gb-nav-dot { width: 6px; height: 6px; border-radius: 50%; background: #3E4C63; flex-shrink: 0; }
-.gb-nav-text { font-size: 13.5px; font-weight: 500; color: #B7C1D1; }
-.gb-nav-badge {
-    margin-left: auto; background: var(--gb-danger); color: #FFFFFF; font-size: 10.5px;
-    font-weight: 600; padding: 1px 6px; border-radius: 20px;
-}
-[class*="st-key-navrow_"] div[data-testid="stButton"] {
-    position: absolute !important; inset: 0 !important; margin: 0 !important;
-}
-[class*="st-key-navrow_"] div[data-testid="stButton"] button {
-    width: 100% !important; height: 100% !important; opacity: 0 !important;
 }
 .gb-sidebar-foot { padding: 14px 20px 6px 20px; font-size: 12px; color: #5E6C82; }
 
@@ -694,18 +702,14 @@ def _bildirim_sayisi(veri=None):
 
 
 def _nav_item(anahtar, etiket, hedef_sayfa, aktif=False, rozet=None, depo_alt=None):
-    """Mockup'taki .nav-item satırını üretir: görünen içerik HTML ile
-    çiziliyor, üzerine görünmez bir st.button bindirilip tıklama
-    yakalanıyor (kpi kartlarında kullanılan aynı teknik)."""
+    """Mockup'taki .nav-item satırını gerçek bir st.button ile çizer - buton
+    doğrudan tıklanabilir (görünmez üst-üste bindirme tekniği Streamlit'in
+    kendi element sarmalayıcısı yüzünden çalışmıyordu). Nokta CSS ::before
+    ile ekleniyor, aktif satırdaki sol vurgu çubuğu dış container'da."""
     row_key = f"navrow_{anahtar}" + ("_active" if aktif else "")
+    etiket_goster = f"{etiket}   🔴{rozet}" if rozet else etiket
     with st.container(key=row_key):
-        rozet_html = f"<span class='gb-nav-badge'>{rozet}</span>" if rozet else ""
-        st.markdown(
-            f"<div style='display:flex;align-items:center;gap:10px;'>"
-            f"<span class='gb-nav-dot'></span><span class='gb-nav-text'>{html.escape(etiket)}</span>{rozet_html}</div>",
-            unsafe_allow_html=True,
-        )
-        if st.button("", key=f"nav_{anahtar}"):
+        if st.button(etiket_goster, key=f"nav_{anahtar}", use_container_width=True):
             if depo_alt:
                 st.session_state.depo_alt_sayfa = depo_alt
             git(hedef_sayfa)
