@@ -513,18 +513,31 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button {
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
     gap: 0.35rem !important;
 }
+/* NOT: yukarıdaki "section[data-testid='stSidebar'] *" kuralı !important ile
+   TÜM alt elemanları (iç metin p/div'leri dahil) #DCE3EC yapıyor. Sadece
+   .gb-logo-alt / .gb-nav-baslik gibi class bazlı kuralların specificity'si
+   (0,1,0) bu blanket kuralın (0,1,1) specificity'sinden DÜŞÜK olduğu için
+   kaybediyorlardı - alt başlıklar olması gerekenden daha beyaz/soluk
+   görünüyordu. Aşağıdaki renk kuralları artık "section[data-testid=...]"
+   önekiyle scope'lanıp specificity'yi kasıtlı olarak yükseltiyor. */
 .gb-logo-baslik {
     font-family: 'Space Grotesk', sans-serif !important; font-weight: 700; font-size: 17px;
-    letter-spacing: .02em; color: #FFFFFF !important; padding: 6px 6px 0 6px;
+    letter-spacing: .02em; padding: 6px 6px 0 6px;
 }
+section[data-testid="stSidebar"] .gb-logo-baslik { color: #FFFFFF !important; }
 .gb-logo-alt {
-    font-size: 11px; color: #7C8AA0 !important; margin-top: 2px; letter-spacing: .04em;
-    text-transform: uppercase; padding: 0 6px 14px 6px;
+    font-size: 11px; margin-top: 2px; letter-spacing: .04em;
+    text-transform: uppercase; padding: 0 6px 12px 6px;
+}
+section[data-testid="stSidebar"] .gb-logo-alt { color: #7C8AA0 !important; }
+.gb-sidebar-divider {
+    border-top: 1px solid rgba(255,255,255,0.08); margin: 0 6px 8px 6px;
 }
 .gb-nav-baslik {
-    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: #5E6C82 !important;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
     padding: 14px 8px 6px 8px;
 }
+section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 /* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
    "görünmez buton üstte" tekniği Streamlit'in kendi stElementContainer'ına
    position:relative vermesi yüzünden tıklamaları hiç yakalamıyordu (buton
@@ -538,23 +551,37 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
     width: 100% !important; justify-content: flex-start !important;
     background: transparent !important; border: none !important; box-shadow: none !important;
     padding: 9px 12px !important; border-radius: 8px !important; min-height: 0 !important;
-    color: #B7C1D1 !important; font-size: 13.5px !important; font-weight: 500 !important;
+    font-size: 13.5px !important; font-weight: 500 !important;
 }
 /* Etiket metni Streamlit'in kendi iç sarmalayıcısında ortalanıyordu -
-   sola yasla ve genişliği içeriğe göre sıkıştır ki flex satırı ortalamasın. */
+   sola yasla ve genişliği içeriğe göre sıkıştır ki flex satırı ortalamasın.
+   Renk de BURADA (iç p/div üzerinde) set ediliyor - "section[...] *" blanket
+   kuralı doğrudan bu iç elemanı hedeflediği için, sadece butona renk vermek
+   yetmiyordu (inheritance, elemanın kendi üzerindeki explicit kurala karşı
+   kazanamıyor). font-weight de aynı sebeple burada tekrar zorlanıyor -
+   Streamlit'in kendi buton metni CSS'i olduğundan daha kalın gösteriyordu. */
 [class*="st-key-navrow_"] div[data-testid="stButton"] button div,
 [class*="st-key-navrow_"] div[data-testid="stButton"] button p {
     text-align: left !important; width: auto !important; flex: none !important;
+    color: #B7C1D1 !important; font-weight: 500 !important; font-size: 13.5px !important;
 }
 [class*="st-key-navrow_"] div[data-testid="stButton"] button::before {
     content: ""; width: 6px; height: 6px; border-radius: 50%; background: #3E4C63;
     flex-shrink: 0; display: inline-block;
 }
+[class*="st-key-navrow_"] div[data-testid="stButton"] button:hover div,
+[class*="st-key-navrow_"] div[data-testid="stButton"] button:hover p {
+    color: #FFFFFF !important;
+}
 [class*="st-key-navrow_"] div[data-testid="stButton"] button:hover {
-    background: rgba(255,255,255,0.05) !important; color: #FFFFFF !important;
+    background: rgba(255,255,255,0.05) !important;
 }
 [class*="st-key-navrow_"][class*="_active"] div[data-testid="stButton"] button {
-    background: var(--gb-bg-sidebar-active) !important; color: #FFFFFF !important;
+    background: var(--gb-bg-sidebar-active) !important;
+}
+[class*="st-key-navrow_"][class*="_active"] div[data-testid="stButton"] button div,
+[class*="st-key-navrow_"][class*="_active"] div[data-testid="stButton"] button p {
+    color: #FFFFFF !important; font-weight: 600 !important;
 }
 [class*="st-key-navrow_"][class*="_active"] div[data-testid="stButton"] button::before {
     background: var(--gb-accent) !important;
@@ -740,6 +767,7 @@ def render_sidebar():
 
         st.markdown("<div class='gb-logo-baslik'>KAMTEK DEPO</div>", unsafe_allow_html=True)
         st.markdown("<div class='gb-logo-alt'>Depo Yönetim Paneli</div>", unsafe_allow_html=True)
+        st.markdown("<div class='gb-sidebar-divider'></div>", unsafe_allow_html=True)
 
         _nav_item("home", "Genel Bakış", "home", aktif=aktif_sayfa == "home")
 
