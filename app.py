@@ -495,11 +495,21 @@ section[data-testid="stSidebar"] {
 }
 section[data-testid="stSidebar"] * {
     color: #DCE3EC !important;
+}
+/* stIconMaterial (sidebar'ı kapatma oku gibi) Streamlit'in kendi ikon
+   fontuna (ligature -> glif) ihtiyaç duyuyor - buraya Inter zorlarsak
+   "keyboard_double_arrow_left" gibi ligature adı düz metin olarak görünür. */
+section[data-testid="stSidebar"] *:not([data-testid="stIconMaterial"]) {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
 section[data-testid="stSidebar"] div[data-testid="stButton"] button {
     background: transparent !important; border: none !important; padding: 0 !important;
     min-height: 0 !important; box-shadow: none !important;
+}
+/* Sidebar'daki dikey boşluğu sıkılaştır - Streamlit'in stVerticalBlock'u
+   varsayılan olarak elemanlar arasına geniş bir gap bırakıyordu. */
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
+    gap: 0.2rem !important;
 }
 .gb-logo-baslik {
     font-family: 'Space Grotesk', sans-serif !important; font-weight: 700; font-size: 17px;
@@ -511,7 +521,7 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button {
 }
 .gb-nav-baslik {
     font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: #5E6C82 !important;
-    padding: 14px 8px 6px 8px;
+    padding: 10px 8px 4px 8px;
 }
 /* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
    "görünmez buton üstte" tekniği Streamlit'in kendi stElementContainer'ına
@@ -519,14 +529,20 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button {
    görünür satırın üstünde değil, kendi küçük kutusunun içinde kalıyordu).
    Nokta artık butonun kendi ::before'u - tek DOM elemanı, tıklama garanti. */
 [class*="st-key-navrow_"] {
-    position: relative; margin: 2px 6px 2px 12px;
+    position: relative; margin: 0 6px 0 12px;
 }
 [class*="st-key-navrow_"] div[data-testid="stButton"] button {
     display: flex !important; align-items: center !important; gap: 10px !important;
-    width: 100% !important; text-align: left !important; justify-content: flex-start !important;
+    width: 100% !important; justify-content: flex-start !important;
     background: transparent !important; border: none !important; box-shadow: none !important;
-    padding: 9px 12px !important; border-radius: 8px !important; min-height: 0 !important;
+    padding: 6px 12px !important; border-radius: 8px !important; min-height: 0 !important;
     color: #B7C1D1 !important; font-size: 13.5px !important; font-weight: 500 !important;
+}
+/* Etiket metni Streamlit'in kendi iç sarmalayıcısında ortalanıyordu -
+   sola yasla ve genişliği içeriğe göre sıkıştır ki flex satırı ortalamasın. */
+[class*="st-key-navrow_"] div[data-testid="stButton"] button div,
+[class*="st-key-navrow_"] div[data-testid="stButton"] button p {
+    text-align: left !important; width: auto !important; flex: none !important;
 }
 [class*="st-key-navrow_"] div[data-testid="stButton"] button::before {
     content: ""; width: 6px; height: 6px; border-radius: 50%; background: #3E4C63;
