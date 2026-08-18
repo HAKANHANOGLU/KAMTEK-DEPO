@@ -468,6 +468,100 @@ div[data-testid="stDateInput"] input:focus,
         margin-bottom: 0 !important;
     }
 }
+
+/* ------------------------------------------------------------------
+   Koyu sidebar teması + yeni Genel Bakış tasarımı ("gb-" öneki)
+   ------------------------------------------------------------------ */
+section[data-testid="stSidebar"] {
+    background-color: #12151F !important;
+    border-right: none !important;
+}
+section[data-testid="stSidebar"] * {
+    color: #E7E8EC !important;
+}
+.gb-logo-baslik {
+    font-size: 17px; font-weight: 800; letter-spacing: .3px; color: #FFFFFF !important;
+    padding: 2px 4px 0 4px;
+}
+.gb-logo-alt {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .8px; color: #7D8296 !important;
+    padding: 0 4px 10px 4px;
+}
+.gb-nav-baslik {
+    font-size: 11px; font-weight: 700; letter-spacing: .8px; color: #666C82 !important;
+    text-transform: uppercase; margin: 14px 4px 2px 4px;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+    background-color: transparent !important;
+    border: none !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    color: #C7C9D6 !important;
+    font-weight: 500 !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
+    background-color: #1D2130 !important;
+    color: #FFFFFF !important;
+}
+[class^="st-key-nav_"] { border-radius: 8px !important; }
+.gb-header-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 18px; }
+.gb-eyebrow { color: #8A8A85; font-size: 13px; }
+.gb-title { font-size: 26px; font-weight: 700; color: #1C1C1A; margin-top: 2px; }
+.gb-pill {
+    background: #F0F0EC; border: 1px solid #E0E0DA; border-radius: 20px;
+    padding: 8px 16px; font-size: 13px; font-weight: 600; color: #3A3A36; white-space: nowrap;
+}
+.gb-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
+@media (max-width: 900px) { .gb-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+.gb-kpi-card {
+    background: #FFFFFF; border: 1px solid #E4E4E0; border-top: 3px solid var(--gb-accent, #9AA0AE);
+    border-radius: 10px; padding: 14px 16px;
+}
+.gb-kpi-label { font-size: 10.5px; font-weight: 700; letter-spacing: .5px; color: #8F8F8A; text-transform: uppercase; }
+.gb-kpi-num { font-size: 26px; font-weight: 800; color: #1C1C1A; margin: 4px 0 2px 0; }
+.gb-kpi-sub { font-size: 12px; color: #8F8F8A; }
+.gb-kpi-sub.up { color: #2E8B4F; }
+.gb-kpi-sub.warn { color: #B5522A; }
+.gb-panel {
+    background: #FFFFFF; border: 1px solid #E4E4E0; border-radius: 12px; padding: 16px 18px; margin-bottom: 16px;
+}
+.gb-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.gb-panel-title { font-size: 15px; font-weight: 700; color: #1C1C1A; }
+.gb-panel-link { font-size: 12.5px; color: #378ADD; font-weight: 600; }
+.gb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.gb-table th {
+    text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .4px; color: #9A9A94;
+    text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid #EDEDEA;
+}
+.gb-table td { padding: 9px 8px; border-bottom: 1px solid #F2F2EE; color: #2C2C2A; }
+.gb-table tr:last-child td { border-bottom: none; }
+.gb-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
+}
+.gb-badge.ok { background: #DCF3E0; color: #1F8A3B; }
+.gb-badge.bekliyor { background: #FDEEDA; color: #A8641A; }
+.gb-badge.gecikti { background: #FBE1E1; color: #B5322A; }
+.gb-badge.notr { background: #EEEEEA; color: #5A5A54; }
+.gb-kl-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 13.5px; border-bottom: 1px solid #F2F2EE; }
+.gb-kl-row:last-child { border-bottom: none; }
+.gb-kl-row.done { color: #9A9A94; text-decoration: line-through; }
+.gb-notif-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F2F2EE; }
+.gb-notif-row:last-child { border-bottom: none; }
+.gb-notif-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.gb-notif-dot.red { background: #D64545; }
+.gb-notif-dot.amber { background: #E0A429; }
+.gb-notif-dot.green { background: #2E8B4F; }
+.gb-notif-text { font-size: 13.5px; color: #2C2C2A; line-height: 1.4; }
+.gb-notif-time { font-size: 11.5px; color: #A0A09A; margin-top: 2px; }
+.st-key-kl_home_panel {
+    background: #FFFFFF; border: 1px solid #E4E4E0; border-radius: 12px; padding: 16px 18px 10px 18px;
+}
+.st-key-kl_home_panel div[data-testid="stButton"] button {
+    background: none !important; border: none !important; color: #378ADD !important;
+    font-weight: 600 !important; font-size: 12.5px !important; padding: 6px 0 0 0 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -565,19 +659,29 @@ def _bildirim_sayisi(veri=None):
 
 def render_sidebar():
     with st.sidebar:
-        b64 = _img_b64("kamtek_logo.png")
-        if b64:
+        aktif = st.session_state.get("sayfa", "home")
+        _AKTIF_RENK = {
+            "home": "nav_home", "sevkiyat": "nav_sevkiyat", "kargotakip": "nav_kargotakip",
+            "fiyatlistesi": "nav_fiyatlistesi", "tamamlanankargolar": "nav_tamamlanankargolar",
+            "depo": "nav_depo", "stoktakip": "nav_stoktakip", "depotransfer": "nav_transfer",
+            "iade": "nav_iade", "kontrollistesi": "nav_kontrollistesi",
+            "insankaynaklari": "nav_ik", "planlama": "nav_planlama", "bildirim": "nav_bildirim",
+        }
+        aktif_key = _AKTIF_RENK.get(aktif)
+        if aktif_key:
             st.markdown(
-                f"<img src='data:image/png;base64,{b64}' style='width:100%;margin-bottom:4px;'>",
+                f"<style>.st-key-{aktif_key} button {{ background-color: #1B4B3F !important; "
+                f"color: #FFFFFF !important; font-weight: 700 !important; }}</style>",
                 unsafe_allow_html=True,
             )
-        st.caption("KAMTEK DEPO")
-        st.markdown("---")
+
+        st.markdown("<div class='gb-logo-baslik'>KAMTEK DEPO</div>", unsafe_allow_html=True)
+        st.markdown("<div class='gb-logo-alt'>DEPO YÖNETİM PANELİ</div>", unsafe_allow_html=True)
 
         if st.button("🏠 Genel Bakış", use_container_width=True, key="nav_home"):
             git("home")
 
-        st.markdown("**Sevkiyat ve Kargo**")
+        st.markdown("<div class='gb-nav-baslik'>Sevkiyat &amp; Kargo</div>", unsafe_allow_html=True)
         if st.button("🗺️ Sevkiyat Planlama", use_container_width=True, key="nav_sevkiyat"):
             git("sevkiyat")
         if st.button("🚚 Kargo Takip", use_container_width=True, key="nav_kargotakip"):
@@ -587,7 +691,7 @@ def render_sidebar():
         if st.button("✅ Tamamlanmış Kargolar", use_container_width=True, key="nav_tamamlanankargolar"):
             git("tamamlanankargolar")
 
-        st.markdown("**Depo ve Stok**")
+        st.markdown("<div class='gb-nav-baslik'>Depo &amp; Stok</div>", unsafe_allow_html=True)
         if st.button("📦 Depo", use_container_width=True, key="nav_depo"):
             git("depo")
         if st.button("📊 Stok Takip", use_container_width=True, key="nav_stoktakip"):
@@ -599,7 +703,7 @@ def render_sidebar():
         if st.button("☑️ Kontrol Listesi", use_container_width=True, key="nav_kontrollistesi"):
             git("kontrollistesi")
 
-        st.markdown("**Yönetim**")
+        st.markdown("<div class='gb-nav-baslik'>Yönetim</div>", unsafe_allow_html=True)
         if st.session_state.rol in IK_GORME_YETKISI:
             if st.button("👥 Personel Yönetimi", use_container_width=True, key="nav_ik"):
                 git("insankaynaklari")
@@ -678,115 +782,159 @@ def _kl_leaf_govde(ozet, anahtar_onek, duzenlenebilir=True):
 # ------------------------------------------------------------------
 # ANA SAYFA
 # ------------------------------------------------------------------
-def _kpi_tile(key, sayi, etiket, hedef_sayfa, kucuk=False):
-    """Büyük rakam + etiket gösteren, tamamı tıklanabilir istatistik kartı."""
-    kutu_key = f"{key}_kucuk_kpi" if kucuk else key
-    with st.container(key=kutu_key):
-        st.markdown(
-            f'<div class="kpi-stat-num">{sayi}</div><div class="kpi-stat-label">{etiket}</div>'
-            f'<div class="kpi-ok-gorsel">↗</div>',
-            unsafe_allow_html=True,
-        )
-        if st.button("Aç", key=f"{key}_btn", use_container_width=True):
-            git(hedef_sayfa)
-
-
 def sayfa_home():
-    st.markdown(f"<div style='color:#8A8A85; font-size:12px;'>Kamtek Depo / genel bakış</div>", unsafe_allow_html=True)
-    st.markdown(f"<div style='font-size:22px; font-weight:600; margin-bottom:8px;'>Bugün, {date.today().strftime('%d.%m.%Y')}</div>", unsafe_allow_html=True)
-
     bugun = date.today()
     bugun_iso = bugun.isoformat()
-    hafta_baslangic_tarih = bugun - timedelta(days=bugun.weekday())
-    hafta_baslangic_iso = hafta_baslangic_tarih.isoformat()
+    dun = bugun - timedelta(days=1)
+    dun_iso = dun.isoformat()
+
     try:
         kargolar_ay = db.tamamlanan_kargolar_getir_ay(bugun.year, bugun.month)
     except Exception:
         kargolar_ay = []
-    kargo_ay = len(kargolar_ay)
     kargo_bugun = sum(1 for k in kargolar_ay if k.get("tarih") == bugun_iso)
-
-    if hafta_baslangic_tarih.month == bugun.month:
-        kargo_hafta = sum(1 for k in kargolar_ay if (k.get("tarih") or "") >= hafta_baslangic_iso)
+    if dun.month == bugun.month:
+        kargo_dun = sum(1 for k in kargolar_ay if k.get("tarih") == dun_iso)
     else:
-        # Hafta başlangıcı bir önceki aya taşıyorsa (ayın ilk günleri), o ayın
-        # kayıtlarını da çekip birleştiriyoruz - "kargo_ay" bundan etkilenmiyor.
         try:
-            kargolar_onceki_ay = db.tamamlanan_kargolar_getir_ay(hafta_baslangic_tarih.year, hafta_baslangic_tarih.month)
+            kargolar_dun_ay = db.tamamlanan_kargolar_getir_ay(dun.year, dun.month)
         except Exception:
-            kargolar_onceki_ay = []
-        kargo_hafta = sum(1 for k in kargolar_ay + kargolar_onceki_ay if (k.get("tarih") or "") >= hafta_baslangic_iso)
+            kargolar_dun_ay = []
+        kargo_dun = sum(1 for k in kargolar_dun_ay if k.get("tarih") == dun_iso)
 
     try:
-        bekleyen_iade = len([i for i in db.iadeler_getir() if i.get("durum") != "Kabul Edildi"])
+        iadeler = db.iadeler_getir()
     except Exception:
-        bekleyen_iade = 0
-    veri = _bildirim_verileri()
-    bildirim_n = _bildirim_sayisi(veri)
+        iadeler = []
+    bekleyen_iade = len([i for i in iadeler if i.get("durum") != "Kabul Edildi"])
 
-    ana_col, yan_col = st.columns([2.6, 1], gap="large")
+    veri = _bildirim_verileri()
+
+    bugun_ozet = _kl_gun_ozet(bugun_iso)
+    kl_tamam, kl_toplam = bugun_ozet["tamam"], bugun_ozet["toplam"]
+
+    try:
+        son_sevkiyatlar = db.kargo_takip_getir(bugun_iso)
+    except Exception:
+        son_sevkiyatlar = []
+    if not son_sevkiyatlar:
+        try:
+            son_sevkiyatlar = db.kargo_takip_getir(dun_iso)
+        except Exception:
+            son_sevkiyatlar = []
+    son_sevkiyatlar = list(reversed(son_sevkiyatlar))[:5]
+
+    # ---- Başlık ----
+    st.markdown(
+        f"""<div class="gb-header-row">
+            <div>
+                <div class="gb-eyebrow">Genel Bakış</div>
+                <div class="gb-title">{_KL_GUN_ISIMLERI_UZUN[bugun.weekday()]}, {bugun.day} {_KL_AY_ISIMLERI[bugun.month - 1]} {bugun.year}</div>
+            </div>
+            <div class="gb-pill">Bugün · Tüm Depolar</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+    # ---- KPI kartları ----
+    kpiler = [
+        ("#378ADD", "BUGÜNKÜ SEVKİYAT", str(kargo_bugun),
+         f"{'↑' if kargo_bugun >= kargo_dun else '↓'} dün {kargo_dun}", "up" if kargo_bugun >= kargo_dun else "warn"),
+        ("#E0A429", "AÇIK İADE", str(bekleyen_iade), "kabul bekliyor", ""),
+        ("#2E8B4F", "KONTROL LİSTESİ", f"{kl_tamam}/{kl_toplam}", "bugün tamamlanan", ""),
+        ("#9AA0AE", "BEKLEYEN SAYIM", "—", "veri bağlanmadı", ""),
+        ("#B5322A", "STOK UYARISI", "—", "veri bağlanmadı", ""),
+    ]
+    kart_html = "<div class='gb-kpi-row'>"
+    for renk, etiket, sayi, alt, alt_sinif in kpiler:
+        kart_html += (
+            f"<div class='gb-kpi-card' style='--gb-accent:{renk};'>"
+            f"<div class='gb-kpi-label'>{etiket}</div>"
+            f"<div class='gb-kpi-num'>{sayi}</div>"
+            f"<div class='gb-kpi-sub {alt_sinif}'>{alt}</div>"
+            f"</div>"
+        )
+    kart_html += "</div>"
+    st.markdown(kart_html, unsafe_allow_html=True)
+
+    ana_col, yan_col = st.columns([2.2, 1], gap="large")
 
     with ana_col:
-        st.markdown("**📦 Kargo**")
-        k1, k2, k3 = st.columns(3)
-        with k1:
-            _kpi_tile("kpi_kargo_bugun", kargo_bugun, "Bugün tamamlanan kargo", "tamamlanankargolar")
-        with k2:
-            _kpi_tile("kpi_kargo_hafta", kargo_hafta, "Bu hafta tamamlanan kargo", "tamamlanankargolar")
-        with k3:
-            _kpi_tile("kpi_kargo_ay", kargo_ay, "Bu ay tamamlanan kargo", "tamamlanankargolar")
+        rows_html = ""
+        for s in son_sevkiyatlar:
+            rows_html += (
+                f"<tr><td>{html.escape(s.get('gonderi_no') or '—')}</td>"
+                f"<td>{html.escape(s.get('alici_adi') or '—')}</td>"
+                f"<td>{html.escape(s.get('varis_il') or '—')}</td>"
+                f"<td>{html.escape(s.get('kargo_firmasi') or '—')}</td>"
+                f"<td><span class='gb-badge notr'>Yüklendi</span></td></tr>"
+            )
+        if not rows_html:
+            rows_html = "<tr><td colspan='5' style='color:#9A9A94;'>Henüz kargo takip kaydı yok.</td></tr>"
+        st.markdown(
+            f"""<div class="gb-panel">
+                <div class="gb-panel-head">
+                    <div class="gb-panel-title">Son Sevkiyatlar</div>
+                    <div class="gb-panel-link">Kargo Takip →</div>
+                </div>
+                <table class="gb-table">
+                    <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
+                    {rows_html}
+                </table>
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
-        d1, d2 = st.columns(2)
-        with d1:
-            _kpi_tile("kpi_iade", bekleyen_iade, "Bekleyen iade", "iade", kucuk=True)
-        with d2:
-            _kpi_tile("kpi_transfer", len(veri["transferler"]), "Bekleyen transfer talebi", "depotransfer", kucuk=True)
-
-        dun_iso = (bugun - timedelta(days=1)).isoformat()
-        bugun_ozet = _kl_gun_ozet(bugun_iso)
-        dun_ozet = _kl_gun_ozet(dun_iso)
-
-        lc1, lc2 = st.columns([1, 2.2])
-        with lc1:
-            dun_key = f"kl_leaf_home_dun_{dun_iso}" + ("_yesil" if dun_ozet["tumu_tamam"] else "") + "_kucuk"
-            with st.container(key=dun_key):
-                st.markdown(_kl_leaf_markup(dun_iso), unsafe_allow_html=True)
-                _kl_leaf_govde(dun_ozet, anahtar_onek="klh_dun", duzenlenebilir=False)
-                if st.button("Kontrol Listesinde Aç", key="kl_home_dun_btn", use_container_width=True):
-                    st.session_state.kl_secili_gun = dun_iso
-                    git("kontrollistesi")
-        with lc2:
-            bugun_key = f"kl_leaf_home_bugun_{bugun_iso}" + ("_yesil" if bugun_ozet["tumu_tamam"] else "")
-            with st.container(key=bugun_key):
-                st.markdown(_kl_leaf_markup(bugun_iso), unsafe_allow_html=True)
-                _kl_leaf_govde(bugun_ozet, anahtar_onek="klh_bugun", duzenlenebilir=False)
-                if st.button("Kontrol Listesini Aç", key="kl_home_bugun_btn", use_container_width=True):
-                    st.session_state.kl_secili_gun = bugun_iso
-                    git("kontrollistesi")
-
-    with yan_col:
-        with st.container(key="kpi_bildirim_panel"):
+        kl_rows = ""
+        for m in bugun_ozet["maddeler"]:
+            tik = "✔ " if m.get("tamamlandi") else "☐ "
+            sinif = "done" if m.get("tamamlandi") else ""
+            kl_rows += f"<div class='gb-kl-row {sinif}'>{tik}{html.escape(m['madde'])}</div>"
+        if not kl_rows:
+            kl_rows = "<div style='color:#9A9A94; font-size:13.5px;'>Bugün için henüz madde eklenmedi.</div>"
+        with st.container(key="kl_home_panel"):
             st.markdown(
-                f'<div class="kpi-stat-num">{bildirim_n}</div><div class="kpi-stat-label">Bekleyen bildirim</div>'
-                f'<div class="kpi-ok-gorsel">↗</div>',
+                f"""<div class="gb-panel-head">
+                    <div class="gb-panel-title">Bugünkü Kontrol Listesi</div>
+                </div>{kl_rows}""",
                 unsafe_allow_html=True,
             )
-            if st.button("Aç", key="kpi_bildirim_panel_btn", use_container_width=True):
-                git("bildirim")
+            if st.button("Kontrol Listesini Aç", key="kl_home_bugun_btn"):
+                st.session_state.kl_secili_gun = bugun_iso
+                git("kontrollistesi")
 
-        st.write("")
-        gosterildi = False
-        for p in veri["dogumgunler"]:
-            st.success(f"🎂 {p['ad_soyad']}'in bugün doğum günü!")
-            gosterildi = True
-        for g in veri["gorevler"]:
-            st.warning(f"⏰ {g.get('saat') or ''} — {g['aciklama']}")
-            gosterildi = True
+    with yan_col:
+        notif_html = ""
         for t in veri["transferler"]:
-            st.info(f"🔁 {t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet)")
-            gosterildi = True
-        if not gosterildi:
-            st.caption("Şu an bekleyen bir bildirim yok.")
+            notif_html += (
+                f"<div class='gb-notif-row'><div class='gb-notif-dot red'></div>"
+                f"<div><div class='gb-notif-text'><b>{html.escape(t['talep_eden_depo'])}</b> deposundan "
+                f"<b>{html.escape(t['hedef_depo'])}</b> için {html.escape(t['urun_aciklama'])} "
+                f"({t.get('adet') or '?'} adet) talebi çağrıldı.</div></div></div>"
+            )
+        for g in veri["gorevler"]:
+            notif_html += (
+                f"<div class='gb-notif-row'><div class='gb-notif-dot amber'></div>"
+                f"<div><div class='gb-notif-text'>⏰ {html.escape(g.get('saat') or '')} — {html.escape(g['aciklama'])}</div></div></div>"
+            )
+        for p in veri["dogumgunler"]:
+            notif_html += (
+                f"<div class='gb-notif-row'><div class='gb-notif-dot green'></div>"
+                f"<div><div class='gb-notif-text'>Bugün <b>{html.escape(p['ad_soyad'])}</b>'nin doğum günü 🎂</div>"
+                f"<div class='gb-notif-time'>bugün</div></div></div>"
+            )
+        if not notif_html:
+            notif_html = "<div style='color:#9A9A94; font-size:13.5px;'>Şu an bekleyen bir bildirim yok.</div>"
+        st.markdown(
+            f"""<div class="gb-panel">
+                <div class="gb-panel-head">
+                    <div class="gb-panel-title">Bildirimler</div>
+                    <div class="gb-panel-link">Tümü →</div>
+                </div>
+                {notif_html}
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
 
 # ------------------------------------------------------------------
