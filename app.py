@@ -506,10 +506,12 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button {
     background: transparent !important; border: none !important; padding: 0 !important;
     min-height: 0 !important; box-shadow: none !important;
 }
-/* Sidebar'daki dikey boşluğu sıkılaştır - Streamlit'in stVerticalBlock'u
-   varsayılan olarak elemanlar arasına geniş bir gap bırakıyordu. */
+/* Sidebar'daki dikey boşluk - Streamlit'in stVerticalBlock varsayılanı çok
+   genişti (kategoriler birbirinden kopuk duruyordu), ama fazla sıkıştırınca
+   da (0.2rem) başlıklar bir alt satıra yapışıp üst üste biniyormuş gibi
+   görünüyordu. Referans görsele göre orta bir değer. */
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
-    gap: 0.2rem !important;
+    gap: 0.35rem !important;
 }
 .gb-logo-baslik {
     font-family: 'Space Grotesk', sans-serif !important; font-weight: 700; font-size: 17px;
@@ -517,11 +519,11 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
 }
 .gb-logo-alt {
     font-size: 11px; color: #7C8AA0 !important; margin-top: 2px; letter-spacing: .04em;
-    text-transform: uppercase; padding: 0 6px 12px 6px;
+    text-transform: uppercase; padding: 0 6px 14px 6px;
 }
 .gb-nav-baslik {
     font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: #5E6C82 !important;
-    padding: 10px 8px 4px 8px;
+    padding: 14px 8px 6px 8px;
 }
 /* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
    "görünmez buton üstte" tekniği Streamlit'in kendi stElementContainer'ına
@@ -529,13 +531,13 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
    görünür satırın üstünde değil, kendi küçük kutusunun içinde kalıyordu).
    Nokta artık butonun kendi ::before'u - tek DOM elemanı, tıklama garanti. */
 [class*="st-key-navrow_"] {
-    position: relative; margin: 0 6px 0 12px;
+    position: relative; margin: 2px 6px 2px 12px;
 }
 [class*="st-key-navrow_"] div[data-testid="stButton"] button {
     display: flex !important; align-items: center !important; gap: 10px !important;
     width: 100% !important; justify-content: flex-start !important;
     background: transparent !important; border: none !important; box-shadow: none !important;
-    padding: 6px 12px !important; border-radius: 8px !important; min-height: 0 !important;
+    padding: 9px 12px !important; border-radius: 8px !important; min-height: 0 !important;
     color: #B7C1D1 !important; font-size: 13.5px !important; font-weight: 500 !important;
 }
 /* Etiket metni Streamlit'in kendi iç sarmalayıcısında ortalanıyordu -
