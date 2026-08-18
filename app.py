@@ -687,13 +687,18 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 .gb-notif-text { font-size: 12.5px; color: var(--gb-text-dark); line-height: 1.45; }
 .gb-notif-time { font-size: 11px; color: var(--gb-text-soft); margin-top: 2px; }
 .stApp, .stMainBlockContainer { background-color: #F5F3EF !important; }
-.st-key-kl_home_panel {
+.st-key-kl_home_panel, .st-key-son_sevkiyat_panel {
     background: #FFFFFF; border: 1px solid var(--gb-border); border-radius: 10px; padding: 18px 20px 8px 20px;
 }
-.st-key-kl_home_panel div[data-testid="stButton"] button {
+.st-key-kl_home_panel div[data-testid="stButton"] button,
+.st-key-son_sevkiyat_panel div[data-testid="stButton"] button {
     background: none !important; border: none !important; color: var(--gb-accent) !important;
     font-weight: 500 !important; font-size: 12px !important; padding: 6px 0 0 0 !important;
 }
+/* Son Sevkiyatlar: görünürde ~5 satır yüksekliğinde, taşan (teslim edilmemiş)
+   satırlar kaydırarak görülüyor - başlık satırı kaydırırken üstte sabit kalır. */
+.gb-table-scroll { max-height: 268px; overflow-y: auto; }
+.gb-table-scroll .gb-table th { position: sticky; top: 0; background: #FFFFFF; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -903,6 +908,32 @@ def _kl_leaf_govde(ozet, anahtar_onek, duzenlenebilir=True):
 # ------------------------------------------------------------------
 # ANA SAYFA
 # ------------------------------------------------------------------
+def _aras_durum_bilgisi(takip_no):
+    """Bir Aras takip numarasının güncel durumunu (metin, rozet sınıfı, teslim
+    edildi mi) döndürür - Genel Bakış ve Kargo Takip sayfaları ortak kullanıyor."""
+    durum = db.aras_kargo_durumu(takip_no) or {}
+    metni = durum.get("DURUMU") or "Bilgi bekleniyor"
+    ustu = metni.upper()
+    teslim_edildi = "TESLİM EDİL" in ustu
+    if teslim_edildi:
+        sinif = "ok"
+    elif "İADE" in ustu or "GECİK" in ustu:
+        sinif = "danger"
+    else:
+        sinif = "warn"
+    return metni, sinif, teslim_edildi
+
+
+def _aras_satir_html(s, takip_no=None):
+    takip_no = takip_no or (s.get("TRACKINGNUMBER") or "—")
+    metni, sinif, _ = _aras_durum_bilgisi(takip_no)
+    return (
+        f"<tr><td class='gb-mono'>{html.escape(takip_no)}</td>"
+        f"<td>{html.escape(s.get('ALICI_ADI') or '—')}</td>"
+        f"<td>{html.escape(s.get('SEHIR') or '—')}</td>"
+        f"<td>Aras</td>"
+        f"<td><span class='gb-tag {sinif}'>{html.escape(metni.title())}</span></td></tr>"
+    )
 def sayfa_home():
     bugun = date.today()
     bugun_iso = bugun.isoformat()
@@ -943,7 +974,14 @@ def sayfa_home():
     kl_tamam, kl_toplam = bugun_ozet["tamam"], bugun_ozet["toplam"]
 
     if aras_aktif:
-        son_sevkiyatlar = list(reversed(aras_bugun))[:5]
+        # Teslim edilmemiş (yolda / aktarmada / dağıtımda) TÜM sevkiyatlar -
+        # panel görünürde 5 satır yüksekliğinde ama kaydırınca hepsi görünür.
+        son_sevkiyatlar = []
+        for s in reversed(aras_bugun):
+            takip_no = s.get("TRACKINGNUMBER")
+            _, _, teslim_edildi = _aras_durum_bilgisi(takip_no)
+            if not teslim_edildi:
+                son_sevkiyatlar.append(s)
     else:
         try:
             son_sevkiyatlar = db.kargo_takip_getir(bugun_iso)
@@ -997,23 +1035,7 @@ def sayfa_home():
         rows_html = ""
         if aras_aktif:
             for s in son_sevkiyatlar:
-                takip_no = s.get("TRACKINGNUMBER") or "—"
-                durum = db.aras_kargo_durumu(takip_no) or {}
-                durum_metni = durum.get("DURUMU") or "Bilgi bekleniyor"
-                durum_metni_upper = durum_metni.upper()
-                if "TESLİM EDİL" in durum_metni_upper:
-                    tag_sinif = "ok"
-                elif "İADE" in durum_metni_upper or "GECİK" in durum_metni_upper:
-                    tag_sinif = "danger"
-                else:
-                    tag_sinif = "warn"
-                rows_html += (
-                    f"<tr><td class='gb-mono'>{html.escape(takip_no)}</td>"
-                    f"<td>{html.escape(s.get('ALICI_ADI') or '—')}</td>"
-                    f"<td>{html.escape(s.get('SEHIR') or '—')}</td>"
-                    f"<td>Aras</td>"
-                    f"<td><span class='gb-tag {tag_sinif}'>{html.escape(durum_metni.title())}</span></td></tr>"
-                )
+                rows_html += _aras_satir_html(s)
         else:
             for s in son_sevkiyatlar:
                 rows_html += (
@@ -1025,19 +1047,21 @@ def sayfa_home():
                 )
         if not rows_html:
             rows_html = "<tr><td colspan='5' style='color:#9A9A94;'>Henüz kargo takip kaydı yok.</td></tr>"
-        st.markdown(
-            f"""<div class="gb-panel">
-                <div class="gb-panel-head">
+        with st.container(key="son_sevkiyat_panel"):
+            st.markdown(
+                f"""<div class="gb-panel-head">
                     <div class="gb-panel-title">Son Sevkiyatlar</div>
-                    <div class="gb-panel-link">Kargo Takip →</div>
                 </div>
-                <table class="gb-table">
-                    <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
-                    {rows_html}
-                </table>
-            </div>""",
-            unsafe_allow_html=True,
-        )
+                <div class="gb-table-scroll">
+                    <table class="gb-table">
+                        <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
+                        {rows_html}
+                    </table>
+                </div>""",
+                unsafe_allow_html=True,
+            )
+            if st.button("Kargo Takip →", key="son_sevkiyat_git"):
+                git("kargotakip")
 
         kl_rows = ""
         for m in bugun_ozet["maddeler"]:
@@ -1346,6 +1370,29 @@ def sayfa_sevkiyat():
 def sayfa_kargotakip():
     geri_butonu()
     st.header("Kargo Takip")
+
+    st.subheader("Canlı Takip")
+    kargo_firmalari = ["Aras Kargo"]  # ileride başka firmaların API'si eklenince buraya katılacak
+    secili_firma = st.selectbox("Kargo Firması", kargo_firmalari, key="canli_takip_firma")
+    if secili_firma == "Aras Kargo":
+        if not db._aras_ayarli_mi():
+            st.info("Aras Kargo API bağlantısı henüz yapılandırılmadı (Streamlit Cloud Secrets).")
+        else:
+            aras_liste = db.aras_gunluk_sevkiyatlar(date.today().strftime("%d/%m/%Y"))
+            if not aras_liste:
+                st.caption("Bugün için Aras'a verilmiş gönderi bulunamadı.")
+            else:
+                rows_html = "".join(_aras_satir_html(s) for s in reversed(aras_liste))
+                st.markdown(
+                    f"""<div class="gb-panel">
+                        <table class="gb-table">
+                            <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
+                            {rows_html}
+                        </table>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+    st.markdown("---")
 
     col1, col2 = st.columns(2)
     with col1:
