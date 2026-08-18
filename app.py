@@ -531,12 +531,16 @@ section[data-testid="stSidebar"] div[data-testid="stSidebarHeader"] {
     height: auto !important; min-height: 0 !important; margin-bottom: 2px !important;
     padding: 2px 0 !important; justify-content: flex-end !important;
 }
-/* Sidebar'daki dikey boşluk - TEK bir gap değeri tüm elemanlar (kategori
-   başlığı -> ilk madde, madde -> madde) arasında eşit boşluk versin diye
-   kategori başlığının/nav satırının kendi padding'i minimuma indirildi
-   (aşağıda), böylece görünen boşluk sadece bu gap'ten geliyor. */
+/* DÜZELTME: Kullanıcının bize gönderdiği orijinal mockup dosyasında (
+   kamtek-depo-mockup.html) ritim aslında EŞİT değil, KASITLI olarak
+   asimetrik: .nav-item'lar arası sadece 2px (margin-bottom:2px), ama
+   kategori başlığından ÖNCE 14px (nav-label'ın kendi padding-top'u) -
+   yani bir kategorinin maddeleri birbirine yakın dururken, kategoriler
+   birbirinden belirgin şekilde ayrılıyor. Önceki "hepsini eşitle" denemem
+   bu tasarım kararını yanlışlıkla düzleştirmişti. Taban gap küçültüldü,
+   kategori başlığına kendi üst boşluğu (aşağıda margin-top) geri verildi. */
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
-    gap: 0.55rem !important;
+    gap: 0.15rem !important;
 }
 /* NOT: yukarıdaki "section[data-testid='stSidebar'] *" kuralı !important ile
    TÜM alt elemanları (iç metin p/div'leri dahil) #DCE3EC yapıyor. Sadece
@@ -562,9 +566,13 @@ section[data-testid="stSidebar"] .gb-logo-alt { color: #7C8AA0 !important; }
 }
 .gb-nav-baslik {
     font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-    padding: 0 0 6px 8px; margin-bottom: 2px;
+    padding: 0 0 6px 8px; margin-top: 12px; margin-bottom: 2px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
 }
+/* İlk kategori (Sevkiyat & Kargo) "Genel Bakış"ın hemen altında - önündeki
+   ekstra üst boşluğa gerek yok, mockup'ta da nav-label'lar arasında bu
+   fark yok, sadece ilk öğeye özgü bir durum. */
+.gb-nav-baslik:first-of-type { margin-top: 8px; }
 section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 /* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
    "görünmez buton üstte" tekniği Streamlit'in kendi stElementContainer'ına
@@ -578,7 +586,7 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
     display: flex !important; align-items: center !important; gap: 10px !important;
     width: 100% !important; justify-content: flex-start !important;
     background: transparent !important; border: none !important; box-shadow: none !important;
-    padding: 7px 8px !important; border-radius: 8px !important; min-height: 0 !important;
+    padding: 8px 8px !important; border-radius: 8px !important; min-height: 0 !important;
     font-size: 16px !important; font-weight: 500 !important;
 }
 /* Etiket metni Streamlit'in kendi iç sarmalayıcısında ortalanıyordu -
