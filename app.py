@@ -1373,25 +1373,61 @@ def sayfa_kargotakip():
 
     st.subheader("Canlı Takip")
     kargo_firmalari = ["Aras Kargo"]  # ileride başka firmaların API'si eklenince buraya katılacak
-    secili_firma = st.selectbox("Kargo Firması", kargo_firmalari, key="canli_takip_firma")
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        secili_firma = st.selectbox("Kargo Firması", kargo_firmalari, key="canli_takip_firma")
+    with c2:
+        canli_tarih = st.date_input("Gün Seçin", value=date.today(), key="canli_takip_tarih")
+
     if secili_firma == "Aras Kargo":
         if not db._aras_ayarli_mi():
             st.info("Aras Kargo API bağlantısı henüz yapılandırılmadı (Streamlit Cloud Secrets).")
         else:
-            aras_liste = db.aras_gunluk_sevkiyatlar(date.today().strftime("%d/%m/%Y"))
+            aras_liste = db.aras_gunluk_sevkiyatlar(canli_tarih.strftime("%d/%m/%Y"))
             if not aras_liste:
-                st.caption("Bugün için Aras'a verilmiş gönderi bulunamadı.")
+                st.caption(f"{canli_tarih.strftime('%d.%m.%Y')} için Aras'a verilmiş gönderi bulunamadı.")
             else:
-                rows_html = "".join(_aras_satir_html(s) for s in reversed(aras_liste))
-                st.markdown(
-                    f"""<div class="gb-panel">
-                        <table class="gb-table">
-                            <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
-                            {rows_html}
-                        </table>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
+                f1, f2 = st.columns([1, 1.6])
+                with f1:
+                    durum_filtre = st.selectbox(
+                        "Durum", ["Tümü", "Yolda / Aktarmada", "Teslim Edildi"], key="canli_takip_durum_filtre"
+                    )
+                with f2:
+                    arama = st.text_input("Ara (takip no veya alıcı adı)", key="canli_takip_arama")
+
+                satirlar = []
+                for s in reversed(aras_liste):
+                    takip_no = s.get("TRACKINGNUMBER") or "—"
+                    metni, sinif, teslim_edildi = _aras_durum_bilgisi(takip_no)
+                    if durum_filtre == "Yolda / Aktarmada" and teslim_edildi:
+                        continue
+                    if durum_filtre == "Teslim Edildi" and not teslim_edildi:
+                        continue
+                    if arama and arama.lower() not in f"{takip_no} {s.get('ALICI_ADI') or ''}".lower():
+                        continue
+                    satirlar.append((s, takip_no, metni, sinif))
+
+                if not satirlar:
+                    st.caption("Filtreye uyan sonuç yok.")
+                else:
+                    rows_html = "".join(
+                        f"<tr><td class='gb-mono'>{html.escape(takip_no)}</td>"
+                        f"<td>{html.escape(s.get('ALICI_ADI') or '—')}</td>"
+                        f"<td>{html.escape(s.get('SEHIR') or '—')}</td>"
+                        f"<td>Aras</td>"
+                        f"<td><span class='gb-tag {sinif}'>{html.escape(metni.title())}</span></td></tr>"
+                        for s, takip_no, metni, sinif in satirlar
+                    )
+                    st.markdown(
+                        f"""<div class="gb-panel">
+                            <table class="gb-table">
+                                <tr><th>Takip No</th><th>Alıcı</th><th>Varış İli</th><th>Kargo</th><th>Durum</th></tr>
+                                {rows_html}
+                            </table>
+                        </div>""",
+                        unsafe_allow_html=True,
+                    )
+                    st.caption(f"{len(satirlar)} / {len(aras_liste)} gönderi gösteriliyor.")
     st.markdown("---")
 
     col1, col2 = st.columns(2)
