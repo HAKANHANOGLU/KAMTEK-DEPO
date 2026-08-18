@@ -471,96 +471,132 @@ div[data-testid="stDateInput"] input:focus,
 
 /* ------------------------------------------------------------------
    Koyu sidebar teması + yeni Genel Bakış tasarımı ("gb-" öneki)
+   Kullanıcının onayladığı mockup'taki renk/tipografi değişkenleriyle
+   birebir eşleşiyor.
    ------------------------------------------------------------------ */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+:root {
+    --gb-bg-sidebar: #122036;
+    --gb-bg-sidebar-active: #1B3355;
+    --gb-accent: #1E7F72;
+    --gb-accent-soft: #E4F1EE;
+    --gb-text-dark: #1B2430;
+    --gb-text-mid: #5B6472;
+    --gb-text-soft: #8A93A0;
+    --gb-border: #E7E3DA;
+    --gb-warn: #C9862B;
+    --gb-warn-soft: #FBF0DF;
+    --gb-danger: #C24B3F;
+    --gb-danger-soft: #FBEAE7;
+}
 section[data-testid="stSidebar"] {
-    background-color: #12151F !important;
+    background-color: var(--gb-bg-sidebar) !important;
     border-right: none !important;
 }
 section[data-testid="stSidebar"] * {
-    color: #E7E8EC !important;
-}
-.gb-logo-baslik {
-    font-size: 17px; font-weight: 800; letter-spacing: .3px; color: #FFFFFF !important;
-    padding: 2px 4px 0 4px;
-}
-.gb-logo-alt {
-    font-size: 10.5px; font-weight: 600; letter-spacing: .8px; color: #7D8296 !important;
-    padding: 0 4px 10px 4px;
-}
-.gb-nav-baslik {
-    font-size: 11px; font-weight: 700; letter-spacing: .8px; color: #666C82 !important;
-    text-transform: uppercase; margin: 14px 4px 2px 4px;
+    color: #DCE3EC !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
 section[data-testid="stSidebar"] div[data-testid="stButton"] button {
-    background-color: transparent !important;
-    border: none !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    color: #C7C9D6 !important;
-    font-weight: 500 !important;
-    padding: 7px 10px !important;
-    border-radius: 8px !important;
+    background: transparent !important; border: none !important; padding: 0 !important;
+    min-height: 0 !important; box-shadow: none !important;
 }
-section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
-    background-color: #1D2130 !important;
-    color: #FFFFFF !important;
+.gb-logo-baslik {
+    font-family: 'Space Grotesk', sans-serif !important; font-weight: 700; font-size: 17px;
+    letter-spacing: .02em; color: #FFFFFF !important; padding: 6px 6px 0 6px;
 }
-[class^="st-key-nav_"] { border-radius: 8px !important; }
-.gb-header-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 18px; }
-.gb-eyebrow { color: #8A8A85; font-size: 13px; }
-.gb-title { font-size: 26px; font-weight: 700; color: #1C1C1A; margin-top: 2px; }
+.gb-logo-alt {
+    font-size: 11px; color: #7C8AA0 !important; margin-top: 2px; letter-spacing: .04em;
+    text-transform: uppercase; padding: 0 6px 12px 6px;
+}
+.gb-nav-baslik {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: #5E6C82 !important;
+    padding: 14px 8px 6px 8px;
+}
+[class*="st-key-navrow_"] {
+    position: relative; padding: 9px 12px; margin: 2px 6px 2px 12px; border-radius: 8px;
+}
+[class*="st-key-navrow_"]:hover { background: rgba(255,255,255,0.05) !important; }
+[class*="st-key-navrow_"]:hover .gb-nav-text { color: #FFFFFF !important; }
+[class*="st-key-navrow_"][class*="_active"] { background: var(--gb-bg-sidebar-active) !important; }
+[class*="st-key-navrow_"][class*="_active"]::before {
+    content: ""; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 3px;
+    background: var(--gb-accent); border-radius: 2px;
+}
+[class*="st-key-navrow_"][class*="_active"] .gb-nav-dot { background: var(--gb-accent) !important; }
+[class*="st-key-navrow_"][class*="_active"] .gb-nav-text { color: #FFFFFF !important; }
+.gb-nav-dot { width: 6px; height: 6px; border-radius: 50%; background: #3E4C63; flex-shrink: 0; }
+.gb-nav-text { font-size: 13.5px; font-weight: 500; color: #B7C1D1; }
+.gb-nav-badge {
+    margin-left: auto; background: var(--gb-danger); color: #FFFFFF; font-size: 10.5px;
+    font-weight: 600; padding: 1px 6px; border-radius: 20px;
+}
+[class*="st-key-navrow_"] div[data-testid="stButton"] {
+    position: absolute !important; inset: 0 !important; margin: 0 !important;
+}
+[class*="st-key-navrow_"] div[data-testid="stButton"] button {
+    width: 100% !important; height: 100% !important; opacity: 0 !important;
+}
+.gb-sidebar-foot { padding: 14px 20px 6px 20px; font-size: 12px; color: #5E6C82; }
+
+.gb-header-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; }
+.gb-eyebrow { color: var(--gb-text-soft); font-size: 12.5px; margin-top: 3px; }
+.gb-title { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 600; color: var(--gb-text-dark); }
 .gb-pill {
-    background: #F0F0EC; border: 1px solid #E0E0DA; border-radius: 20px;
-    padding: 8px 16px; font-size: 13px; font-weight: 600; color: #3A3A36; white-space: nowrap;
+    background: #FFFFFF; border: 1px solid var(--gb-border); border-radius: 20px;
+    padding: 6px 12px; font-size: 12px; font-weight: 500; color: var(--gb-text-mid); white-space: nowrap;
 }
-.gb-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
+.gb-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 26px; }
 @media (max-width: 900px) { .gb-kpi-row { grid-template-columns: repeat(2, 1fr); } }
 .gb-kpi-card {
-    background: #FFFFFF; border: 1px solid #E4E4E0; border-top: 3px solid var(--gb-accent, #9AA0AE);
-    border-radius: 10px; padding: 14px 16px;
+    background: #FFFFFF; border: 1px solid var(--gb-border); border-left: 3px solid var(--gb-accent);
+    border-radius: 10px; padding: 16px 16px 14px 16px;
 }
-.gb-kpi-label { font-size: 10.5px; font-weight: 700; letter-spacing: .5px; color: #8F8F8A; text-transform: uppercase; }
-.gb-kpi-num { font-size: 26px; font-weight: 800; color: #1C1C1A; margin: 4px 0 2px 0; }
-.gb-kpi-sub { font-size: 12px; color: #8F8F8A; }
-.gb-kpi-sub.up { color: #2E8B4F; }
-.gb-kpi-sub.warn { color: #B5522A; }
+.gb-kpi-card.warn { border-left-color: var(--gb-warn); }
+.gb-kpi-card.danger { border-left-color: var(--gb-danger); }
+.gb-kpi-label { font-size: 11.5px; color: var(--gb-text-soft); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.gb-kpi-num { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 600; color: var(--gb-text-dark); line-height: 1; }
+.gb-kpi-sub { font-size: 11.5px; color: var(--gb-accent); margin-top: 6px; }
+.gb-kpi-sub.warn { color: var(--gb-warn); }
+.gb-kpi-sub.danger { color: var(--gb-danger); }
 .gb-panel {
-    background: #FFFFFF; border: 1px solid #E4E4E0; border-radius: 12px; padding: 16px 18px; margin-bottom: 16px;
+    background: #FFFFFF; border: 1px solid var(--gb-border); border-radius: 10px; padding: 18px 20px 8px 20px; margin-bottom: 16px;
 }
-.gb-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.gb-panel-title { font-size: 15px; font-weight: 700; color: #1C1C1A; }
-.gb-panel-link { font-size: 12.5px; color: #378ADD; font-weight: 600; }
+.gb-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.gb-panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; color: var(--gb-text-dark); }
+.gb-panel-link { font-size: 12px; color: var(--gb-accent); font-weight: 500; }
 .gb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .gb-table th {
-    text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .4px; color: #9A9A94;
-    text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid #EDEDEA;
+    text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--gb-text-soft);
+    text-transform: uppercase; padding: 8px 6px; border-bottom: 1px solid var(--gb-border);
 }
-.gb-table td { padding: 9px 8px; border-bottom: 1px solid #F2F2EE; color: #2C2C2A; }
+.gb-table td { padding: 11px 6px; border-bottom: 1px solid #F1EFE9; color: var(--gb-text-dark); }
 .gb-table tr:last-child td { border-bottom: none; }
-.gb-badge {
-    display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
-}
-.gb-badge.ok { background: #DCF3E0; color: #1F8A3B; }
-.gb-badge.bekliyor { background: #FDEEDA; color: #A8641A; }
-.gb-badge.gecikti { background: #FBE1E1; color: #B5322A; }
-.gb-badge.notr { background: #EEEEEA; color: #5A5A54; }
-.gb-kl-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 13.5px; border-bottom: 1px solid #F2F2EE; }
+.gb-mono { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--gb-text-mid); }
+.gb-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+.gb-tag.ok { background: var(--gb-accent-soft); color: var(--gb-accent); }
+.gb-tag.warn { background: var(--gb-warn-soft); color: var(--gb-warn); }
+.gb-tag.danger { background: var(--gb-danger-soft); color: var(--gb-danger); }
+.gb-tag.notr { background: #EEEEEA; color: #5A5A54; }
+.gb-kl-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 12.5px; border-bottom: 1px solid #F1EFE9; }
 .gb-kl-row:last-child { border-bottom: none; }
-.gb-kl-row.done { color: #9A9A94; text-decoration: line-through; }
-.gb-notif-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F2F2EE; }
+.gb-kl-check { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--gb-border); flex-shrink: 0; }
+.gb-kl-check.done { background: var(--gb-accent); border-color: var(--gb-accent); }
+.gb-kl-row.done .gb-kl-text { color: var(--gb-text-soft); text-decoration: line-through; }
+.gb-notif-row { display: flex; gap: 10px; padding: 11px 0; border-bottom: 1px solid #F1EFE9; }
 .gb-notif-row:last-child { border-bottom: none; }
-.gb-notif-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
-.gb-notif-dot.red { background: #D64545; }
-.gb-notif-dot.amber { background: #E0A429; }
-.gb-notif-dot.green { background: #2E8B4F; }
-.gb-notif-text { font-size: 13.5px; color: #2C2C2A; line-height: 1.4; }
-.gb-notif-time { font-size: 11.5px; color: #A0A09A; margin-top: 2px; }
+.gb-notif-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--gb-accent); }
+.gb-notif-dot.warn { background: var(--gb-warn); }
+.gb-notif-dot.danger { background: var(--gb-danger); }
+.gb-notif-text { font-size: 12.5px; color: var(--gb-text-dark); line-height: 1.45; }
+.gb-notif-time { font-size: 11px; color: var(--gb-text-soft); margin-top: 2px; }
+.stApp, .stMainBlockContainer { background-color: #F5F3EF !important; }
 .st-key-kl_home_panel {
-    background: #FFFFFF; border: 1px solid #E4E4E0; border-radius: 12px; padding: 16px 18px 10px 18px;
+    background: #FFFFFF; border: 1px solid var(--gb-border); border-radius: 10px; padding: 18px 20px 8px 20px;
 }
 .st-key-kl_home_panel div[data-testid="stButton"] button {
-    background: none !important; border: none !important; color: #378ADD !important;
-    font-weight: 600 !important; font-size: 12.5px !important; padding: 6px 0 0 0 !important;
+    background: none !important; border: none !important; color: var(--gb-accent) !important;
+    font-weight: 500 !important; font-size: 12px !important; padding: 6px 0 0 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -657,62 +693,54 @@ def _bildirim_sayisi(veri=None):
     return sayac
 
 
+def _nav_item(anahtar, etiket, hedef_sayfa, aktif=False, rozet=None, depo_alt=None):
+    """Mockup'taki .nav-item satırını üretir: görünen içerik HTML ile
+    çiziliyor, üzerine görünmez bir st.button bindirilip tıklama
+    yakalanıyor (kpi kartlarında kullanılan aynı teknik)."""
+    row_key = f"navrow_{anahtar}" + ("_active" if aktif else "")
+    with st.container(key=row_key):
+        rozet_html = f"<span class='gb-nav-badge'>{rozet}</span>" if rozet else ""
+        st.markdown(
+            f"<div style='display:flex;align-items:center;gap:10px;'>"
+            f"<span class='gb-nav-dot'></span><span class='gb-nav-text'>{html.escape(etiket)}</span>{rozet_html}</div>",
+            unsafe_allow_html=True,
+        )
+        if st.button("", key=f"nav_{anahtar}"):
+            if depo_alt:
+                st.session_state.depo_alt_sayfa = depo_alt
+            git(hedef_sayfa)
+
+
 def render_sidebar():
     with st.sidebar:
-        aktif = st.session_state.get("sayfa", "home")
-        _AKTIF_RENK = {
-            "home": "nav_home", "sevkiyat": "nav_sevkiyat", "kargotakip": "nav_kargotakip",
-            "fiyatlistesi": "nav_fiyatlistesi", "tamamlanankargolar": "nav_tamamlanankargolar",
-            "depo": "nav_depo", "stoktakip": "nav_stoktakip", "depotransfer": "nav_transfer",
-            "iade": "nav_iade", "kontrollistesi": "nav_kontrollistesi",
-            "insankaynaklari": "nav_ik", "planlama": "nav_planlama", "bildirim": "nav_bildirim",
-        }
-        aktif_key = _AKTIF_RENK.get(aktif)
-        if aktif_key:
-            st.markdown(
-                f"<style>.st-key-{aktif_key} button {{ background-color: #1B4B3F !important; "
-                f"color: #FFFFFF !important; font-weight: 700 !important; }}</style>",
-                unsafe_allow_html=True,
-            )
+        aktif_sayfa = st.session_state.get("sayfa", "home")
+        depo_alt = st.session_state.get("depo_alt_sayfa")
 
         st.markdown("<div class='gb-logo-baslik'>KAMTEK DEPO</div>", unsafe_allow_html=True)
-        st.markdown("<div class='gb-logo-alt'>DEPO YÖNETİM PANELİ</div>", unsafe_allow_html=True)
+        st.markdown("<div class='gb-logo-alt'>Depo Yönetim Paneli</div>", unsafe_allow_html=True)
 
-        if st.button("🏠 Genel Bakış", use_container_width=True, key="nav_home"):
-            git("home")
+        _nav_item("home", "Genel Bakış", "home", aktif=aktif_sayfa == "home")
 
         st.markdown("<div class='gb-nav-baslik'>Sevkiyat &amp; Kargo</div>", unsafe_allow_html=True)
-        if st.button("🗺️ Sevkiyat Planlama", use_container_width=True, key="nav_sevkiyat"):
-            git("sevkiyat")
-        if st.button("🚚 Kargo Takip", use_container_width=True, key="nav_kargotakip"):
-            git("kargotakip")
-        if st.button("🏷️ Kargo Fiyat Listesi", use_container_width=True, key="nav_fiyatlistesi"):
-            git("fiyatlistesi")
-        if st.button("✅ Tamamlanmış Kargolar", use_container_width=True, key="nav_tamamlanankargolar"):
-            git("tamamlanankargolar")
+        _nav_item("sevkiyat", "Sevkiyat Planlama", "sevkiyat", aktif=aktif_sayfa == "sevkiyat")
+        _nav_item("kargotakip", "Kargo Takip", "kargotakip", aktif=aktif_sayfa == "kargotakip")
+        _nav_item("fiyatlistesi", "Kargo Fiyat Listesi", "fiyatlistesi", aktif=aktif_sayfa == "fiyatlistesi")
+        _nav_item("tamamlanankargolar", "Tamamlanmış Kargolar", "tamamlanankargolar", aktif=aktif_sayfa == "tamamlanankargolar")
 
         st.markdown("<div class='gb-nav-baslik'>Depo &amp; Stok</div>", unsafe_allow_html=True)
-        if st.button("📦 Depo", use_container_width=True, key="nav_depo"):
-            git("depo")
-        if st.button("📊 Stok Takip", use_container_width=True, key="nav_stoktakip"):
-            git("stoktakip")
-        if st.button("🔁 Depolar Arası Transfer", use_container_width=True, key="nav_transfer"):
-            git("depotransfer")
-        if st.button("↩️ İade", use_container_width=True, key="nav_iade"):
-            git("iade")
-        if st.button("☑️ Kontrol Listesi", use_container_width=True, key="nav_kontrollistesi"):
-            git("kontrollistesi")
+        _nav_item("deposayim", "Depo Sayım Fişleri", "depo", aktif=(aktif_sayfa == "depo" and depo_alt == "sayim"), depo_alt="sayim")
+        _nav_item("depotemizlik", "Depo Temizlik", "depo", aktif=(aktif_sayfa == "depo" and depo_alt == "temizlik"), depo_alt="temizlik")
+        _nav_item("stoktakip", "Stok Takip", "stoktakip", aktif=aktif_sayfa == "stoktakip")
+        _nav_item("transfer", "Depolar Arası Transfer", "depotransfer", aktif=aktif_sayfa == "depotransfer")
 
         st.markdown("<div class='gb-nav-baslik'>Yönetim</div>", unsafe_allow_html=True)
         if st.session_state.rol in IK_GORME_YETKISI:
-            if st.button("👥 Personel Yönetimi", use_container_width=True, key="nav_ik"):
-                git("insankaynaklari")
-        if st.button("🗓️ Planlama", use_container_width=True, key="nav_planlama"):
-            git("planlama")
+            _nav_item("ik", "Personel Yönetimi", "insankaynaklari", aktif=aktif_sayfa == "insankaynaklari")
+        _nav_item("iade", "İade", "iade", aktif=aktif_sayfa == "iade")
+        _nav_item("planlama", "Planlama", "planlama", aktif=aktif_sayfa == "planlama")
+        _nav_item("kontrollistesi", "Kontrol Listesi", "kontrollistesi", aktif=aktif_sayfa == "kontrollistesi")
         bildirim_n = _bildirim_sayisi()
-        bildirim_etiket = f"🔔 Bildirim 🔴{bildirim_n}" if bildirim_n > 0 else "🔔 Bildirim"
-        if st.button(bildirim_etiket, use_container_width=True, key="nav_bildirim"):
-            git("bildirim")
+        _nav_item("bildirim", "Bildirim", "bildirim", aktif=aktif_sayfa == "bildirim", rozet=bildirim_n if bildirim_n > 0 else None)
 
 
 _KL_GUN_ISIMLERI_UZUN = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
@@ -828,8 +856,8 @@ def sayfa_home():
     st.markdown(
         f"""<div class="gb-header-row">
             <div>
-                <div class="gb-eyebrow">Genel Bakış</div>
-                <div class="gb-title">{_KL_GUN_ISIMLERI_UZUN[bugun.weekday()]}, {bugun.day} {_KL_AY_ISIMLERI[bugun.month - 1]} {bugun.year}</div>
+                <div class="gb-title">Genel Bakış</div>
+                <div class="gb-eyebrow">{bugun.day} {_KL_AY_ISIMLERI[bugun.month - 1]} {bugun.year}, {_KL_GUN_ISIMLERI_UZUN[bugun.weekday()]}</div>
             </div>
             <div class="gb-pill">Bugün · Tüm Depolar</div>
         </div>""",
@@ -837,21 +865,23 @@ def sayfa_home():
     )
 
     # ---- KPI kartları ----
+    # (kart_sinif, alt_sinif): "" = normal (yeşil vurgu), "warn" = amber, "danger" = kırmızı
     kpiler = [
-        ("#378ADD", "BUGÜNKÜ SEVKİYAT", str(kargo_bugun),
-         f"{'↑' if kargo_bugun >= kargo_dun else '↓'} dün {kargo_dun}", "up" if kargo_bugun >= kargo_dun else "warn"),
-        ("#E0A429", "AÇIK İADE", str(bekleyen_iade), "kabul bekliyor", ""),
-        ("#2E8B4F", "KONTROL LİSTESİ", f"{kl_tamam}/{kl_toplam}", "bugün tamamlanan", ""),
-        ("#9AA0AE", "BEKLEYEN SAYIM", "—", "veri bağlanmadı", ""),
-        ("#B5322A", "STOK UYARISI", "—", "veri bağlanmadı", ""),
+        ("BUGÜNKÜ SEVKİYAT", str(kargo_bugun), f"{'↑' if kargo_bugun >= kargo_dun else '↓'} dün {kargo_dun}",
+         "" if kargo_bugun >= kargo_dun else "warn"),
+        ("BEKLEYEN SAYIM", "—", "veri bağlanmadı", "warn"),
+        ("AÇIK İADE", str(bekleyen_iade), "kabul bekliyor", ""),
+        ("STOK UYARISI", "—", "veri bağlanmadı", "danger"),
+        ("KONTROL LİSTESİ", f"{kl_tamam}/{kl_toplam}", "bugün tamamlanan", ""),
     ]
     kart_html = "<div class='gb-kpi-row'>"
-    for renk, etiket, sayi, alt, alt_sinif in kpiler:
+    for etiket, sayi, alt, sinif in kpiler:
+        kart_sinif = f"gb-kpi-card {sinif}".strip()
         kart_html += (
-            f"<div class='gb-kpi-card' style='--gb-accent:{renk};'>"
+            f"<div class='{kart_sinif}'>"
             f"<div class='gb-kpi-label'>{etiket}</div>"
             f"<div class='gb-kpi-num'>{sayi}</div>"
-            f"<div class='gb-kpi-sub {alt_sinif}'>{alt}</div>"
+            f"<div class='gb-kpi-sub {sinif}'>{alt}</div>"
             f"</div>"
         )
     kart_html += "</div>"
@@ -863,11 +893,11 @@ def sayfa_home():
         rows_html = ""
         for s in son_sevkiyatlar:
             rows_html += (
-                f"<tr><td>{html.escape(s.get('gonderi_no') or '—')}</td>"
+                f"<tr><td class='gb-mono'>{html.escape(s.get('gonderi_no') or '—')}</td>"
                 f"<td>{html.escape(s.get('alici_adi') or '—')}</td>"
                 f"<td>{html.escape(s.get('varis_il') or '—')}</td>"
                 f"<td>{html.escape(s.get('kargo_firmasi') or '—')}</td>"
-                f"<td><span class='gb-badge notr'>Yüklendi</span></td></tr>"
+                f"<td><span class='gb-tag notr'>Yüklendi</span></td></tr>"
             )
         if not rows_html:
             rows_html = "<tr><td colspan='5' style='color:#9A9A94;'>Henüz kargo takip kaydı yok.</td></tr>"
@@ -887,9 +917,13 @@ def sayfa_home():
 
         kl_rows = ""
         for m in bugun_ozet["maddeler"]:
-            tik = "✔ " if m.get("tamamlandi") else "☐ "
-            sinif = "done" if m.get("tamamlandi") else ""
-            kl_rows += f"<div class='gb-kl-row {sinif}'>{tik}{html.escape(m['madde'])}</div>"
+            tamam = m.get("tamamlandi")
+            sinif = "done" if tamam else ""
+            check_sinif = "gb-kl-check done" if tamam else "gb-kl-check"
+            kl_rows += (
+                f"<div class='gb-kl-row {sinif}'><div class='{check_sinif}'></div>"
+                f"<div class='gb-kl-text'>{html.escape(m['madde'])}</div></div>"
+            )
         if not kl_rows:
             kl_rows = "<div style='color:#9A9A94; font-size:13.5px;'>Bugün için henüz madde eklenmedi.</div>"
         with st.container(key="kl_home_panel"):
@@ -907,19 +941,19 @@ def sayfa_home():
         notif_html = ""
         for t in veri["transferler"]:
             notif_html += (
-                f"<div class='gb-notif-row'><div class='gb-notif-dot red'></div>"
+                f"<div class='gb-notif-row'><div class='gb-notif-dot warn'></div>"
                 f"<div><div class='gb-notif-text'><b>{html.escape(t['talep_eden_depo'])}</b> deposundan "
                 f"<b>{html.escape(t['hedef_depo'])}</b> için {html.escape(t['urun_aciklama'])} "
                 f"({t.get('adet') or '?'} adet) talebi çağrıldı.</div></div></div>"
             )
         for g in veri["gorevler"]:
             notif_html += (
-                f"<div class='gb-notif-row'><div class='gb-notif-dot amber'></div>"
+                f"<div class='gb-notif-row'><div class='gb-notif-dot warn'></div>"
                 f"<div><div class='gb-notif-text'>⏰ {html.escape(g.get('saat') or '')} — {html.escape(g['aciklama'])}</div></div></div>"
             )
         for p in veri["dogumgunler"]:
             notif_html += (
-                f"<div class='gb-notif-row'><div class='gb-notif-dot green'></div>"
+                f"<div class='gb-notif-row'><div class='gb-notif-dot'></div>"
                 f"<div><div class='gb-notif-text'>Bugün <b>{html.escape(p['ad_soyad'])}</b>'nin doğum günü 🎂</div>"
                 f"<div class='gb-notif-time'>bugün</div></div></div>"
             )
