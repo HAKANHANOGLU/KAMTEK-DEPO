@@ -517,6 +517,20 @@ section[data-testid="stSidebar"] > div {
     padding-left: 8px !important;
     padding-right: 8px !important;
 }
+/* GERÇEK sebep buradaydı: canlı sitede DOM'u inceleyince görüldü ki
+   "KAMTEK DEPO" üstündeki boşluk padding'ten değil, Streamlit'in kendi
+   stSidebarHeader bloğundan geliyordu - içinde biz hiç kullanmadığımız
+   st.logo() için ayrılmış boş bir "stLogoSpacer" (32px) VE kapatma oku
+   (36px) var, ikisi birlikte + 16px margin-bottom toplam ~76px flow
+   yüksekliği kaplıyordu. Boş logo alanını gizleyip başlık bloğunu içeriğe
+   göre küçülttük - kapatma oku olduğu gibi kalıyor. */
+section[data-testid="stSidebar"] div[data-testid="stLogoSpacer"] {
+    display: none !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stSidebarHeader"] {
+    height: auto !important; min-height: 0 !important; margin-bottom: 2px !important;
+    padding: 2px 0 !important; justify-content: flex-end !important;
+}
 /* Sidebar'daki dikey boşluk - TEK bir gap değeri tüm elemanlar (kategori
    başlığı -> ilk madde, madde -> madde) arasında eşit boşluk versin diye
    kategori başlığının/nav satırının kendi padding'i minimuma indirildi
