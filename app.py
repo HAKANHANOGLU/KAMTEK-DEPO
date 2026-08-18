@@ -825,11 +825,11 @@ def render_sidebar():
         _nav_item("depotemizlik", "Depo Temizlik", "depo", aktif=(aktif_sayfa == "depo" and depo_alt == "temizlik"), depo_alt="temizlik")
         _nav_item("stoktakip", "Stok Takip", "stoktakip", aktif=aktif_sayfa == "stoktakip")
         _nav_item("transfer", "Depolar Arası Transfer", "depotransfer", aktif=aktif_sayfa == "depotransfer")
+        _nav_item("iade", "İade", "iade", aktif=aktif_sayfa == "iade")
 
         st.markdown("<div class='gb-nav-baslik'>Yönetim</div>", unsafe_allow_html=True)
         if st.session_state.rol in IK_GORME_YETKISI:
             _nav_item("ik", "Personel Yönetimi", "insankaynaklari", aktif=aktif_sayfa == "insankaynaklari")
-        _nav_item("iade", "İade", "iade", aktif=aktif_sayfa == "iade")
         _nav_item("planlama", "Planlama", "planlama", aktif=aktif_sayfa == "planlama")
         _nav_item("kontrollistesi", "Kontrol Listesi", "kontrollistesi", aktif=aktif_sayfa == "kontrollistesi")
         bildirim_n = _bildirim_sayisi()
