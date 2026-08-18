@@ -506,12 +506,20 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button {
     background: transparent !important; border: none !important; padding: 0 !important;
     min-height: 0 !important; box-shadow: none !important;
 }
-/* Sidebar'daki dikey boşluk - Streamlit'in stVerticalBlock varsayılanı çok
-   genişti (kategoriler birbirinden kopuk duruyordu), ama fazla sıkıştırınca
-   da (0.2rem) başlıklar bir alt satıra yapışıp üst üste biniyormuş gibi
-   görünüyordu. Referans görsele göre orta bir değer. */
+/* Streamlit sidebar içeriğinin üstünde varsayılan olarak büyük bir boşluk
+   bırakıyor (kapatma oku için ayrılan alan) - logo bloğu bu yüzden aşağı
+   itiliyordu. */
+section[data-testid="stSidebar"] div[data-testid="stSidebarUserContent"],
+section[data-testid="stSidebar"] div[data-testid="stSidebarContent"],
+section[data-testid="stSidebar"] > div {
+    padding-top: 0.5rem !important;
+}
+/* Sidebar'daki dikey boşluk - TEK bir gap değeri tüm elemanlar (kategori
+   başlığı -> ilk madde, madde -> madde) arasında eşit boşluk versin diye
+   kategori başlığının/nav satırının kendi padding'i minimuma indirildi
+   (aşağıda), böylece görünen boşluk sadece bu gap'ten geliyor. */
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
-    gap: 0.35rem !important;
+    gap: 0.55rem !important;
 }
 /* NOT: yukarıdaki "section[data-testid='stSidebar'] *" kuralı !important ile
    TÜM alt elemanları (iç metin p/div'leri dahil) #DCE3EC yapıyor. Sadece
@@ -521,21 +529,21 @@ section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
    görünüyordu. Aşağıdaki renk kuralları artık "section[data-testid=...]"
    önekiyle scope'lanıp specificity'yi kasıtlı olarak yükseltiyor. */
 .gb-logo-baslik {
-    font-family: 'Space Grotesk', sans-serif !important; font-weight: 700; font-size: 17px;
-    letter-spacing: .02em; padding: 6px 6px 0 6px;
+    font-family: 'Space Grotesk', sans-serif !important; font-weight: 700; font-size: 20px;
+    letter-spacing: .02em; padding: 0 6px 0 6px;
 }
 section[data-testid="stSidebar"] .gb-logo-baslik { color: #FFFFFF !important; }
 .gb-logo-alt {
-    font-size: 11px; margin-top: 2px; letter-spacing: .04em;
-    text-transform: uppercase; padding: 0 6px 12px 6px;
+    font-size: 11.5px; margin-top: 7px; letter-spacing: .04em;
+    text-transform: uppercase; padding: 0 6px 0 6px;
 }
 section[data-testid="stSidebar"] .gb-logo-alt { color: #7C8AA0 !important; }
 .gb-sidebar-divider {
-    border-top: 1px solid rgba(255,255,255,0.08); margin: 0 6px 8px 6px;
+    border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 6px 0 6px;
 }
 .gb-nav-baslik {
-    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
-    padding: 14px 8px 6px 8px;
+    font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+    padding: 0 8px;
 }
 section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 /* Nav satırları artık gerçek, tıklanabilir bir st.button - önceki
@@ -544,14 +552,14 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
    görünür satırın üstünde değil, kendi küçük kutusunun içinde kalıyordu).
    Nokta artık butonun kendi ::before'u - tek DOM elemanı, tıklama garanti. */
 [class*="st-key-navrow_"] {
-    position: relative; margin: 2px 6px 2px 12px;
+    position: relative; margin: 0 6px 0 12px;
 }
 [class*="st-key-navrow_"] div[data-testid="stButton"] button {
     display: flex !important; align-items: center !important; gap: 10px !important;
     width: 100% !important; justify-content: flex-start !important;
     background: transparent !important; border: none !important; box-shadow: none !important;
-    padding: 9px 12px !important; border-radius: 8px !important; min-height: 0 !important;
-    font-size: 13.5px !important; font-weight: 500 !important;
+    padding: 7px 12px !important; border-radius: 8px !important; min-height: 0 !important;
+    font-size: 16px !important; font-weight: 500 !important;
 }
 /* Etiket metni Streamlit'in kendi iç sarmalayıcısında ortalanıyordu -
    sola yasla ve genişliği içeriğe göre sıkıştır ki flex satırı ortalamasın.
@@ -563,7 +571,7 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 [class*="st-key-navrow_"] div[data-testid="stButton"] button div,
 [class*="st-key-navrow_"] div[data-testid="stButton"] button p {
     text-align: left !important; width: auto !important; flex: none !important;
-    color: #B7C1D1 !important; font-weight: 500 !important; font-size: 13.5px !important;
+    color: #B7C1D1 !important; font-weight: 500 !important; font-size: 16px !important;
 }
 [class*="st-key-navrow_"] div[data-testid="stButton"] button::before {
     content: ""; width: 6px; height: 6px; border-radius: 50%; background: #3E4C63;
