@@ -206,6 +206,46 @@ def sayim_notlari_getir(gunler: list):
     return {row["tarih"]: row["not_metni"] for row in r.json()}
 
 
+# ---------- Depo Sayım Blok Durumu (haftalık blok/bölge sayıldı matrisi) ----------
+
+def depo_sayim_blok_durumlari_getir(gunler: list):
+    """{(tarih, blok_adi): {sayildi, personel_adi, isaretlenme_zamani}} döner."""
+    if not gunler:
+        return {}
+    tarih_listesi = ",".join(gunler)
+    params = {
+        "tarih": f"in.({tarih_listesi})",
+        "select": "tarih,blok_adi,sayildi,personel_adi,isaretlenme_zamani",
+    }
+    r = requests.get(f"{_REST}/depo_sayim_blok_durum", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    return {
+        (row["tarih"], row["blok_adi"]): {
+            "sayildi": row["sayildi"],
+            "personel_adi": row.get("personel_adi"),
+            "isaretlenme_zamani": row.get("isaretlenme_zamani"),
+        }
+        for row in r.json()
+    }
+
+
+def depo_sayim_blok_durumu_isaretle(tarih: str, blok_adi: str, sayildi: bool, personel_adi: str = None):
+    row = {
+        "tarih": tarih,
+        "blok_adi": blok_adi,
+        "sayildi": sayildi,
+        "personel_adi": personel_adi if sayildi else None,
+        "isaretlenme_zamani": datetime.now().isoformat() if sayildi else None,
+    }
+    headers = dict(_HEADERS)
+    headers["Prefer"] = "resolution=merge-duplicates"
+    r = requests.post(
+        f"{_REST}/depo_sayim_blok_durum", headers=headers,
+        params={"on_conflict": "tarih,blok_adi"}, data=json.dumps(row), timeout=15,
+    )
+    r.raise_for_status()
+
+
 # ---------- Planlanan Kargolar (serbest not tablosu) ----------
 
 def planlanan_kargolar_getir():

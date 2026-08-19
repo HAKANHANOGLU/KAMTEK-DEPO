@@ -1959,6 +1959,59 @@ def haftalik_kontrol_bolumu():
     )
 
 
+# Blok/bölge adları GEÇİCİ örnek isimler - gerçek depo bölümlerine göre
+# güncellenecek. Excel'de blok bilgisi yok, bu yüzden hangi bölgenin
+# sayıldığı bu listeye göre personel tarafından elle işaretlenir.
+DEPO_BLOK_LISTESI = [
+    "A Blok - Raf 1-8",
+    "A Blok - Raf 9-16",
+    "B Blok - Raf 1-8",
+    "B Blok - Raf 9-16",
+    "C Blok - Raf 1-6",
+    "Soğuk Hava Deposu",
+]
+
+
+def _depo_blok_matrisi(hafta_gunleri, gun_isimleri):
+    """Blok/bölge x gün matrisi - excel'den bağımsız, personelin elle
+    işaretlediği 'bu blok bu gün sayıldı' durumunu gösterir/günceller."""
+    st.markdown("**Blok / Bölge Sayım Matrisi**")
+    st.caption("Excel'de blok bilgisi olmadığı için, hangi bölgenin sayıldığını personel burada işaretler. Miktar/fark kontrolü excel detayından yapılır.")
+
+    personeller = db.personel_listele()
+    personel_adlari = [p["ad_soyad"] for p in personeller]
+    secilen_personel = st.selectbox(
+        "İşaretleyen personel", ["(Seçiniz)"] + personel_adlari, key="blok_matris_personel",
+    )
+
+    gun_isolari = [g.isoformat() for g in hafta_gunleri]
+    durumlar = db.depo_sayim_blok_durumlari_getir(gun_isolari)
+
+    baslik_cols = st.columns([2.2] + [1] * 7)
+    baslik_cols[0].markdown("&nbsp;", unsafe_allow_html=True)
+    for col, isim, gun in zip(baslik_cols[1:], gun_isimleri, hafta_gunleri):
+        col.markdown(f"<div style='text-align:center;font-size:12.5px;font-weight:600;'>{isim[:3]}<br>{gun.strftime('%d.%m')}</div>", unsafe_allow_html=True)
+
+    for blok in DEPO_BLOK_LISTESI:
+        satir_cols = st.columns([2.2] + [1] * 7)
+        satir_cols[0].markdown(f"<div style='font-size:13px;padding-top:8px;'>{blok}</div>", unsafe_allow_html=True)
+        for col, gun_iso in zip(satir_cols[1:], gun_isolari):
+            durum = durumlar.get((gun_iso, blok), {})
+            sayildi_mevcut = bool(durum.get("sayildi"))
+            yardim = None
+            if sayildi_mevcut and durum.get("personel_adi"):
+                yardim = f"{durum['personel_adi']} işaretledi"
+            with col:
+                yeni_deger = st.checkbox(
+                    blok, value=sayildi_mevcut, key=f"blok_durum_{gun_iso}_{blok}",
+                    label_visibility="collapsed", help=yardim,
+                )
+            if yeni_deger != sayildi_mevcut:
+                personel_kaydi = secilen_personel if secilen_personel != "(Seçiniz)" else None
+                db.depo_sayim_blok_durumu_isaretle(gun_iso, blok, yeni_deger, personel_kaydi)
+                st.rerun()
+
+
 def depo_sayim_bolumu():
     st.subheader("Depo Sayım Fişleri")
     st.caption("Depo sayımı haftalık programlanır — her gün deponun bir kısmı sayılır, hafta sonunda tüm depo sayılmış olur.")
@@ -2022,6 +2075,9 @@ def depo_sayim_bolumu():
                                       placeholder="Not ekle...")
             if yeni_not != not_mevcut:
                 db.sayim_not_kaydet(gun.isoformat(), yeni_not)
+
+    st.markdown("---")
+    _depo_blok_matrisi(hafta_gunleri, gun_isimleri)
 
     st.markdown("---")
     secili_gun = st.session_state.sayim_secili_gun
