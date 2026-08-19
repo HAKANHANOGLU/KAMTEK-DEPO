@@ -1523,31 +1523,78 @@ def sayfa_kargotakip():
 
     elif st.session_state.kt_view == "rapor":
         st.subheader("Kargo Raporları")
-        if not db._aras_ayarli_mi() or not aras_liste:
-            st.info("Rapor için veri bulunamadı.")
+        if not db._aras_ayarli_mi():
+            st.info("Aras Kargo API bağlantısı henüz yapılandırılmadı (Streamlit Cloud Secrets).")
         else:
-            toplam_tutar = sum(float(s.get("TUTAR") or 0) for s in aras_liste)
-            ort_tutar = toplam_tutar / len(aras_liste) if aras_liste else 0
-            teslim_suresi_gunler = []
-            for s, takip_no, _metni, _sinif, _kat in durumlu:
-                durum_detay = db.aras_kargo_durumu(takip_no) or {}
-                planlanan = durum_detay.get("PLANLANAN_TESLIMTARIHI")
-                cikis_str = (s.get("DUZENLEME_TARIHI") or "")[:10]
-                if planlanan and cikis_str:
-                    try:
-                        cikis = datetime.strptime(cikis_str, "%Y-%m-%d")
-                        hedef = datetime.strptime(planlanan, "%d/%m/%Y")
-                        teslim_suresi_gunler.append((hedef - cikis).days)
-                    except Exception:
-                        pass
-            r1, r2, r3 = st.columns(3)
-            r1.metric("Toplam Gönderi", len(aras_liste))
-            r2.metric("Toplam Tutar", f"{toplam_tutar:,.2f} ₺")
-            r3.metric("Ortalama Tutar", f"{ort_tutar:,.2f} ₺")
-            if teslim_suresi_gunler:
-                st.metric("Ortalama Planlanan Teslim Süresi", f"{sum(teslim_suresi_gunler) / len(teslim_suresi_gunler):.1f} gün")
+            st.caption(f"Kargo firması: **{firma}**")
+            donem = st.radio(
+                "Dönem", ["Günlük", "Haftalık", "Aylık", "Tüm Zamanlar (son 90 gün)"],
+                horizontal=True, key="kt_rapor_donem",
+            )
+            bugun = date.today()
+            if donem == "Günlük":
+                gunler = [tarih]
+            elif donem == "Haftalık":
+                hafta_baslangic = bugun - timedelta(days=bugun.weekday())
+                gunler = [hafta_baslangic + timedelta(days=i) for i in range(7) if hafta_baslangic + timedelta(days=i) <= bugun]
+            elif donem == "Aylık":
+                ay_baslangic = bugun.replace(day=1)
+                gunler = [ay_baslangic + timedelta(days=i) for i in range((bugun - ay_baslangic).days + 1)]
             else:
-                st.caption("Teslim süresi hesaplamak için yeterli veri yok.")
+                gunler = [bugun - timedelta(days=i) for i in range(90)]
+
+            with st.spinner(f"{len(gunler)} günlük veri toplanıyor..."):
+                donem_sevkiyatlar = []
+                for g in gunler:
+                    donem_sevkiyatlar.extend(db.aras_gunluk_sevkiyatlar(g.strftime("%d/%m/%Y")))
+
+            if not donem_sevkiyatlar:
+                st.info("Bu dönemde gönderi bulunamadı.")
+            else:
+                toplam_tutar = sum(float(s.get("TUTAR") or 0) for s in donem_sevkiyatlar)
+                ort_tutar = toplam_tutar / len(donem_sevkiyatlar)
+                r1, r2, r3 = st.columns(3)
+                r1.metric("Toplam Gönderi", len(donem_sevkiyatlar))
+                r2.metric("Toplam Tutar", f"{toplam_tutar:,.2f} ₺")
+                r3.metric("Ortalama Tutar", f"{ort_tutar:,.2f} ₺")
+
+                # Gönderici/Alıcı ödemeli ayrımı Aras'ın toplu günlük listesinde
+                # YOK - her gönderi için ayrı bir sorgu gerektiriyor. Kısa
+                # dönemlerde (Günlük/Haftalık) otomatik hesaplanıyor, uzun
+                # dönemlerde (Aylık/Tüm Zamanlar) çok sayıda istek anlamına
+                # geldiği için kullanıcı onayıyla (buton) tetikleniyor - site
+                # daha önce tam bu yüzden (çok sayıda ardışık sorgu) yavaşlamıştı.
+                st.markdown("---")
+                st.markdown("**Ödeme Tipi Dağılımı** (fiyatlandırma için: gönderici ödemeli = bize maliyeti olan gönderiler)")
+                otomatik_hesapla = donem in ("Günlük", "Haftalık")
+                hesapla_tetik = otomatik_hesapla
+                if not otomatik_hesapla:
+                    hesapla_tetik = st.button(
+                        f"💰 Ödeme tipi dağılımını hesapla ({len(donem_sevkiyatlar)} gönderi, biraz sürebilir)",
+                        key="kt_odeme_tipi_hesapla",
+                    )
+                if hesapla_tetik:
+                    with st.spinner("Her gönderinin ödeme tipi sorgulanıyor..."):
+                        gonderici_tutar, alici_tutar, bilinmeyen_tutar = [], [], []
+                        for s in donem_sevkiyatlar:
+                            detay = db.aras_kargo_durumu(s.get("TRACKINGNUMBER")) or {}
+                            odeme = (detay.get("ODEME_TIPI") or "").upper()
+                            tutar = float(s.get("TUTAR") or 0)
+                            if odeme == "ÜG":
+                                gonderici_tutar.append(tutar)
+                            elif odeme == "ÜA":
+                                alici_tutar.append(tutar)
+                            else:
+                                bilinmeyen_tutar.append(tutar)
+                    o1, o2, o3 = st.columns(3)
+                    o1.metric("Gönderici Ödemeli (ÜG)", f"{len(gonderici_tutar)} gönderi", f"{sum(gonderici_tutar):,.2f} ₺")
+                    o2.metric("Alıcı Ödemeli (ÜA)", f"{len(alici_tutar)} gönderi", f"{sum(alici_tutar):,.2f} ₺")
+                    if bilinmeyen_tutar:
+                        o3.metric("Bilinmiyor", f"{len(bilinmeyen_tutar)} gönderi", f"{sum(bilinmeyen_tutar):,.2f} ₺")
+                    if gonderici_tutar:
+                        st.caption(f"Gönderici ödemeli gönderilerde ortalama tutar: {sum(gonderici_tutar) / len(gonderici_tutar):,.2f} ₺")
+                elif not otomatik_hesapla:
+                    st.caption("Bu dönem için ödeme tipi dağılımı henüz hesaplanmadı - yukarıdaki butona basın.")
 
     # ---- Genel özet - her zaman görünür ----
     kategori_sayilari = {ad: 0 for ad in _KT_KATEGORILER}
@@ -1919,7 +1966,11 @@ def depo_sayim_bolumu():
             st.markdown(f"**{gun_str} — Stok Sayım'dan gelen otomatik sayımlar:**")
             for oturum in otomatik:
                 personel_str = f" — {oturum['personel_adi']}" if oturum.get("personel_adi") else ""
-                st.caption(f"🔢 Sayım #{oturum['id']}{personel_str}")
+                c_baslik, c_sil = st.columns([6, 1])
+                c_baslik.caption(f"🔢 Sayım #{oturum['id']}{personel_str}")
+                if c_sil.button("🗑 Sil", key=f"oto_sayim_sil_{oturum['id']}"):
+                    db.stok_sayim_oturumu_sil(oturum["id"])
+                    st.rerun()
                 detaylar = db.stok_sayim_detay_getir(oturum["id"])
                 if not detaylar:
                     st.write("Bu sayımda kayıtlı ürün yok.")

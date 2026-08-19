@@ -595,6 +595,13 @@ def stok_sayim_oturumlari_getir(tarih):
     return r.json()
 
 
+def stok_sayim_oturumu_sil(oturum_id):
+    """Oturumu siler - stok_sayim_detay satırları FK ON DELETE CASCADE ile otomatik silinir."""
+    params = {"id": f"eq.{oturum_id}"}
+    r = requests.delete(f"{_REST}/stok_sayim_oturumlari", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+
+
 def stok_sayim_detay_getir(oturum_id):
     params = {"oturum_id": f"eq.{oturum_id}", "order": "id"}
     r = requests.get(f"{_REST}/stok_sayim_detay", headers=_HEADERS, params=params, timeout=15)
