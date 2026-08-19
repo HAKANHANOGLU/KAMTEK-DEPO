@@ -1678,17 +1678,21 @@ def sayfa_depo():
     if "depo_alt_sayfa" not in st.session_state:
         st.session_state.depo_alt_sayfa = None
 
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📋\n\nDepo Sayım Fişleri", use_container_width=True):
-            st.session_state.depo_alt_sayfa = "sayim"
-            st.rerun()
-    with c2:
-        if st.button("🗓️\n\nHaftalık Depo Kontrol Şablonu", use_container_width=True):
-            st.session_state.depo_alt_sayfa = "haftalik_kontrol"
-            st.rerun()
+    # Depo Temizlik'e sidebar'daki kendi ayrı bağlantısından gelinir - burada
+    # "Depo Sayım Fişleri" şablonuna gerek yok, bu yüzden sadece diğer
+    # görünümlerde gösteriliyor.
+    if st.session_state.depo_alt_sayfa != "temizlik":
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("📋\n\nDepo Sayım Fişleri", use_container_width=True):
+                st.session_state.depo_alt_sayfa = "sayim"
+                st.rerun()
+        with c2:
+            if st.button("🗓️\n\nHaftalık Depo Kontrol Şablonu", use_container_width=True):
+                st.session_state.depo_alt_sayfa = "haftalik_kontrol"
+                st.rerun()
 
-    st.markdown("---")
+        st.markdown("---")
 
     if st.session_state.depo_alt_sayfa == "sayim":
         depo_sayim_bolumu()
@@ -1705,16 +1709,35 @@ def _fark_var_mi(f):
         return False
 
 
-def _sayim_ozet_df(oturumlar):
+def _sayim_ozet_df(oturumlar, stok_override=None):
     """Bir güne ait TÜM otomatik sayım oturumlarını (kronolojik id sırasıyla)
     birleştirip her ürün için SON sayım sonucunu hesaplar. Bir ürün birden
     fazla oturumda sayılmışsa (önce yanlış çıkıp personel tekrar saymışsa)
     son sayım esas alınır ve öncesinde yanlış varsa "Düzeltildi" olarak
-    işaretlenir."""
+    işaretlenir.
+
+    stok_override verilirse (bkz. _depo_sayim_gun_stok_haritasi) güncel_stok/fark
+    kaydedilmiş haliyle DEĞİL, o günün Depo Sayım Fişleri excel'indeki stok
+    değerleriyle yeniden hesaplanır - otomatik sayım o günkü resmi stok
+    kaynağıyla eşleşsin diye."""
     urun_gecmisi = {}
     for oturum in oturumlar:
         for d in db.stok_sayim_detay_getir(oturum["id"]):
-            urun_gecmisi.setdefault(d["urun_adi"], []).append(d)
+            urun_gecmisi.setdefault(d["urun_adi"], []).append(dict(d))
+
+    if stok_override:
+        for urun, gecmis in urun_gecmisi.items():
+            guncel = stok_override.get(urun)
+            if guncel is None:
+                continue
+            for kayit in gecmis:
+                kayit["guncel_stok"] = guncel
+                try:
+                    kayit["fark"] = str(
+                        float(str(kayit.get("sayilan")).replace(",", ".")) - float(str(guncel).replace(",", "."))
+                    )
+                except (ValueError, TypeError):
+                    pass
 
     satirlar = []
     for urun, gecmis in urun_gecmisi.items():
@@ -1767,6 +1790,67 @@ def _excel_sayim_verisi(dosya_icerik_bytes):
             except (ValueError, TypeError):
                 fark = ""
         sonuc[str(urun).strip()] = {"Sayım": sayim_deger, "Fark": fark}
+    return sonuc
+
+
+def _depo_sayim_gun_stok_haritasi(tarih_iso):
+    """O güne 'Depo Sayım Fişleri > Excel Yükleme'den yüklenmiş dosya(lar)daki
+    TÜM ürünlerin güncel stok değerlerini {Ürün Adı: Stok} olarak döner (excel
+    içindeki 'Sayım' sütunu dolu olsun olmasın, tüm satırlar). Otomatik
+    Sayım'ın karşılaştırma kaynağı bu olsun diye - personelin o gün fiilen
+    elindeki resmi stok listesiyle eşleşsin. O gün için excel yoksa None döner."""
+    kayitlar = db.depo_sayim_getir(tarih_iso)
+    if not kayitlar:
+        return None
+    harita = {}
+    for k in kayitlar:
+        try:
+            df = pd.read_excel(io.BytesIO(k["dosya_icerik"]))
+        except Exception:
+            continue
+        urun_col = excel_utils.bul_sutun(df.columns, ["AÇIKLAMA", "ÜRÜN ADI", "MALZEME ADI", "STOK ADI", "TANIM"])
+        sayim_col = excel_utils.bul_sutun(df.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
+        if urun_col is None or sayim_col is None:
+            continue
+        kolon_listesi = list(df.columns)
+        sayim_idx = kolon_listesi.index(sayim_col)
+        stok_col = kolon_listesi[sayim_idx - 1] if sayim_idx > 0 else None
+        if stok_col is None:
+            continue
+        for _, row in df.iterrows():
+            urun_adi = row.get(urun_col)
+            if not urun_adi or str(urun_adi).strip() == "":
+                continue
+            harita[str(urun_adi).strip()] = row.get(stok_col)
+    return harita or None
+
+
+def _depo_sayim_gun_urun_listesi(tarih_iso):
+    """_depo_sayim_gun_stok_haritasi'ni _stok_sayim_bolumu'nun beklediği
+    {'Ürün Adı', 'Stok', 'Marka', 'Kategori'} satır şekline çevirir."""
+    harita = _depo_sayim_gun_stok_haritasi(tarih_iso)
+    if not harita:
+        return None
+    return [{"Ürün Adı": u, "Stok": s, "Marka": "", "Kategori": ""} for u, s in harita.items()]
+
+
+def _detaylar_override_uygula(detaylar, stok_override):
+    """Sayım detay satırlarındaki güncel_stok/fark değerlerini (kaydedilmiş
+    haliyle DEĞİL, sadece görüntüde) verilen gün-bazlı stok haritasıyla
+    yeniden hesaplar - bkz. _depo_sayim_gun_stok_haritasi."""
+    if not stok_override:
+        return detaylar
+    sonuc = []
+    for d in detaylar:
+        d = dict(d)
+        guncel = stok_override.get(d.get("urun_adi"))
+        if guncel is not None:
+            d["guncel_stok"] = guncel
+            try:
+                d["fark"] = str(float(str(d.get("sayilan")).replace(",", ".")) - float(str(guncel).replace(",", ".")))
+            except (ValueError, TypeError):
+                pass
+        sonuc.append(d)
     return sonuc
 
 
@@ -1954,8 +2038,15 @@ def depo_sayim_bolumu():
         if not otomatik:
             st.info(f"{gun_str} için Stok Sayım'dan gelen bir otomatik sayım yok.")
         else:
+            # O gün Depo Sayım Fişleri'ne excel yüklenmişse, otomatik sayımın
+            # güncel stok/fark değerleri o excel'deki stok kaynağıyla
+            # eşleştirilir (görüntüde - kayıtlı veri değişmiyor).
+            gun_stok_override = _depo_sayim_gun_stok_haritasi(secili_gun)
+            if gun_stok_override:
+                st.caption(f"📊 Karşılaştırma kaynağı: {gun_str} tarihinde Depo Sayım Fişleri'ne yüklenen excel'deki stok değerleri.")
+
             st.markdown(f"**{gun_str} — Sayım Özeti**")
-            ozet_df = _sayim_ozet_df(otomatik)
+            ozet_df = _sayim_ozet_df(otomatik, stok_override=gun_stok_override)
             if not ozet_df.empty:
                 st.dataframe(
                     ozet_df.style.apply(_sayim_ozet_renklendir, axis=1),
@@ -1971,7 +2062,7 @@ def depo_sayim_bolumu():
                 if c_sil.button("🗑 Sil", key=f"oto_sayim_sil_{oturum['id']}"):
                     db.stok_sayim_oturumu_sil(oturum["id"])
                     st.rerun()
-                detaylar = db.stok_sayim_detay_getir(oturum["id"])
+                detaylar = _detaylar_override_uygula(db.stok_sayim_detay_getir(oturum["id"]), gun_stok_override)
                 if not detaylar:
                     st.write("Bu sayımda kayıtlı ürün yok.")
                 else:
@@ -2233,33 +2324,42 @@ def sayfa_stoktakip():
     with tab_liste:
         _stok_listesi_bolumu()
     with tab_sayim:
-        # "Excel ile Stok Sayım"a bir excel yüklendiyse, Stok Sayım ekranı
-        # XML yerine HER ZAMAN en son yüklenen o excel'i kaynak olarak
-        # kullanır (XML kaynağı sorunlu olduğunda uygulama genelinde tutarlı
-        # kalması için).
-        en_son_excel = db.excel_stok_sayim_getir_en_son()
-        if en_son_excel is not None:
-            try:
-                urunler, _eslesme = _excel_stok_oku(io.BytesIO(en_son_excel["dosya_icerik"]))
-            except Exception as e:
-                st.error(f"En son yüklenen excel okunurken hata oluştu: {e}")
-                urunler = None
-            if urunler is not None:
-                tarih_fmt = en_son_excel.get("tarih") or ""
-                st.caption(
-                    f"📥 Kaynak: {en_son_excel['dosya_adi']} ({tarih_fmt}, {en_son_excel.get('yuklenme_zamani') or ''}) "
-                    "— 'Excel ile Stok Sayım' sekmesinden yüklenen en son dosya kullanılıyor."
-                )
-                _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
+        # Kaynak önceliği: 1) BUGÜN Depo Sayım Fişleri'ne yüklenen excel varsa
+        # o (otomatik sayım, o günkü resmi stok kaynağıyla eşleşsin diye),
+        # 2) yoksa "Excel ile Stok Sayım"dan en son yüklenen dosya,
+        # 3) o da yoksa canlı XML kaynağı.
+        bugun_iso = date.today().isoformat()
+        gunluk_urunler = _depo_sayim_gun_urun_listesi(bugun_iso)
+        if gunluk_urunler is not None:
+            st.caption(
+                f"📥 Kaynak: bugün ({date.today().strftime('%d.%m.%Y')}) Depo Sayım Fişleri'ne yüklenen excel "
+                "— güncel stok karşılaştırması bu dosyadaki değerlerden yapılıyor."
+            )
+            _stok_sayim_bolumu(gunluk_urunler, anahtar_onek="sayim")
         else:
-            try:
-                with st.spinner("Stok verisi çekiliyor..."):
-                    urunler = _stok_verisi_cache()
-            except Exception as e:
-                st.error(f"Stok verisi alınamadı: {e}")
+            en_son_excel = db.excel_stok_sayim_getir_en_son()
+            if en_son_excel is not None:
+                try:
+                    urunler, _eslesme = _excel_stok_oku(io.BytesIO(en_son_excel["dosya_icerik"]))
+                except Exception as e:
+                    st.error(f"En son yüklenen excel okunurken hata oluştu: {e}")
+                    urunler = None
+                if urunler is not None:
+                    tarih_fmt = en_son_excel.get("tarih") or ""
+                    st.caption(
+                        f"📥 Kaynak: {en_son_excel['dosya_adi']} ({tarih_fmt}, {en_son_excel.get('yuklenme_zamani') or ''}) "
+                        "— 'Excel ile Stok Sayım' sekmesinden yüklenen en son dosya kullanılıyor."
+                    )
+                    _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
             else:
-                st.caption("Ürünleri fiilen sayıp buraya girin. Yalnızca girdiğiniz sayım tutarları kaydedilir.")
-                _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
+                try:
+                    with st.spinner("Stok verisi çekiliyor..."):
+                        urunler = _stok_verisi_cache()
+                except Exception as e:
+                    st.error(f"Stok verisi alınamadı: {e}")
+                else:
+                    st.caption("Ürünleri fiilen sayıp buraya girin. Yalnızca girdiğiniz sayım tutarları kaydedilir.")
+                    _stok_sayim_bolumu(urunler, anahtar_onek="sayim")
     with tab_excel:
         _excel_stok_sayim_bolumu()
 
