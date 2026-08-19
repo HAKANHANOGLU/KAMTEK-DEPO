@@ -1692,11 +1692,43 @@ def _sayim_ozet_renklendir(row):
     return [f"background-color: {renk}"] * len(row) if renk else [""] * len(row)
 
 
+def _excel_sayim_verisi(dosya_icerik_bytes):
+    """Bir 'Depo Sayım Fişleri > Excel Yükleme' dosyasından {urun_adi: {'Sayım':.., 'Fark':..}}
+    döner - otomatik (Stok Sayım) akışıyla aynı şekle getirilir ki haftalık
+    kontrol tablosunda iki kaynak da birlikte gösterilebilsin."""
+    try:
+        filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(dosya_icerik_bytes))
+    except Exception:
+        return {}
+    if filtreli.empty:
+        return {}
+    urun_col = excel_utils.bul_sutun(filtreli.columns, ["AÇIKLAMA", "ÜRÜN ADI", "MALZEME ADI", "STOK ADI", "TANIM"])
+    sayim_col = excel_utils.bul_sutun(filtreli.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
+    if urun_col is None or sayim_col is None:
+        return {}
+    stok_col = filtreli.attrs.get("stok_col")
+    sonuc = {}
+    for _, row in filtreli.iterrows():
+        urun = row.get(urun_col)
+        if not urun or str(urun).strip() == "":
+            continue
+        sayim_deger = row.get(sayim_col)
+        fark = ""
+        if stok_col is not None:
+            try:
+                fark = str(float(str(sayim_deger).replace(",", ".")) - float(str(row.get(stok_col)).replace(",", ".")))
+            except (ValueError, TypeError):
+                fark = ""
+        sonuc[str(urun).strip()] = {"Sayım": sayim_deger, "Fark": fark}
+    return sonuc
+
+
 def haftalik_kontrol_bolumu():
     st.subheader("Haftalık Depo Kontrol Şablonu")
     st.caption(
-        "Bu haftanın (Pazartesi–Pazar) tüm otomatik sayım oturumları, güncel ürün listesiyle "
-        "birleştirilerek gösterilir - hiç sayılmamış ürünler de dahildir."
+        "Bu haftanın (Pazartesi–Pazar) hem Excel yükleme hem otomatik (Stok Sayım) yoluyla "
+        "yapılan TÜM sayımları, güncel ürün listesiyle birleştirilerek gösterilir - hiç "
+        "sayılmamış ürünler de dahildir."
     )
 
     bugun = date.today()
@@ -1709,6 +1741,9 @@ def haftalik_kontrol_bolumu():
         for oturum in db.stok_sayim_oturumlari_getir(gun.isoformat()):
             for d in db.stok_sayim_detay_getir(oturum["id"]):
                 urun_sayim[d["urun_adi"]] = {"Sayım": d.get("sayilan"), "Fark": d.get("fark"), "Gün": isim}
+        for kayit in db.depo_sayim_getir(gun.isoformat()):
+            for urun_adi, bilgi in _excel_sayim_verisi(kayit["dosya_icerik"]).items():
+                urun_sayim[urun_adi] = {"Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"], "Gün": isim}
 
     try:
         en_son_excel = db.excel_stok_sayim_getir_en_son()
@@ -1721,10 +1756,12 @@ def haftalik_kontrol_bolumu():
         urunler = []
 
     satirlar = []
+    urun_adlari_bilinen = set()
     for u in urunler:
         urun_adi = u.get("Ürün Adı")
         if not urun_adi:
             continue
+        urun_adlari_bilinen.add(urun_adi)
         bilgi = urun_sayim.get(urun_adi)
         satirlar.append({
             "Ürün Adı": urun_adi, "Güncel Stok": u.get("Stok"),
@@ -1732,31 +1769,63 @@ def haftalik_kontrol_bolumu():
             "Sayıldığı Gün": bilgi["Gün"] if bilgi else "Sayılmadı",
             "_sayildi": 1 if bilgi else 0,
         })
+    # Ürün listesinde (XML/excel kaynağında) hiç yer almayan ama Excel sayım
+    # dosyasında sayılmış ürünler (ör. farklı bir isimlendirme/kaynak) de
+    # kaybolmasın diye ayrıca ekleniyor.
+    for urun_adi, bilgi in urun_sayim.items():
+        if urun_adi in urun_adlari_bilinen:
+            continue
+        satirlar.append({
+            "Ürün Adı": urun_adi, "Güncel Stok": "",
+            "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"], "Sayıldığı Gün": bilgi["Gün"], "_sayildi": 1,
+        })
     if not satirlar:
         st.info("Ürün listesi bulunamadı.")
         return
 
     df = pd.DataFrame(satirlar)
 
-    siralama = st.radio(
-        "Sıralama", ["Varsayılan", "Sayılmayanlar Önce", "Sayılanlar Önce"],
-        horizontal=True, key="hk_siralama",
-    )
+    f1, f2 = st.columns([2, 1])
+    with f1:
+        siralama = st.radio(
+            "Sıralama", ["Varsayılan", "Sayılmayanlar Önce", "Sayılanlar Önce"],
+            horizontal=True, key="hk_siralama",
+        )
+    with f2:
+        sadece_sayilmayan = st.checkbox("Sadece sayılmayanları göster", key="hk_sadece_sayilmayan")
+
+    if sadece_sayilmayan:
+        df = df[df["_sayildi"] == 0]
     if siralama == "Sayılmayanlar Önce":
         df = df.sort_values("_sayildi", ascending=True)
     elif siralama == "Sayılanlar Önce":
         df = df.sort_values("_sayildi", ascending=False)
-    df = df.drop(columns=["_sayildi"])
+    df = df.drop(columns=["_sayildi"]).reset_index(drop=True)
 
     def _renklendir(row):
         renk = "#DCF3E0" if row["Sayıldığı Gün"] != "Sayılmadı" else "#FBE1E1"
         return [f"background-color: {renk}"] * len(row)
 
-    st.dataframe(
-        df.style.apply(_renklendir, axis=1), use_container_width=True, height=520, hide_index=True,
-    )
+    if df.empty:
+        st.caption("Filtreye uyan ürün yok.")
+        return
+
+    styler = df.style.apply(_renklendir, axis=1)
+    st.dataframe(styler, use_container_width=True, height=520, hide_index=True)
     sayilan_adet = int((df["Sayıldığı Gün"] != "Sayılmadı").sum())
     st.caption(f"🟢 Sayıldı: {sayilan_adet} · 🔴 Sayılmadı: {len(df) - sayilan_adet} · Sütun başlıklarına tıklayarak sıralayabilirsiniz.")
+
+    # Excel indirme - ekrandaki İLE BİREBİR AYNI sütunlar ve renkler (aynı
+    # styler nesnesi kullanılıyor, pandas openpyxl motoruyla hücre
+    # arkaplanlarını da xlsx'e yazıyor).
+    excel_buffer = io.BytesIO()
+    styler.to_excel(excel_buffer, index=False, engine="openpyxl", sheet_name="Haftalık Kontrol")
+    st.download_button(
+        "⬇ Excel olarak indir", data=excel_buffer.getvalue(),
+        file_name=f"haftalik_depo_kontrol_{bugun.isoformat()}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="hk_excel_indir",
+    )
 
 
 def depo_sayim_bolumu():
