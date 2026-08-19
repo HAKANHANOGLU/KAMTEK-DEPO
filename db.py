@@ -716,7 +716,7 @@ def _aras_sorgu(query_info_xml):
     return json.loads(sonuc_el.text)
 
 
-@st.cache_data(ttl=600, show_spinner=False)  # her sevkiyatın durumu ayrı bir ağ isteği - kısa TTL sık sık uzun beklemeye sebep oluyordu
+@st.cache_data(ttl=3600, show_spinner=False)  # her sevkiyatın durumu ayrı bir ağ isteği - kısa TTL sık sık uzun beklemeye sebep oluyordu
 def aras_gunluk_sevkiyatlar(tarih_gg_aa_yyyy):
     """Verilen günde (GG/AA/YYYY formatında) çıkışı yapılmış tüm Aras gönderilerini döner."""
     if not _aras_ayarli_mi():
@@ -732,7 +732,7 @@ def aras_gunluk_sevkiyatlar(tarih_gg_aa_yyyy):
     return kargo if isinstance(kargo, list) else [kargo]
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def aras_kargo_durumu(takip_no):
     """Tek bir Aras takip numarasının güncel teslimat durumunu (DURUMU, DURUM_EN vb.) döner."""
     if not _aras_ayarli_mi() or not takip_no:
