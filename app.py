@@ -743,6 +743,33 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 .kt-box-lbl { font-size: 12px; color: var(--gb-text-mid); margin-top: 2px; }
 .kt-box-bar { height: 6px; background: #EEEEEA; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .kt-box-bar-fill { height: 100%; background: var(--gb-accent); }
+
+/* Depo Sayım Fişleri - ERP tarzı (dashboard KPI kartları + panel + tablo
+   diliyle aynı görsel dil): başlık, yükleme paneli, KPI şeridi, haftalık
+   takvim ve blok/bölge matrisi hepsi .gb-panel/.gb-kpi-card kullanıyor. */
+.gb-kpi-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+@media (max-width: 900px) { .gb-kpi-row-3 { grid-template-columns: repeat(1, 1fr); } }
+.st-key-ds_yukleme_panel, .st-key-ds_takvim_panel, .st-key-ds_matris_panel {
+    background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
+    border-radius: 10px !important; padding: 18px 20px 14px 20px !important; margin-bottom: 16px !important;
+}
+.ds-panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; color: var(--gb-text-dark); margin-bottom: 10px; }
+.ds-panel-sub { font-size: 12px; color: var(--gb-text-soft); margin-top: -6px; margin-bottom: 14px; }
+.ds-gun-baslik { text-align: center; font-size: 12px; font-weight: 600; color: var(--gb-text-mid); }
+.ds-gun-tarih { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--gb-text-soft); margin-bottom: 4px; }
+.ds-blok-adi { font-size: 13px; color: var(--gb-text-dark); padding-top: 8px; }
+.st-key-ds_takvim_panel div[data-testid="stButton"] button {
+    border: 1px solid var(--gb-border) !important; border-radius: 6px !important; font-size: 12px !important;
+}
+.st-key-ds_matris_panel [data-testid="stCheckbox"] {
+    display: flex !important; justify-content: center !important;
+}
+.st-key-ds_matris_panel [data-testid="stCheckbox"] span[aria-hidden="true"] {
+    border-radius: 50% !important; width: 17px !important; height: 17px !important;
+}
+.st-key-ds_matris_panel [data-testid="stCheckbox"] input:checked ~ span[aria-hidden="true"] {
+    background-color: var(--gb-accent) !important; border-color: var(--gb-accent) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1972,112 +1999,152 @@ DEPO_BLOK_LISTESI = [
 ]
 
 
-def _depo_blok_matrisi(hafta_gunleri, gun_isimleri):
+def _depo_sayim_kpi_seridi(gun_isolari, gun_dosyalari, blok_durumlari):
+    toplam_hucre = len(DEPO_BLOK_LISTESI) * len(gun_isolari)
+    isaretli_hucre = sum(1 for v in blok_durumlari.values() if v.get("sayildi"))
+    excel_yuklenen_gun = sum(1 for g in gun_isolari if gun_dosyalari.get(g))
+    tamamlanma = round(isaretli_hucre / toplam_hucre * 100) if toplam_hucre else 0
+    tamamlanma_sinif = "" if tamamlanma >= 100 else "warn"
+    st.markdown(f"""
+    <div class="gb-kpi-row-3">
+        <div class="gb-kpi-card">
+            <div class="gb-kpi-label">Bu Hafta İşaretlenen Blok</div>
+            <div class="gb-kpi-num">{isaretli_hucre} / {toplam_hucre}</div>
+            <div class="gb-kpi-sub">%{tamamlanma} tamamlandı</div>
+        </div>
+        <div class="gb-kpi-card">
+            <div class="gb-kpi-label">Excel Yüklenen Gün</div>
+            <div class="gb-kpi-num">{excel_yuklenen_gun} / {len(gun_isolari)}</div>
+            <div class="gb-kpi-sub">Bu haftaki 7 günden</div>
+        </div>
+        <div class="gb-kpi-card {tamamlanma_sinif}">
+            <div class="gb-kpi-label">Bekleyen Hücre</div>
+            <div class="gb-kpi-num">{toplam_hucre - isaretli_hucre}</div>
+            <div class="gb-kpi-sub {tamamlanma_sinif}">Henüz işaretlenmedi</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def _depo_blok_matrisi(hafta_gunleri, gun_isimleri, durumlar):
     """Blok/bölge x gün matrisi - excel'den bağımsız, personelin elle
     işaretlediği 'bu blok bu gün sayıldı' durumunu gösterir/günceller."""
-    st.markdown("**Blok / Bölge Sayım Matrisi**")
-    st.caption("Excel'de blok bilgisi olmadığı için, hangi bölgenin sayıldığını personel burada işaretler. Miktar/fark kontrolü excel detayından yapılır.")
+    with st.container(key="ds_matris_panel"):
+        st.markdown('<div class="ds-panel-title">Blok / Bölge Sayım Matrisi</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ds-panel-sub">Excel\'de blok bilgisi olmadığı için, hangi bölgenin sayıldığını personel burada işaretler. Miktar/fark kontrolü excel detayından yapılır.</div>', unsafe_allow_html=True)
 
-    personeller = db.personel_listele()
-    personel_adlari = [p["ad_soyad"] for p in personeller]
-    secilen_personel = st.selectbox(
-        "İşaretleyen personel", ["(Seçiniz)"] + personel_adlari, key="blok_matris_personel",
-    )
+        personeller = db.personel_listele()
+        personel_adlari = [p["ad_soyad"] for p in personeller]
+        secilen_personel = st.selectbox(
+            "İşaretleyen personel", ["(Seçiniz)"] + personel_adlari, key="blok_matris_personel",
+        )
 
-    gun_isolari = [g.isoformat() for g in hafta_gunleri]
-    durumlar = db.depo_sayim_blok_durumlari_getir(gun_isolari)
+        gun_isolari = [g.isoformat() for g in hafta_gunleri]
 
-    baslik_cols = st.columns([2.2] + [1] * 7)
-    baslik_cols[0].markdown("&nbsp;", unsafe_allow_html=True)
-    for col, isim, gun in zip(baslik_cols[1:], gun_isimleri, hafta_gunleri):
-        col.markdown(f"<div style='text-align:center;font-size:12.5px;font-weight:600;'>{isim[:3]}<br>{gun.strftime('%d.%m')}</div>", unsafe_allow_html=True)
-
-    for blok in DEPO_BLOK_LISTESI:
-        satir_cols = st.columns([2.2] + [1] * 7)
-        satir_cols[0].markdown(f"<div style='font-size:13px;padding-top:8px;'>{blok}</div>", unsafe_allow_html=True)
-        for col, gun_iso in zip(satir_cols[1:], gun_isolari):
-            durum = durumlar.get((gun_iso, blok), {})
-            sayildi_mevcut = bool(durum.get("sayildi"))
-            yardim = None
-            if sayildi_mevcut and durum.get("personel_adi"):
-                yardim = f"{durum['personel_adi']} işaretledi"
+        baslik_cols = st.columns([2.2] + [1] * 7)
+        baslik_cols[0].markdown("&nbsp;", unsafe_allow_html=True)
+        for col, isim, gun in zip(baslik_cols[1:], gun_isimleri, hafta_gunleri):
             with col:
-                yeni_deger = st.checkbox(
-                    blok, value=sayildi_mevcut, key=f"blok_durum_{gun_iso}_{blok}",
-                    label_visibility="collapsed", help=yardim,
-                )
-            if yeni_deger != sayildi_mevcut:
-                personel_kaydi = secilen_personel if secilen_personel != "(Seçiniz)" else None
-                db.depo_sayim_blok_durumu_isaretle(gun_iso, blok, yeni_deger, personel_kaydi)
-                st.rerun()
+                st.markdown(f'<div class="ds-gun-baslik">{isim[:3]}</div><div class="ds-gun-tarih">{gun.strftime("%d.%m")}</div>', unsafe_allow_html=True)
+
+        for blok in DEPO_BLOK_LISTESI:
+            satir_cols = st.columns([2.2] + [1] * 7)
+            satir_cols[0].markdown(f'<div class="ds-blok-adi">{blok}</div>', unsafe_allow_html=True)
+            for col, gun_iso in zip(satir_cols[1:], gun_isolari):
+                durum = durumlar.get((gun_iso, blok), {})
+                sayildi_mevcut = bool(durum.get("sayildi"))
+                yardim = None
+                if sayildi_mevcut and durum.get("personel_adi"):
+                    yardim = f"{durum['personel_adi']} işaretledi"
+                with col:
+                    yeni_deger = st.checkbox(
+                        blok, value=sayildi_mevcut, key=f"blok_durum_{gun_iso}_{blok}",
+                        label_visibility="collapsed", help=yardim,
+                    )
+                if yeni_deger != sayildi_mevcut:
+                    personel_kaydi = secilen_personel if secilen_personel != "(Seçiniz)" else None
+                    db.depo_sayim_blok_durumu_isaretle(gun_iso, blok, yeni_deger, personel_kaydi)
+                    st.rerun()
 
 
 def depo_sayim_bolumu():
-    st.subheader("Depo Sayım Fişleri")
-    st.caption("Depo sayımı haftalık programlanır — her gün deponun bir kısmı sayılır, hafta sonunda tüm depo sayılmış olur.")
+    st.markdown("""
+    <div class="gb-header-row">
+        <div>
+            <div class="gb-title">Depo Sayım Fişleri</div>
+            <div class="gb-eyebrow">Depo sayımı haftalık programlanır — her gün deponun bir kısmı sayılır, hafta sonunda tüm depo sayılmış olur.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    secili_tarih = st.date_input("Sayım Tarihi (Excel Yükleme)", value=date.today(), key="sayim_tarih")
-    if "sayim_uploader_key" not in st.session_state:
-        st.session_state.sayim_uploader_key = 0
-    yuklenen = st.file_uploader(
-        "Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"],
-        key=f"sayim_uploader_{st.session_state.sayim_uploader_key}",
-    )
-    if yuklenen is not None:
-        db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
-        st.session_state.sayim_uploader_key += 1
-        st.session_state.sayim_basarili_mesaj = f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')})."
-        st.rerun()
+    with st.container(key="ds_yukleme_panel"):
+        st.markdown('<div class="ds-panel-title">Günlük Sayım Excel Yükleme</div>', unsafe_allow_html=True)
+        c_tarih, c_dosya = st.columns([1, 2])
+        with c_tarih:
+            secili_tarih = st.date_input("Sayım Tarihi", value=date.today(), key="sayim_tarih")
+        with c_dosya:
+            if "sayim_uploader_key" not in st.session_state:
+                st.session_state.sayim_uploader_key = 0
+            yuklenen = st.file_uploader(
+                "Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"],
+                key=f"sayim_uploader_{st.session_state.sayim_uploader_key}",
+            )
+        if yuklenen is not None:
+            db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
+            st.session_state.sayim_uploader_key += 1
+            st.session_state.sayim_basarili_mesaj = f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')})."
+            st.rerun()
 
-    if st.session_state.get("sayim_basarili_mesaj"):
-        st.success(st.session_state.sayim_basarili_mesaj)
-        st.session_state.sayim_basarili_mesaj = None
-
-    st.markdown("---")
-    st.markdown("**Haftalık Sayım Takvimi**")
+        if st.session_state.get("sayim_basarili_mesaj"):
+            st.success(st.session_state.sayim_basarili_mesaj)
+            st.session_state.sayim_basarili_mesaj = None
 
     # secili_tarih'in içinde bulunduğu haftanın Pazartesi-Pazar günlerini bul
     hafta_baslangic = secili_tarih - timedelta(days=secili_tarih.weekday())
     gun_isimleri = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
     hafta_gunleri = [hafta_baslangic + timedelta(days=i) for i in range(7)]
+    gun_isolari = [g.isoformat() for g in hafta_gunleri]
 
-    notlar = db.sayim_notlari_getir([g.isoformat() for g in hafta_gunleri])
+    notlar = db.sayim_notlari_getir(gun_isolari)
+    blok_durumlari = db.depo_sayim_blok_durumlari_getir(gun_isolari)
 
     if "sayim_secili_gun" not in st.session_state:
         st.session_state.sayim_secili_gun = None
 
-    baslik_cols = st.columns(7)
-    for col, isim in zip(baslik_cols, gun_isimleri):
-        col.markdown(f"**{isim}**")
-
-    gun_cols = st.columns(7)
     gun_dosyalari = {}
-    gun_otomatik_sayimlar = {}
-    for col, gun, isim in zip(gun_cols, hafta_gunleri, gun_isimleri):
-        with col:
-            kayitlar = db.depo_sayim_getir(gun.isoformat())
-            gun_dosyalari[gun.isoformat()] = kayitlar
-            tik = "✅" if kayitlar else "⬜"
-            etiket = f"{tik}\n{gun.strftime('%d.%m')}"
-            if st.button(etiket, key=f"gun_btn_{gun.isoformat()}", use_container_width=True):
-                st.session_state.sayim_secili_gun = gun.isoformat()
-                st.session_state.sayim_secili_tur = "excel"
+    with st.container(key="ds_takvim_panel"):
+        st.markdown('<div class="ds-panel-title">Haftalık Sayım Takvimi</div>', unsafe_allow_html=True)
+        baslik_cols = st.columns(7)
+        for col, isim in zip(baslik_cols, gun_isimleri):
+            col.markdown(f"**{isim}**")
 
-            otomatik = db.stok_sayim_oturumlari_getir(gun.isoformat())
-            gun_otomatik_sayimlar[gun.isoformat()] = otomatik
-            otomatik_tik = "🟢" if otomatik else "⚪"
-            if st.button(f"{otomatik_tik}\nOtomatik sayım", key=f"gun_oto_btn_{gun.isoformat()}", use_container_width=True):
-                st.session_state.sayim_secili_gun = gun.isoformat()
-                st.session_state.sayim_secili_tur = "otomatik"
+        gun_cols = st.columns(7)
+        gun_otomatik_sayimlar = {}
+        for col, gun, isim in zip(gun_cols, hafta_gunleri, gun_isimleri):
+            with col:
+                kayitlar = db.depo_sayim_getir(gun.isoformat())
+                gun_dosyalari[gun.isoformat()] = kayitlar
+                tik = "✅" if kayitlar else "⬜"
+                etiket = f"{tik}\n{gun.strftime('%d.%m')}"
+                if st.button(etiket, key=f"gun_btn_{gun.isoformat()}", use_container_width=True):
+                    st.session_state.sayim_secili_gun = gun.isoformat()
+                    st.session_state.sayim_secili_tur = "excel"
 
-            not_mevcut = notlar.get(gun.isoformat(), "")
-            yeni_not = st.text_input("Not", value=not_mevcut, key=f"not_{gun.isoformat()}", label_visibility="collapsed",
-                                      placeholder="Not ekle...")
-            if yeni_not != not_mevcut:
-                db.sayim_not_kaydet(gun.isoformat(), yeni_not)
+                otomatik = db.stok_sayim_oturumlari_getir(gun.isoformat())
+                gun_otomatik_sayimlar[gun.isoformat()] = otomatik
+                otomatik_tik = "🟢" if otomatik else "⚪"
+                if st.button(f"{otomatik_tik}\nOtomatik sayım", key=f"gun_oto_btn_{gun.isoformat()}", use_container_width=True):
+                    st.session_state.sayim_secili_gun = gun.isoformat()
+                    st.session_state.sayim_secili_tur = "otomatik"
 
-    st.markdown("---")
-    _depo_blok_matrisi(hafta_gunleri, gun_isimleri)
+                not_mevcut = notlar.get(gun.isoformat(), "")
+                yeni_not = st.text_input("Not", value=not_mevcut, key=f"not_{gun.isoformat()}", label_visibility="collapsed",
+                                          placeholder="Not ekle...")
+                if yeni_not != not_mevcut:
+                    db.sayim_not_kaydet(gun.isoformat(), yeni_not)
+
+    _depo_sayim_kpi_seridi(gun_isolari, gun_dosyalari, blok_durumlari)
+    _depo_blok_matrisi(hafta_gunleri, gun_isimleri, blok_durumlari)
 
     st.markdown("---")
     secili_gun = st.session_state.sayim_secili_gun
