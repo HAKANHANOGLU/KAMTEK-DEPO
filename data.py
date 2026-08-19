@@ -52,8 +52,9 @@ PRICING = {
         "logo": "yurtici_logo.jpg",
         "tiers": [
             (1, 5, 125), (6, 10, 160), (11, 15, 185), (16, 20, 235), (21, 30, 320),
+            (31, 35, 350),
         ],
-        "artan_desi": 10.6,
+        "artan_desi": 9.8,
         "iller": "ALL",
     },
 }
