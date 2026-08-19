@@ -2889,7 +2889,7 @@ def _iade_karti(iade):
             bg, fg = "#FAEEDA", "#854F0B"
         durum_etiket = "Bekliyor"
 
-    baslik = f"{iade['firma_adi']} — {iade['urun_adi']} ({iade.get('adet') or '?'} adet) — {tarih_str}"
+    baslik = f"{iade['urun_adi']} ({iade.get('adet') or '?'} adet)"
     guvenli_baslik = html.escape(baslik)
     cizgi = (
         "text-decoration:line-through;text-decoration-color:#111111;text-decoration-thickness:2px;"
@@ -2903,9 +2903,13 @@ def _iade_karti(iade):
         unsafe_allow_html=True,
     )
 
+    # Seri numaraları AYRI SATIRLARDA (virgülle değil) - kopyalayıp başka bir
+    # programa yapıştırırken alt alta olması gerekiyor. st.code kutusunun
+    # sağ üstünde otomatik bir kopyala düğmesi olduğu için bu amaca uygun.
     seriler = [s.strip() for s in (iade.get("seri_numaralari") or "").splitlines() if s.strip()]
     if seriler:
-        st.caption("Seri numaraları: " + ", ".join(seriler))
+        st.caption(f"Seri numaraları ({len(seriler)} adet):")
+        st.code("\n".join(seriler), language=None)
 
     c1, c2, c3 = st.columns(3)
     if durum != "Kabul Edildi":
@@ -3024,8 +3028,29 @@ def sayfa_iade():
         st.info("Henüz iade kaydı yok.")
         return
 
+    # Firma bazlı grupla (her firma tıklanınca açılıp kapanan bir şablon),
+    # firma içinde de tarihe göre (o firmadan hangi gün ne geldiği ayrı ayrı
+    # görünsün diye) - "11 Ağustos'taki Algatech iadesi" gibi.
+    firma_gruplari = {}
     for iade in iadeler:
-        _iade_karti(iade)
+        firma_gruplari.setdefault(iade["firma_adi"], {}).setdefault(iade.get("tarih") or "", []).append(iade)
+
+    for firma, tarih_gruplari in firma_gruplari.items():
+        tum_satirlar = [i for satirlar in tarih_gruplari.values() for i in satirlar]
+        toplam_urun = len(tum_satirlar)
+        bekleyen = sum(1 for i in tum_satirlar if i.get("durum") != "Kabul Edildi")
+        baslik = f"🏢 {firma}  —  {toplam_urun} ürün" + (f", {bekleyen} bekliyor" if bekleyen else "")
+        with st.expander(baslik):
+            for tarih_iso in sorted(tarih_gruplari.keys(), reverse=True):
+                satirlar = tarih_gruplari[tarih_iso]
+                try:
+                    g = date.fromisoformat(tarih_iso)
+                    tarih_okunur = f"{g.day} {_KL_AY_ISIMLERI[g.month - 1]} {g.year}"
+                except ValueError:
+                    tarih_okunur = tarih_iso or "Tarihsiz"
+                st.markdown(f"**{tarih_okunur} tarihli {firma} iadesi** ({len(satirlar)} ürün)")
+                for iade in satirlar:
+                    _iade_karti(iade)
 
 
 # ------------------------------------------------------------------
