@@ -764,6 +764,9 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
     background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
     border-radius: 10px !important; padding: 18px 20px 14px 20px !important; margin-bottom: 16px !important;
 }
+.st-key-ds_yukleme_panel {
+    border-top: 3px solid var(--gb-accent) !important; border-left: 3px solid var(--gb-info) !important;
+}
 /* Matris ve Son İşlemler panelleri aynı st.columns satırında, alt-üst
    hizalı dursun diye - flex satırının varsayılan "stretch" davranışından
    yararlanıp ikisini de %100 yükseklik yapıyoruz, içerik miktarı (13 blok
@@ -814,7 +817,14 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 .st-key-ds_rapor_tile {
     background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
     border-left: 3px solid var(--gb-violet) !important; border-radius: 10px !important;
-    padding: 0 !important; height: 100%;
+    padding: 0 !important; height: 100%; box-sizing: border-box;
+}
+/* KPI kartları yüzde yükseklik zincirinden (auto yükseklikli ara
+   sarmalayıcılar yüzünden height:100% etkisiz kalıyordu) etkilenmesin diye
+   Haftalık Rapor kutusuyla AYNI sabit min-height'a sabitleniyor - böylece
+   5 kutu da hem üstten hem alttan tam hizalı duruyor. */
+div[data-testid="stHorizontalBlock"]:has(.st-key-ds_rapor_tile) .gb-kpi-card {
+    min-height: 96px; box-sizing: border-box; margin: 0;
 }
 .st-key-ds_rapor_tile div[data-testid="stButton"] button {
     width: 100% !important; height: 100% !important; min-height: 96px !important;
@@ -2230,7 +2240,8 @@ def depo_sayim_bolumu():
     </div>
     """, unsafe_allow_html=True)
 
-    with st.container(key="ds_yukleme_panel"):
+    ds_yukleme_kolon, _ = st.columns([1, 1])
+    with ds_yukleme_kolon, st.container(key="ds_yukleme_panel"):
         st.markdown('<div class="ds-panel-title">Günlük Sayım Excel Yükleme</div>', unsafe_allow_html=True)
         c_tarih, c_dosya = st.columns([1, 2])
         with c_tarih:
