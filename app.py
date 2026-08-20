@@ -2400,6 +2400,12 @@ def depo_sayim_bolumu():
 
     gun_str = datetime.fromisoformat(secili_gun).strftime("%d.%m.%Y")
 
+    c_detay_baslik, c_detay_kapat = st.columns([6, 1])
+    c_detay_baslik.markdown(f"**{gun_str} — Sayım Detayı**")
+    if c_detay_kapat.button("✕ Kapat", key="sayim_detay_kapat_btn"):
+        st.session_state.sayim_secili_gun = None
+        st.rerun()
+
     if secili_tur == "otomatik":
         otomatik = gun_otomatik_sayimlar.get(secili_gun, db.stok_sayim_oturumlari_getir(secili_gun))
         if not otomatik:
