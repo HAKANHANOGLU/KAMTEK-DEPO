@@ -952,14 +952,20 @@ if not st.session_state.giris_yapildi:
     _logo_b64 = _img_b64("kamtek_logo.png")
     st.markdown("""
     <style>
+    html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; overflow: hidden !important; }
     header[data-testid="stHeader"] { display: none !important; }
-    [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main {
+    .stApp, [data-testid="stAppViewContainer"] {
+        height: 100vh !important; max-height: 100vh !important; overflow: hidden !important;
         padding: 0 !important; margin: 0 !important;
     }
-    .block-container, [data-testid="stMainBlockContainer"] {
-        padding: 0 !important; margin: 0 !important; max-width: 100% !important;
+    [data-testid="stAppViewContainer"] > .main {
+        height: 100vh !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important;
     }
-    div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
+    .block-container, [data-testid="stMainBlockContainer"] {
+        height: 100vh !important; padding: 0 !important; margin: 0 !important; max-width: 100% !important; overflow: hidden !important;
+    }
+    div[data-testid="stHorizontalBlock"] { gap: 0 !important; height: 100vh !important; }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] { height: 100vh !important; }
     .giris-marka-baslik { color: #FFFFFF !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -967,7 +973,7 @@ if not st.session_state.giris_yapildi:
     with col_marka:
         logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="display:block;height:34px;width:auto;">' if _logo_b64 else '<div class="disp" style="font-size:20px;font-weight:700;color:#122036;">KAMTEK</div>'
         st.markdown(f"""
-        <div style="background:#122036;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 60px;position:relative;overflow:hidden;">
+        <div style="background:#122036;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 60px;position:relative;overflow:hidden;">
             <svg style="position:absolute;top:-40px;right:-60px;opacity:.5;" width="260" height="260" viewBox="0 0 24 24" fill="none" stroke="#1B3355" stroke-width="1"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <div style="background:#fff;border-radius:12px;padding:16px 20px;display:inline-block;margin-bottom:22px;z-index:1;width:fit-content;">
                 {logo_html}
