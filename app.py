@@ -824,23 +824,16 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 .ds-log-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--gb-accent); }
 .ds-log-text { font-size: 12.5px; color: var(--gb-text-dark); line-height: 1.4; }
 .ds-log-alt { font-size: 11px; color: var(--gb-text-soft); margin-top: 2px; }
-/* KPI şeridindeki 5. kutu ("Haftalık Rapor") - diğer KPI kartlarıyla aynı
-   yükseklik/hizada, ama gerçek bir st.button - tıklanınca rapor tablosu
-   altta açılıp kapanıyor. */
+/* Son İşlemler panelinin üstündeki "Haftalık Rapor" kutusu - gerçek bir
+   st.button, tıklanınca sayfanın altında rapor tablosu açılıp kapanıyor.
+   Son İşlemler paneliyle aynı genişlikte, kendi sütununda üstte duruyor. */
 .st-key-ds_rapor_tile {
     background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
     border-left: 3px solid var(--gb-violet) !important; border-radius: 10px !important;
-    padding: 0 !important; height: 100%; box-sizing: border-box;
-}
-/* KPI kartları yüzde yükseklik zincirinden (auto yükseklikli ara
-   sarmalayıcılar yüzünden height:100% etkisiz kalıyordu) etkilenmesin diye
-   Haftalık Rapor kutusuyla AYNI sabit min-height'a sabitleniyor - böylece
-   5 kutu da hem üstten hem alttan tam hizalı duruyor. */
-div[data-testid="stHorizontalBlock"]:has(.st-key-ds_rapor_tile) .gb-kpi-card {
-    min-height: 96px; box-sizing: border-box; margin: 0;
+    padding: 0 !important; margin-bottom: 16px !important; box-sizing: border-box;
 }
 .st-key-ds_rapor_tile div[data-testid="stButton"] button {
-    width: 100% !important; height: 100% !important; min-height: 96px !important;
+    width: 100% !important; min-height: 90px !important;
     background: transparent !important; border: none !important; box-shadow: none !important;
     display: flex !important; flex-direction: column !important; align-items: flex-start !important;
     justify-content: center !important; padding: 16px !important; text-align: left !important;
@@ -2117,9 +2110,7 @@ def _depo_sayim_toplam_fark(gun_dosyalari):
 
 
 def _depo_sayim_kpi_seridi(kolonlar, hafta_gunleri, gun_dosyalari, blok_durumlari):
-    """4 KPI kartını verilen 4 Streamlit sütununa çizer (5. sütuna - Haftalık
-    Rapor kutusuna - çağıran taraf kendi gerçek butonunu koyuyor, bu yüzden
-    burada değil)."""
+    """3 KPI kartını verilen 3 Streamlit sütununa çizer."""
     toplam_blok = len(DEPO_BLOK_LISTESI)
     # Blok listesi ileride yeniden adlandırılırsa DB'de eski isimle kalmış
     # "yetim" kayıtlar burada sayılmasın diye güncel listeyle kesişim alınıyor.
@@ -2128,22 +2119,11 @@ def _depo_sayim_kpi_seridi(kolonlar, hafta_gunleri, gun_dosyalari, blok_durumlar
         if v.get("sayildi") and blok in DEPO_BLOK_LISTESI
     }
     tamamlanma = round(len(bloklar_sayildi) / toplam_blok * 100) if toplam_blok else 0
-
-    # Her blok haftada sadece BİR kez sayılıyor, hangi gün önemli değil - bu
-    # yüzden "gecikme" günlük hücre bazında değil, haftanın büyük kısmı
-    # geçtiği halde (Cuma'dan itibaren) hâlâ hiç işaretlenmemiş bloklar
-    # üzerinden hesaplanıyor.
-    hafta_baslangic = hafta_gunleri[0]
-    bugun = date.today()
-    hafta_gec_kaldi = bugun >= hafta_baslangic + timedelta(days=4)
-    gecikte = (toplam_blok - len(bloklar_sayildi)) if hafta_gec_kaldi else 0
-
     toplam_fark = _depo_sayim_toplam_fark(gun_dosyalari)
 
     kartlar = [
         ("", "Bu Hafta Sayılan Blok", f"{len(bloklar_sayildi)} / {toplam_blok}", "En az bir kez işaretlenen blok", ""),
         ("info", "Tamamlanma Oranı", f"%{tamamlanma}", f"{len(bloklar_sayildi)} / {toplam_blok} blok sayıldı", "info"),
-        ("danger", "Gecikmede Olan", f"{gecikte}", "Hafta sonuna yaklaşıldı, hâlâ sayılmadı", "danger"),
         ("warn", "Toplam Fark", f"{toplam_fark:+.0f}", "Bu hafta yüklenen excel'lere göre", "warn"),
     ]
     for kol, (kart_sinif, etiket, deger, alt, alt_sinif) in zip(kolonlar, kartlar):
@@ -2308,23 +2288,28 @@ def depo_sayim_bolumu():
     if "ds_rapor_acik" not in st.session_state:
         st.session_state.ds_rapor_acik = False
 
-    kpi_kolonlari = st.columns(5)
-    _depo_sayim_kpi_seridi(kpi_kolonlari[:4], hafta_gunleri, gun_dosyalari, blok_durumlari)
-    with kpi_kolonlari[4]:
-        with st.container(key="ds_rapor_tile"):
-            if st.button("Haftalık Rapor\nDetaylı tabloyu aç/kapat", key="ds_rapor_ac_btn", use_container_width=True):
-                st.session_state.ds_rapor_acik = not st.session_state.ds_rapor_acik
-
-    if st.session_state.ds_rapor_acik:
-        with st.container(key="ds_rapor_panel"):
-            st.markdown('<div class="ds-panel-title">Haftalık Rapor</div>', unsafe_allow_html=True)
-            _haftalik_rapor_icerik()
+    # Başlığın sağındaki (yükleme paneliyle aynı sırada kalan) boş alanı
+    # doldurmak için 3 KPI kartı, başlıkla aynı genişlikteki sol sütuna
+    # yerleştiriliyor - sağ taraf bu satırda boş kalıyor (üstteki yükleme
+    # paneli zaten o alanı kaplıyor).
+    kpi_sol_kolon, _ = st.columns([1.4, 1])
+    with kpi_sol_kolon:
+        kpi_kolonlari = st.columns(3)
+        _depo_sayim_kpi_seridi(kpi_kolonlari, hafta_gunleri, gun_dosyalari, blok_durumlari)
 
     col_matris, col_son_islemler = st.columns([2.4, 1])
     with col_matris:
         _depo_blok_matrisi(hafta_gunleri, blok_durumlari, gun_dosyalari)
     with col_son_islemler:
+        with st.container(key="ds_rapor_tile"):
+            if st.button("Haftalık Rapor\nDetaylı tabloyu aç/kapat", key="ds_rapor_ac_btn", use_container_width=True):
+                st.session_state.ds_rapor_acik = not st.session_state.ds_rapor_acik
         _depo_sayim_son_islemler(gun_isolari, gun_dosyalari, blok_durumlari)
+
+    if st.session_state.ds_rapor_acik:
+        with st.container(key="ds_rapor_panel"):
+            st.markdown('<div class="ds-panel-title">Haftalık Rapor</div>', unsafe_allow_html=True)
+            _haftalik_rapor_icerik()
 
     with st.container(key="ds_takvim_panel"):
         st.markdown('<div class="ds-panel-title">Haftalık Sayım Takvimi</div>', unsafe_allow_html=True)
