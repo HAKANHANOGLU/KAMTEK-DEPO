@@ -764,12 +764,22 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
     background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
     border-radius: 10px !important; padding: 18px 20px 14px 20px !important; margin-bottom: 16px !important;
 }
-.st-key-ds_matris_panel, .st-key-ds_son_islemler_panel { min-height: 470px !important; }
-.st-key-ds_rapor_panel { border-left: 3px solid var(--gb-violet) !important; }
+/* Matris ve Son İşlemler panelleri aynı st.columns satırında, alt-üst
+   hizalı dursun diye - flex satırının varsayılan "stretch" davranışından
+   yararlanıp ikisini de %100 yükseklik yapıyoruz, içerik miktarı (13 blok
+   satırı vs. birkaç log satırı) farklı olsa bile en uzun olana eşitleniyor. */
+div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-testid="column"] {
+    display: flex !important;
+}
+.st-key-ds_son_islemler_panel, .st-key-ds_matris_panel { height: 100% !important; width: 100%; }
+.st-key-ds_matris_panel {
+    border-top: 3px solid var(--gb-violet) !important; border-left: 3px solid var(--gb-accent) !important;
+}
 .ds-panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; color: var(--gb-text-dark); margin-bottom: 10px; }
 .ds-panel-sub { font-size: 12px; color: var(--gb-text-soft); margin-top: -6px; margin-bottom: 14px; }
 .ds-gun-baslik { text-align: center; font-size: 12px; font-weight: 600; color: var(--gb-text-mid); }
-.ds-gun-tarih { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--gb-text-soft); margin-bottom: 4px; }
+.ds-gun-tarih { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--gb-text-soft); }
+.ds-gun-excel { display: flex; justify-content: center; margin-top: 3px; margin-bottom: 4px; height: 12px; }
 .ds-blok-adi { font-size: 13px; color: var(--gb-text-dark); padding-top: 6px; }
 .st-key-ds_takvim_panel div[data-testid="stButton"] button {
     border: 1px solid var(--gb-border) !important; border-radius: 6px !important; font-size: 12px !important;
@@ -784,9 +794,18 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 [class*="st-key-ds_blokrow_"] [data-testid="column"] {
     display: flex !important; align-items: center !important;
 }
+/* Gün başlıkları (Pzt/Sal/...) ile altındaki işaretleme kutucuğu aynı
+   dikey eksende hizalı dursun diye HEM başlık hücresi HEM checkbox hücresi
+   sütun genişliği boyunca ortalanıyor. */
+.st-key-ds_matris_panel [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+    display: flex !important; flex-direction: column !important; align-items: center !important;
+}
 .st-key-ds_matris_panel [data-testid="stCheckbox"] {
     display: flex !important; justify-content: center !important; align-items: center !important;
-    min-height: 38px !important;
+    width: 100% !important; min-height: 38px !important;
+}
+.st-key-ds_matris_panel [data-testid="stCheckbox"] > label {
+    justify-content: center !important;
 }
 .st-key-ds_matris_panel [data-testid="stCheckbox"] span[aria-hidden="true"] {
     border-radius: 50% !important; width: 17px !important; height: 17px !important;
@@ -799,6 +818,25 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 .ds-log-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--gb-accent); }
 .ds-log-text { font-size: 12.5px; color: var(--gb-text-dark); line-height: 1.4; }
 .ds-log-alt { font-size: 11px; color: var(--gb-text-soft); margin-top: 2px; }
+/* KPI şeridindeki 5. kutu ("Haftalık Rapor") - diğer KPI kartlarıyla aynı
+   yükseklik/hizada, ama gerçek bir st.button - tıklanınca rapor tablosu
+   altta açılıp kapanıyor. */
+.st-key-ds_rapor_tile {
+    background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
+    border-left: 3px solid var(--gb-violet) !important; border-radius: 10px !important;
+    padding: 0 !important; height: 100%;
+}
+.st-key-ds_rapor_tile div[data-testid="stButton"] button {
+    width: 100% !important; height: 100% !important; min-height: 96px !important;
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    display: flex !important; flex-direction: column !important; align-items: flex-start !important;
+    justify-content: center !important; padding: 16px !important; text-align: left !important;
+    white-space: pre-line !important;
+}
+.st-key-ds_rapor_tile div[data-testid="stButton"] button p {
+    font-family: 'Space Grotesk', sans-serif !important; font-size: 15px !important; font-weight: 600 !important;
+    color: var(--gb-text-dark) !important; white-space: pre-line !important; text-align: left !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -2018,16 +2056,25 @@ def _haftalik_rapor_icerik():
     )
 
 
-# Blok/bölge adları GEÇİCİ örnek isimler - gerçek depo bölümlerine göre
-# güncellenecek. Excel'de blok bilgisi yok, bu yüzden hangi bölgenin
-# sayıldığı bu listeye göre personel tarafından elle işaretlenir.
+# Excel'de blok bilgisi yok, bu yüzden hangi bölgenin sayıldığı bu listeye
+# göre personel tarafından elle işaretlenir. Her blok haftada bir kez
+# sayılıyor (hangi gün sayıldığı önemli değil, sayım işi haftanın
+# günlerine bölünüyor) - bu yüzden tamamlanma oranı hücre sayısına değil,
+# en az bir gün işaretlenmiş DİSTİNCT blok sayısına göre hesaplanıyor.
 DEPO_BLOK_LISTESI = [
-    "A Blok - Raf 1-8",
-    "A Blok - Raf 9-16",
-    "B Blok - Raf 1-8",
-    "B Blok - Raf 9-16",
-    "C Blok - Raf 1-6",
-    "Soğuk Hava Deposu",
+    "Ip",
+    "Analog",
+    "Intercom",
+    "Alarm",
+    "Kablo",
+    "Monitör",
+    "Raf",
+    "Speed Dome",
+    "Araç Cam",
+    "Honeywell",
+    "Tplink",
+    "Mutlusan",
+    "Reçber",
 ]
 
 
@@ -2049,44 +2096,40 @@ def _depo_sayim_toplam_fark(gun_dosyalari):
     return toplam
 
 
-def _depo_sayim_kpi_seridi(gun_isolari, gun_dosyalari, blok_durumlari):
-    toplam_hucre = len(DEPO_BLOK_LISTESI) * len(gun_isolari)
-    isaretli_hucre = sum(1 for v in blok_durumlari.values() if v.get("sayildi"))
+def _depo_sayim_kpi_seridi(kolonlar, hafta_gunleri, gun_dosyalari, blok_durumlari):
+    """4 KPI kartını verilen 4 Streamlit sütununa çizer (5. sütuna - Haftalık
+    Rapor kutusuna - çağıran taraf kendi gerçek butonunu koyuyor, bu yüzden
+    burada değil)."""
+    toplam_blok = len(DEPO_BLOK_LISTESI)
     bloklar_sayildi = {blok for (g, blok), v in blok_durumlari.items() if v.get("sayildi")}
-    tamamlanma = round(isaretli_hucre / toplam_hucre * 100) if toplam_hucre else 0
+    tamamlanma = round(len(bloklar_sayildi) / toplam_blok * 100) if toplam_blok else 0
 
-    bugun_iso = date.today().isoformat()
-    gecikte = sum(
-        1 for gun_iso in gun_isolari if gun_iso < bugun_iso
-        for blok in DEPO_BLOK_LISTESI
-        if not blok_durumlari.get((gun_iso, blok), {}).get("sayildi")
-    )
+    # Her blok haftada sadece BİR kez sayılıyor, hangi gün önemli değil - bu
+    # yüzden "gecikme" günlük hücre bazında değil, haftanın büyük kısmı
+    # geçtiği halde (Cuma'dan itibaren) hâlâ hiç işaretlenmemiş bloklar
+    # üzerinden hesaplanıyor.
+    hafta_baslangic = hafta_gunleri[0]
+    bugun = date.today()
+    hafta_gec_kaldi = bugun >= hafta_baslangic + timedelta(days=4)
+    gecikte = (toplam_blok - len(bloklar_sayildi)) if hafta_gec_kaldi else 0
+
     toplam_fark = _depo_sayim_toplam_fark(gun_dosyalari)
 
-    st.markdown(f"""
-    <div class="gb-kpi-row-4">
-        <div class="gb-kpi-card">
-            <div class="gb-kpi-label">Bu Hafta Sayılan Blok</div>
-            <div class="gb-kpi-num">{len(bloklar_sayildi)} / {len(DEPO_BLOK_LISTESI)}</div>
-            <div class="gb-kpi-sub">En az bir gün işaretlenen blok</div>
-        </div>
-        <div class="gb-kpi-card info">
-            <div class="gb-kpi-label">Tamamlanma Oranı</div>
-            <div class="gb-kpi-num">%{tamamlanma}</div>
-            <div class="gb-kpi-sub info">{isaretli_hucre} / {toplam_hucre} hücre işaretlendi</div>
-        </div>
-        <div class="gb-kpi-card danger">
-            <div class="gb-kpi-label">Gecikmede Olan</div>
-            <div class="gb-kpi-num">{gecikte}</div>
-            <div class="gb-kpi-sub danger">Günü geçmiş, işaretlenmemiş hücre</div>
-        </div>
-        <div class="gb-kpi-card warn">
-            <div class="gb-kpi-label">Toplam Fark</div>
-            <div class="gb-kpi-num">{toplam_fark:+.0f}</div>
-            <div class="gb-kpi-sub warn">Bu hafta yüklenen excel'lere göre</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    kartlar = [
+        ("", "Bu Hafta Sayılan Blok", f"{len(bloklar_sayildi)} / {toplam_blok}", "En az bir kez işaretlenen blok", ""),
+        ("info", "Tamamlanma Oranı", f"%{tamamlanma}", f"{len(bloklar_sayildi)} / {toplam_blok} blok sayıldı", "info"),
+        ("danger", "Gecikmede Olan", f"{gecikte}", "Hafta sonuna yaklaşıldı, hâlâ sayılmadı", "danger"),
+        ("warn", "Toplam Fark", f"{toplam_fark:+.0f}", "Bu hafta yüklenen excel'lere göre", "warn"),
+    ]
+    for kol, (kart_sinif, etiket, deger, alt, alt_sinif) in zip(kolonlar, kartlar):
+        with kol:
+            st.markdown(f"""
+            <div class="gb-kpi-card {kart_sinif}" style="height:100%;">
+                <div class="gb-kpi-label">{etiket}</div>
+                <div class="gb-kpi-num">{deger}</div>
+                <div class="gb-kpi-sub {alt_sinif}">{alt}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 def _depo_sayim_son_islemler(gun_isolari, gun_dosyalari, blok_durumlari):
@@ -2125,26 +2168,33 @@ def _depo_sayim_son_islemler(gun_isolari, gun_dosyalari, blok_durumlari):
             st.markdown(satirlar, unsafe_allow_html=True)
 
 
-def _depo_blok_matrisi(hafta_gunleri, gun_isimleri, durumlar):
+_EXCEL_YUKLENDI_IKON = (
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1E7F72" stroke-width="2.4">'
+    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+    '<path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/></svg>'
+)
+
+
+def _depo_blok_matrisi(hafta_gunleri, durumlar, gun_dosyalari):
     """Blok/bölge x gün matrisi - excel'den bağımsız, personelin elle
     işaretlediği 'bu blok bu gün sayıldı' durumunu gösterir/günceller."""
     with st.container(key="ds_matris_panel"):
         st.markdown('<div class="ds-panel-title">Haftalık Durum Matrisi</div>', unsafe_allow_html=True)
         st.markdown('<div class="ds-panel-sub">Excel\'de blok bilgisi olmadığı için, hangi bölgenin sayıldığını personel burada işaretler. Miktar/fark kontrolü excel detayından yapılır.</div>', unsafe_allow_html=True)
 
-        personeller = db.personel_listele()
-        personel_adlari = [p["ad_soyad"] for p in personeller]
-        secilen_personel = st.selectbox(
-            "İşaretleyen personel", ["(Seçiniz)"] + personel_adlari, key="blok_matris_personel",
-        )
-
         gun_isolari = [g.isoformat() for g in hafta_gunleri]
 
         baslik_cols = st.columns([2.2] + [1] * 7)
         baslik_cols[0].markdown("&nbsp;", unsafe_allow_html=True)
-        for col, kisaltma, gun in zip(baslik_cols[1:], DEPO_GUN_KISALTMA, hafta_gunleri):
+        for col, kisaltma, gun, gun_iso in zip(baslik_cols[1:], DEPO_GUN_KISALTMA, hafta_gunleri, gun_isolari):
             with col:
-                st.markdown(f'<div class="ds-gun-baslik">{kisaltma}</div><div class="ds-gun-tarih">{gun.strftime("%d.%m")}</div>', unsafe_allow_html=True)
+                excel_ikon = _EXCEL_YUKLENDI_IKON if gun_dosyalari.get(gun_iso) else ""
+                st.markdown(
+                    f'<div class="ds-gun-baslik">{kisaltma}</div>'
+                    f'<div class="ds-gun-tarih">{gun.strftime("%d.%m")}</div>'
+                    f'<div class="ds-gun-excel">{excel_ikon}</div>',
+                    unsafe_allow_html=True,
+                )
 
         for i, blok in enumerate(DEPO_BLOK_LISTESI):
             with st.container(key=f"ds_blokrow_{i}"):
@@ -2154,17 +2204,13 @@ def _depo_blok_matrisi(hafta_gunleri, gun_isimleri, durumlar):
                 for col, gun_iso in zip(satir_cols[1:], gun_isolari):
                     durum = durumlar.get((gun_iso, blok), {})
                     sayildi_mevcut = bool(durum.get("sayildi"))
-                    yardim = None
-                    if sayildi_mevcut and durum.get("personel_adi"):
-                        yardim = f"{durum['personel_adi']} işaretledi"
                     with col:
                         yeni_deger = st.checkbox(
                             blok, value=sayildi_mevcut, key=f"blok_durum_{gun_iso}_{blok}",
-                            label_visibility="collapsed", help=yardim,
+                            label_visibility="collapsed",
                         )
                     if yeni_deger != sayildi_mevcut:
-                        personel_kaydi = secilen_personel if secilen_personel != "(Seçiniz)" else None
-                        db.depo_sayim_blok_durumu_isaretle(gun_iso, blok, yeni_deger, personel_kaydi)
+                        db.depo_sayim_blok_durumu_isaretle(gun_iso, blok, yeni_deger, None)
                         st.rerun()
 
 
@@ -2213,15 +2259,24 @@ def depo_sayim_bolumu():
     if "sayim_secili_gun" not in st.session_state:
         st.session_state.sayim_secili_gun = None
 
-    _depo_sayim_kpi_seridi(gun_isolari, gun_dosyalari, blok_durumlari)
+    if "ds_rapor_acik" not in st.session_state:
+        st.session_state.ds_rapor_acik = False
 
-    with st.container(key="ds_rapor_panel"):
-        st.markdown('<div class="ds-panel-title">Haftalık Rapor</div>', unsafe_allow_html=True)
-        _haftalik_rapor_icerik()
+    kpi_kolonlari = st.columns(5)
+    _depo_sayim_kpi_seridi(kpi_kolonlari[:4], hafta_gunleri, gun_dosyalari, blok_durumlari)
+    with kpi_kolonlari[4]:
+        with st.container(key="ds_rapor_tile"):
+            if st.button("Haftalık Rapor\nDetaylı tabloyu aç/kapat", key="ds_rapor_ac_btn", use_container_width=True):
+                st.session_state.ds_rapor_acik = not st.session_state.ds_rapor_acik
+
+    if st.session_state.ds_rapor_acik:
+        with st.container(key="ds_rapor_panel"):
+            st.markdown('<div class="ds-panel-title">Haftalık Rapor</div>', unsafe_allow_html=True)
+            _haftalik_rapor_icerik()
 
     col_matris, col_son_islemler = st.columns([2.4, 1])
     with col_matris:
-        _depo_blok_matrisi(hafta_gunleri, gun_isimleri, blok_durumlari)
+        _depo_blok_matrisi(hafta_gunleri, blok_durumlari, gun_dosyalari)
     with col_son_islemler:
         _depo_sayim_son_islemler(gun_isolari, gun_dosyalari, blok_durumlari)
 
