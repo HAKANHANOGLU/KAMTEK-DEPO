@@ -96,6 +96,32 @@ def depo_sayim_getir(tarih: str):
     return sonuc
 
 
+def depo_sayim_getir_coklu(gunler: list):
+    """depo_sayim_getir'in haftalık versiyonu - 7 ayrı istek yerine TEK
+    istekle tüm günlerin dosyalarını çekip {tarih: [kayıt, ...]} olarak
+    gruplar. Haftalık Durum Matrisi'ndeki her checkbox tıklamasında sayfa
+    yeniden çalıştığı için bu tek istek gecikmeyi belirgin şekilde azaltır."""
+    if not gunler:
+        return {}
+    tarih_listesi = ",".join(gunler)
+    params = {
+        "tarih": f"in.({tarih_listesi})",
+        "select": "id,tarih,dosya_adi,dosya_icerik_b64,yuklenme_zamani",
+        "order": "id",
+    }
+    r = requests.get(f"{_REST}/depo_sayim", headers=_HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    sonuc = {g: [] for g in gunler}
+    for row in r.json():
+        sonuc.setdefault(row["tarih"], []).append({
+            "id": row["id"],
+            "dosya_adi": row["dosya_adi"],
+            "dosya_icerik": base64.b64decode(row["dosya_icerik_b64"]),
+            "yuklenme_zamani": row.get("yuklenme_zamani"),
+        })
+    return sonuc
+
+
 def depo_sayim_sil(kayit_id: int):
     r = requests.delete(f"{_REST}/depo_sayim", headers=_HEADERS, params={"id": f"eq.{kayit_id}"}, timeout=15)
     r.raise_for_status()
@@ -633,6 +659,21 @@ def stok_sayim_oturumlari_getir(tarih):
     r = requests.get(f"{_REST}/stok_sayim_oturumlari", headers=_HEADERS, params=params, timeout=15)
     r.raise_for_status()
     return r.json()
+
+
+def stok_sayim_oturumlari_getir_coklu(gunler: list):
+    """stok_sayim_oturumlari_getir'in haftalık versiyonu - tek istekle
+    {tarih: [oturum, ...]} döner (bkz. depo_sayim_getir_coklu)."""
+    if not gunler:
+        return {}
+    tarih_listesi = ",".join(gunler)
+    params = {"tarih": f"in.({tarih_listesi})", "order": "id"}
+    r = requests.get(f"{_REST}/stok_sayim_oturumlari", headers=_HEADERS, params=params, timeout=15)
+    r.raise_for_status()
+    sonuc = {g: [] for g in gunler}
+    for row in r.json():
+        sonuc.setdefault(row["tarih"], []).append(row)
+    return sonuc
 
 
 def stok_sayim_oturumu_sil(oturum_id):

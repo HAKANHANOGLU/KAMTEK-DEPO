@@ -2256,7 +2256,7 @@ def depo_sayim_bolumu():
 
     notlar = db.sayim_notlari_getir(gun_isolari)
     blok_durumlari = db.depo_sayim_blok_durumlari_getir(gun_isolari)
-    gun_dosyalari = {g: db.depo_sayim_getir(g) for g in gun_isolari}
+    gun_dosyalari = db.depo_sayim_getir_coklu(gun_isolari)
 
     if "sayim_secili_gun" not in st.session_state:
         st.session_state.sayim_secili_gun = None
@@ -2289,7 +2289,7 @@ def depo_sayim_bolumu():
             col.markdown(f"**{isim}**")
 
         gun_cols = st.columns(7)
-        gun_otomatik_sayimlar = {}
+        gun_otomatik_sayimlar = db.stok_sayim_oturumlari_getir_coklu(gun_isolari)
         for col, gun, isim in zip(gun_cols, hafta_gunleri, gun_isimleri):
             with col:
                 kayitlar = gun_dosyalari[gun.isoformat()]
@@ -2299,8 +2299,7 @@ def depo_sayim_bolumu():
                     st.session_state.sayim_secili_gun = gun.isoformat()
                     st.session_state.sayim_secili_tur = "excel"
 
-                otomatik = db.stok_sayim_oturumlari_getir(gun.isoformat())
-                gun_otomatik_sayimlar[gun.isoformat()] = otomatik
+                otomatik = gun_otomatik_sayimlar[gun.isoformat()]
                 otomatik_tik = "🟢" if otomatik else "⚪"
                 if st.button(f"{otomatik_tik}\nOtomatik sayım", key=f"gun_oto_btn_{gun.isoformat()}", use_container_width=True):
                     st.session_state.sayim_secili_gun = gun.isoformat()
