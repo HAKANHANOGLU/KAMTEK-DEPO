@@ -2235,24 +2235,16 @@ def depo_sayim_bolumu():
         </div>
         """, unsafe_allow_html=True)
 
-    with ds_yukleme_kolon, st.container(key="ds_yukleme_panel"):
+    # Panel'i bir kere oluşturup nesnesini saklıyoruz - aşağıda hafta/KPI
+    # verisi hesaplandıktan SONRA bu panele dosya yükleyiciyi ekleyeceğiz
+    # (tarih seçici burada, yükleyici ise KPI kartlarından sonra render
+    # edilecek - böylece başlık sütununa KPI'ları da bu panelle AYNI satırda,
+    # ayrı bir satıra taşmadan ekleyebiliyoruz - alttaki gereksiz boşluğun
+    # sebebi buydu).
+    ds_panel = ds_yukleme_kolon.container(key="ds_yukleme_panel")
+    with ds_panel:
         st.markdown('<div class="ds-panel-title">Günlük Sayım Excel Yükleme</div>', unsafe_allow_html=True)
         secili_tarih = st.date_input("Sayım Tarihi", value=date.today(), key="sayim_tarih")
-        if "sayim_uploader_key" not in st.session_state:
-            st.session_state.sayim_uploader_key = 0
-        yuklenen = st.file_uploader(
-            "Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"],
-            key=f"sayim_uploader_{st.session_state.sayim_uploader_key}",
-        )
-        if yuklenen is not None:
-            db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
-            st.session_state.sayim_uploader_key += 1
-            st.session_state.sayim_basarili_mesaj = f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')})."
-            st.rerun()
-
-        if st.session_state.get("sayim_basarili_mesaj"):
-            st.success(st.session_state.sayim_basarili_mesaj)
-            st.session_state.sayim_basarili_mesaj = None
 
     # secili_tarih'in içinde bulunduğu haftanın Pazartesi-Pazar günlerini bul
     hafta_baslangic = secili_tarih - timedelta(days=secili_tarih.weekday())
@@ -2288,14 +2280,29 @@ def depo_sayim_bolumu():
     if "ds_rapor_acik" not in st.session_state:
         st.session_state.ds_rapor_acik = False
 
-    # Başlığın sağındaki (yükleme paneliyle aynı sırada kalan) boş alanı
-    # doldurmak için 3 KPI kartı, başlıkla aynı genişlikteki sol sütuna
-    # yerleştiriliyor - sağ taraf bu satırda boş kalıyor (üstteki yükleme
-    # paneli zaten o alanı kaplıyor).
-    kpi_sol_kolon, _ = st.columns([1.4, 1])
-    with kpi_sol_kolon:
+    # KPI kartları başlık sütununa (ds_baslik_kolon) EKLENİYOR - ayrı bir
+    # satır olarak değil, başlığın hemen altına akışta devam ediyor.
+    with ds_baslik_kolon:
         kpi_kolonlari = st.columns(3)
         _depo_sayim_kpi_seridi(kpi_kolonlari, hafta_gunleri, gun_dosyalari, blok_durumlari)
+
+    # Yükleme paneline (aynı container nesnesi) şimdi dosya yükleyiciyi ekle.
+    with ds_panel:
+        if "sayim_uploader_key" not in st.session_state:
+            st.session_state.sayim_uploader_key = 0
+        yuklenen = st.file_uploader(
+            "Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"],
+            key=f"sayim_uploader_{st.session_state.sayim_uploader_key}",
+        )
+        if yuklenen is not None:
+            db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
+            st.session_state.sayim_uploader_key += 1
+            st.session_state.sayim_basarili_mesaj = f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')})."
+            st.rerun()
+
+        if st.session_state.get("sayim_basarili_mesaj"):
+            st.success(st.session_state.sayim_basarili_mesaj)
+            st.session_state.sayim_basarili_mesaj = None
 
     col_matris, col_son_islemler = st.columns([2.4, 1])
     with col_matris:
