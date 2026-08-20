@@ -972,8 +972,11 @@ if not st.session_state.giris_yapildi:
     col_marka, col_form = st.columns([0.75, 1.45])
     with col_marka:
         logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="display:block;height:68px;width:auto;">' if _logo_b64 else '<div class="disp" style="font-size:20px;font-weight:700;color:#122036;">KAMTEK</div>'
+        # position:fixed kullanılıyor - block-container/column zincirindeki
+        # olası fazladan boşluk/padding'den (bazı tarayıcı/ekranlarda 100vh
+        # tam kaplamıyordu) tamamen bağımsız, doğrudan gerçek ekran kenarına sabitleniyor.
         st.markdown(f"""
-        <div style="background:#122036;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 40px;position:relative;overflow:hidden;">
+        <div style="background:#122036;position:fixed;top:0;left:0;width:34.1vw;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 40px;overflow:hidden;z-index:999;">
             <svg style="position:absolute;top:-40px;right:-60px;opacity:.5;" width="260" height="260" viewBox="0 0 24 24" fill="none" stroke="#1B3355" stroke-width="1"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <div style="background:#fff;border-radius:12px;padding:16px 20px;display:inline-block;margin-bottom:22px;z-index:1;width:fit-content;">
                 {logo_html}
