@@ -777,9 +777,9 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 }
 .ds-panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; color: var(--gb-text-dark); margin-bottom: 10px; }
 .ds-panel-sub { font-size: 12px; color: var(--gb-text-soft); margin-top: -6px; margin-bottom: 14px; }
-.ds-gun-baslik { text-align: center; font-size: 12px; font-weight: 600; color: var(--gb-text-mid); }
-.ds-gun-tarih { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--gb-text-soft); }
-.ds-gun-excel { display: flex; justify-content: center; margin-top: 3px; margin-bottom: 4px; height: 12px; }
+.ds-gun-baslik { text-align: left; font-size: 12px; font-weight: 600; color: var(--gb-text-mid); }
+.ds-gun-tarih { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--gb-text-soft); }
+.ds-gun-excel { display: flex; justify-content: flex-start; margin-top: 3px; margin-bottom: 4px; height: 12px; }
 .ds-blok-adi { font-size: 13px; color: var(--gb-text-dark); padding-top: 6px; }
 .st-key-ds_takvim_panel div[data-testid="stButton"] button {
     border: 1px solid var(--gb-border) !important; border-radius: 6px !important; font-size: 12px !important;
@@ -794,26 +794,11 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 [class*="st-key-ds_blokrow_"] [data-testid="stColumn"] {
     display: flex !important; align-items: center !important;
 }
-/* Gün başlıkları (Pzt/Sal/...) ile altındaki işaretleme kutucuğu aynı
-   dikey eksende hizalı dursun diye HEM başlık hücresi HEM checkbox hücresi
-   sütun genişliği boyunca ortalanıyor. */
+/* Checkbox'ların kendi doğal (soldan başlayan) konumunu değiştirmiyoruz -
+   bunun yerine gün başlıklarını (Pzt/tarih/excel ikonu) checkbox'un doğal
+   konumuyla aynı hizaya, sola yaslıyoruz. */
 .st-key-ds_matris_panel [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-    display: flex !important; flex-direction: column !important; align-items: center !important;
-}
-.st-key-ds_matris_panel [data-testid="stCheckbox"] {
-    display: flex !important; justify-content: center !important; align-items: center !important;
-    width: 100% !important; min-height: 38px !important;
-}
-/* Gerçek DOM (tarayıcı DevTools ile doğrulandı - react-aria tabanlı,
-   BaseWeb DEĞİL): <label><span (görünmez input)/><div (görünen kutu)/>
-   <div data-testid="stWidgetLabel" (gizli etiket metni "Ip" vb.)/></label>.
-   label_visibility="collapsed" olsa da stWidgetLabel DOM'da kalıp yer
-   kaplıyordu - checkbox kutusu bu yüzden ortadan sola kaymış görünüyordu.
-   Görünmez input zaten position:absolute olduğu için flex akışını
-   etkilemiyor - tek yapılması gereken stWidgetLabel'ı tamamen kaldırmaktı. */
-.st-key-ds_matris_panel [data-testid="stCheckbox"] label {
-    display: flex !important; justify-content: center !important; align-items: center !important;
-    width: 100% !important; gap: 0 !important;
+    display: flex !important; flex-direction: column !important; align-items: flex-start !important;
 }
 .st-key-ds_matris_panel [data-testid="stCheckbox"] label [data-testid="stWidgetLabel"] {
     display: none !important; width: 0 !important; height: 0 !important;
