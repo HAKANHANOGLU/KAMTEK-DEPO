@@ -804,24 +804,19 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
     display: flex !important; justify-content: center !important; align-items: center !important;
     width: 100% !important; min-height: 38px !important;
 }
+/* Gerçek DOM (tarayıcı DevTools ile doğrulandı - react-aria tabanlı,
+   BaseWeb DEĞİL): <label><span (görünmez input)/><div (görünen kutu)/>
+   <div data-testid="stWidgetLabel" (gizli etiket metni "Ip" vb.)/></label>.
+   label_visibility="collapsed" olsa da stWidgetLabel DOM'da kalıp yer
+   kaplıyordu - checkbox kutusu bu yüzden ortadan sola kaymış görünüyordu.
+   Görünmez input zaten position:absolute olduğu için flex akışını
+   etkilemiyor - tek yapılması gereken stWidgetLabel'ı tamamen kaldırmaktı. */
 .st-key-ds_matris_panel [data-testid="stCheckbox"] label {
-    justify-content: center !important; width: 100% !important; gap: 0 !important;
+    display: flex !important; justify-content: center !important; align-items: center !important;
+    width: 100% !important; gap: 0 !important;
 }
-/* label_visibility="collapsed" metni GÖRÜNMEZ yapıyor ama (satır hizası
-   korunsun diye) genişliğini KORUYOR - bu da checkbox kutusunu görünmeyen
-   etiketin solunda, ortadan kaymış gösteriyordu. Streamlit bu metni
-   [data-testid="stMarkdownContainer"] içine koyuyor (bkz. app.py:568) -
-   olası TÜM varyantları (doğrudan testid, iç div'ler, "visibility:hidden"
-   inline stili) tek tek sıfırlıyoruz ki gerçekten hiç yer kaplamasın. */
-.st-key-ds_matris_panel [data-testid="stCheckbox"] [data-testid="stMarkdownContainer"],
-.st-key-ds_matris_panel [data-testid="stCheckbox"] label [style*="visibility"] {
-    display: none !important; width: 0 !important; margin: 0 !important; padding: 0 !important;
-}
-.st-key-ds_matris_panel [data-testid="stCheckbox"] span[aria-hidden="true"] {
-    border-radius: 50% !important; width: 17px !important; height: 17px !important;
-}
-.st-key-ds_matris_panel [data-testid="stCheckbox"] input:checked ~ span[aria-hidden="true"] {
-    background-color: var(--gb-accent) !important; border-color: var(--gb-accent) !important;
+.st-key-ds_matris_panel [data-testid="stCheckbox"] label [data-testid="stWidgetLabel"] {
+    display: none !important; width: 0 !important; height: 0 !important;
 }
 .ds-log-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #F1EFE9; }
 .ds-log-row:last-child { border-bottom: none; }
