@@ -4,6 +4,8 @@ import streamlit.components.v1 as components
 import pandas as pd
 from datetime import date, datetime, timedelta
 import calendar
+import concurrent.futures
+import hashlib
 import io
 import base64
 import html
@@ -914,28 +916,75 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 # ------------------------------------------------------------------
 # Şifreli giriş (şimdilik tek ortak şifre - rol ayrımı ileride açılacak)
 # ------------------------------------------------------------------
+def _img_b64(path):
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return None
+
+
 SIFRE = st.secrets.get("SITE_SIFRE", "kamtek2026")
 ROL_ISIMLERI = {"depo": "Depo Personeli", "patron": "Patron", "gelistirici": "Geliştirici"}
 # İK gibi hassas bölümleri görebilecek roller - şimdilik herkes görebiliyor (tek şifre var)
 IK_GORME_YETKISI = {"depo", "patron", "gelistirici"}
+
+def _gunluk_oturum_tokeni():
+    """Şifreyle birlikte GÜNÜN tarihine bağlı bir belirteç - sayfa yenilendiğinde
+    (F5) URL'deki bu belirteç sayesinde tekrar şifre sormuyoruz, ama belirteç
+    her gün değiştiği için ertesi sabah / başka bir bilgisayarda yine sorulur."""
+    return hashlib.sha256(f"{SIFRE}-{date.today().isoformat()}".encode()).hexdigest()[:20]
+
 
 if "giris_yapildi" not in st.session_state:
     st.session_state.giris_yapildi = False
 if "rol" not in st.session_state:
     st.session_state.rol = None
 
+# Sayfa yenilendiğinde (F5) Streamlit'in session_state'i sıfırlanıyor, ama
+# URL'deki query param korunuyor - bu yüzden şifre yerine URL'deki günlük
+# belirteci kontrol ediyoruz. Belirteç uyuşuyorsa tekrar şifre sormadan içeri alıyoruz.
+if not st.session_state.giris_yapildi and st.query_params.get("g") == _gunluk_oturum_tokeni():
+    st.session_state.giris_yapildi = True
+    st.session_state.rol = "gelistirici"
+
 if not st.session_state.giris_yapildi:
-    st.markdown("<h1 style='text-align:center; margin-top:80px;'>KAMTEK DEPO</h1>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        girilen = st.text_input("Şifre", type="password")
-        if st.button("Giriş Yap", use_container_width=True):
-            if girilen == SIFRE:
-                st.session_state.giris_yapildi = True
-                st.session_state.rol = "gelistirici"
-                st.rerun()
-            else:
-                st.error("Şifre hatalı.")
+    _logo_b64 = _img_b64("kamtek_logo.png")
+    st.markdown("""
+    <style>
+    [data-testid="stAppViewContainer"] > .main .block-container { padding: 0 !important; max-width: 100% !important; }
+    header[data-testid="stHeader"] { background: transparent !important; }
+    div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
+    </style>
+    """, unsafe_allow_html=True)
+    col_marka, col_form = st.columns([1, 1.2])
+    with col_marka:
+        logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="display:block;height:34px;width:auto;">' if _logo_b64 else '<div class="disp" style="font-size:20px;font-weight:700;color:#122036;">KAMTEK</div>'
+        st.markdown(f"""
+        <div style="background:#122036;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 60px;position:relative;overflow:hidden;">
+            <svg style="position:absolute;top:-40px;right:-60px;opacity:.5;" width="260" height="260" viewBox="0 0 24 24" fill="none" stroke="#1B3355" stroke-width="1"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <div style="background:#fff;border-radius:12px;padding:16px 20px;display:inline-block;margin-bottom:22px;z-index:1;width:fit-content;">
+                {logo_html}
+            </div>
+            <div class="gb-logo-baslik" style="font-size:26px;color:#fff !important;line-height:1.2;z-index:1;">DEPO YÖNETİM<br>PANELİ</div>
+            <div style="font-size:13px;color:#7C8AA0;margin-top:10px;z-index:1;">Depo, sevkiyat ve kargo yönetimi<br>tek panelde.</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_form:
+        st.markdown("<div style='height:18vh;'></div>", unsafe_allow_html=True)
+        _, form_orta, _ = st.columns([0.15, 1, 0.15])
+        with form_orta:
+            st.markdown('<div class="gb-title" style="font-size:20px;">Tekrar hoş geldiniz</div>', unsafe_allow_html=True)
+            st.markdown('<div class="gb-eyebrow" style="margin-bottom:22px;">Devam etmek için şifrenizi girin</div>', unsafe_allow_html=True)
+            girilen = st.text_input("Şifre", type="password", label_visibility="visible")
+            if st.button("Giriş Yap", use_container_width=True, type="primary"):
+                if girilen == SIFRE:
+                    st.session_state.giris_yapildi = True
+                    st.session_state.rol = "gelistirici"
+                    st.query_params["g"] = _gunluk_oturum_tokeni()
+                    st.rerun()
+                else:
+                    st.error("Şifre hatalı.")
     st.stop()
 
 # ------------------------------------------------------------------
@@ -955,12 +1004,6 @@ def geri_butonu():
         git("home")
 
 
-def _img_b64(path):
-    try:
-        with open(path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    except Exception:
-        return None
 
 
 @st.cache_data(ttl=20, show_spinner=False)
@@ -1138,9 +1181,31 @@ def _aras_durum_bilgisi(takip_no):
     return metni, sinif, teslim_edildi
 
 
-def _aras_satir_html(s, takip_no=None):
+def _aras_durum_bilgisi_toplu(takip_no_listesi):
+    """_aras_durum_bilgisi'nin çoklu hâli - her takip no için Aras'a AYRI bir
+    ağ isteği gerekiyor (API günlük listede durum vermiyor), bunları sırayla
+    değil PARALEL çekerek toplam bekleme süresini kısaltır. Genel Bakış'ın
+    (giriş sonrası ilk açılan sayfa) ve Kargo Takip'in yavaş açılmasının asıl
+    sebebi buydu - 20-50 sevkiyatlı bir günde sırayla sorgulamak onlarca kat
+    daha uzun sürüyordu."""
+    benzersiz = list(dict.fromkeys(tn for tn in takip_no_listesi if tn))
+    sonuc = {}
+    if not benzersiz:
+        return sonuc
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as havuz:
+        gelecekler = {havuz.submit(_aras_durum_bilgisi, tn): tn for tn in benzersiz}
+        for gelecek in concurrent.futures.as_completed(gelecekler):
+            tn = gelecekler[gelecek]
+            try:
+                sonuc[tn] = gelecek.result()
+            except Exception:
+                sonuc[tn] = ("Bilgi bekleniyor", "warn", False)
+    return sonuc
+
+
+def _aras_satir_html(s, takip_no=None, durum_onceden=None):
     takip_no = takip_no or (s.get("TRACKINGNUMBER") or "—")
-    metni, sinif, _ = _aras_durum_bilgisi(takip_no)
+    metni, sinif, _ = durum_onceden or _aras_durum_bilgisi(takip_no)
     return (
         f"<tr><td class='gb-mono'>{html.escape(takip_no)}</td>"
         f"<td>{html.escape(s.get('ALICI_ADI') or '—')}</td>"
@@ -1222,12 +1287,17 @@ def sayfa_home():
     kl_tamam, kl_toplam = bugun_ozet["tamam"], bugun_ozet["toplam"]
 
     if aras_aktif:
+        # Her sevkiyatın durumu Aras'tan AYRI bir istekle geliyor - bunları
+        # sırayla değil paralel çekiyoruz (bkz. _aras_durum_bilgisi_toplu).
+        aras_durum_haritasi = _aras_durum_bilgisi_toplu(
+            [s.get("TRACKINGNUMBER") for s in aras_bugun]
+        )
         # Teslim edilmemiş (yolda / aktarmada / dağıtımda) TÜM sevkiyatlar -
         # panel görünürde 5 satır yüksekliğinde ama kaydırınca hepsi görünür.
         son_sevkiyatlar = []
         for s in reversed(aras_bugun):
             takip_no = s.get("TRACKINGNUMBER")
-            _, _, teslim_edildi = _aras_durum_bilgisi(takip_no)
+            _, _, teslim_edildi = aras_durum_haritasi.get(takip_no, ("Bilgi bekleniyor", "warn", False))
             if not teslim_edildi:
                 son_sevkiyatlar.append(s)
     else:
@@ -1283,7 +1353,7 @@ def sayfa_home():
         rows_html = ""
         if aras_aktif:
             for s in son_sevkiyatlar:
-                rows_html += _aras_satir_html(s)
+                rows_html += _aras_satir_html(s, durum_onceden=aras_durum_haritasi.get(s.get("TRACKINGNUMBER")))
         else:
             for s in son_sevkiyatlar:
                 rows_html += (
@@ -1694,10 +1764,12 @@ def sayfa_kargotakip():
     if firma in ("Aras Kargo", "Tüm Kargolar") and db._aras_ayarli_mi():
         aras_liste = db.aras_gunluk_sevkiyatlar(tarih.strftime("%d/%m/%Y"))
 
+    # Her sevkiyatın durumu Aras'tan ayrı bir istek gerektiriyor - paralel çekiyoruz.
+    kt_durum_haritasi = _aras_durum_bilgisi_toplu([s.get("TRACKINGNUMBER") for s in aras_liste])
     durumlu = []  # (s, takip_no, metni, sinif, kategori)
     for s in aras_liste:
         takip_no = s.get("TRACKINGNUMBER") or "—"
-        metni, sinif, _ = _aras_durum_bilgisi(takip_no)
+        metni, sinif, _ = kt_durum_haritasi.get(takip_no, ("Bilgi bekleniyor", "warn", False))
         durumlu.append((s, takip_no, metni, sinif, _aras_durum_kategori(metni)))
 
     if st.session_state.kt_view == "takip":
