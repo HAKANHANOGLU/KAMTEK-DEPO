@@ -766,6 +766,19 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 }
 .st-key-ds_yukleme_panel {
     border-top: 3px solid var(--gb-accent) !important; border-left: 3px solid var(--gb-info) !important;
+    padding: 12px 18px 10px 18px !important;
+}
+/* Panel çok fazla dikey boşluk kaplıyordu - başlık solundaki alt yazıyla
+   aynı hizada bitsin diye elemanlar arası varsayılan boşluk (Streamlit'in
+   dikey blok gap'i) ve etiket yazı tipleri sıkılaştırıldı. */
+.st-key-ds_yukleme_panel [data-testid="stVerticalBlock"] {
+    gap: 0.35rem !important;
+}
+.st-key-ds_yukleme_panel [data-testid="stWidgetLabel"] p {
+    font-size: 12px !important; margin-bottom: 0 !important;
+}
+.st-key-ds_yukleme_panel [data-testid="stDateInput"] input {
+    padding-top: 6px !important; padding-bottom: 6px !important;
 }
 /* Matris ve Son İşlemler panelleri aynı st.columns satırında, alt-üst
    hizalı dursun diye - flex satırının varsayılan "stretch" davranışından
