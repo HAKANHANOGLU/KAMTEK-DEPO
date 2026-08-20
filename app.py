@@ -814,7 +814,6 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
    olası TÜM varyantları (doğrudan testid, iç div'ler, "visibility:hidden"
    inline stili) tek tek sıfırlıyoruz ki gerçekten hiç yer kaplamasın. */
 .st-key-ds_matris_panel [data-testid="stCheckbox"] [data-testid="stMarkdownContainer"],
-.st-key-ds_matris_panel [data-testid="stCheckbox"] label > div,
 .st-key-ds_matris_panel [data-testid="stCheckbox"] label [style*="visibility"] {
     display: none !important; width: 0 !important; margin: 0 !important; padding: 0 !important;
 }
