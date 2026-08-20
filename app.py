@@ -2212,8 +2212,12 @@ def _depo_blok_matrisi(hafta_gunleri, durumlar, gun_dosyalari):
                             label_visibility="collapsed",
                         )
                     if yeni_deger != sayildi_mevcut:
+                        # st.rerun() gerekmiyor: checkbox tıklandığı an Streamlit
+                        # zaten otomatik olarak yeniden çalıştırıyor ve yukarıda
+                        # (depo_sayim_bolumu) session_state'ten okunan değer bu
+                        # değişikliği anında yansıtıyor - veritabanı yazması
+                        # arka planda, ekranı bekletmeden tamamlanıyor.
                         db.depo_sayim_blok_durumu_isaretle(gun_iso, blok, yeni_deger, None)
-                        st.rerun()
 
 
 def depo_sayim_bolumu():
@@ -2255,8 +2259,26 @@ def depo_sayim_bolumu():
     gun_isolari = [g.isoformat() for g in hafta_gunleri]
 
     notlar = db.sayim_notlari_getir(gun_isolari)
-    blok_durumlari = db.depo_sayim_blok_durumlari_getir(gun_isolari)
+    blok_durumlari_db = db.depo_sayim_blok_durumlari_getir(gun_isolari)
     gun_dosyalari = db.depo_sayim_getir_coklu(gun_isolari)
+
+    # Bir checkbox'a tıklandığında Streamlit onun son değerini kendi
+    # session_state'inde (widget key'i üzerinden) hemen, veritabanı
+    # yazması bitmeden ÖNCE saklar. KPI'ları veritabanından TEKRAR
+    # okunan (henüz güncellenmemiş olabilecek) veriyle hesaplamak, hızlı
+    # art arda tıklamada görünen kutu ile üstteki sayılarn tutmamasına
+    # sebep oluyordu. Bu yüzden her hücre için - varsa - checkbox'ın
+    # kendi session_state değeri esas alınıyor, veritabanı sadece o
+    # hücre hiç render edilmemişse (ilk yükleme) kaynak oluyor.
+    blok_durumlari = {}
+    for gun_iso in gun_isolari:
+        for blok in DEPO_BLOK_LISTESI:
+            widget_key = f"blok_durum_{gun_iso}_{blok}"
+            if widget_key in st.session_state:
+                eski = blok_durumlari_db.get((gun_iso, blok), {})
+                blok_durumlari[(gun_iso, blok)] = {**eski, "sayildi": bool(st.session_state[widget_key])}
+            elif (gun_iso, blok) in blok_durumlari_db:
+                blok_durumlari[(gun_iso, blok)] = blok_durumlari_db[(gun_iso, blok)]
 
     if "sayim_secili_gun" not in st.session_state:
         st.session_state.sayim_secili_gun = None
