@@ -1055,6 +1055,11 @@ def _aras_durum_bilgisi(takip_no):
     """Bir Aras takip numarasının güncel durumunu (metin, rozet sınıfı, teslim
     edildi mi) döndürür - Genel Bakış ve Kargo Takip sayfaları ortak kullanıyor."""
     durum = db.aras_kargo_durumu(takip_no) or {}
+    # Aras API bazen aynı takip no için TEK sözlük yerine bir LİSTE
+    # döndürüyor (örn. birden fazla hareket kaydı olduğunda) - bu durumda
+    # en güncel kaydı (listenin son elemanını) kullan.
+    if isinstance(durum, list):
+        durum = durum[-1] if durum else {}
     metni = durum.get("DURUMU") or "Bilgi bekleniyor"
     ustu = metni.upper()
     teslim_edildi = "TESLİM EDİL" in ustu
@@ -1677,6 +1682,8 @@ def sayfa_kargotakip():
                         gonderici_tutar, alici_tutar, bilinmeyen_tutar = [], [], []
                         for s in donem_sevkiyatlar:
                             detay = db.aras_kargo_durumu(s.get("TRACKINGNUMBER")) or {}
+                            if isinstance(detay, list):
+                                detay = detay[-1] if detay else {}
                             odeme = (detay.get("ODEME_TIPI") or "").upper()
                             tutar = float(s.get("TUTAR") or 0)
                             if odeme == "ÜG":
