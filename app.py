@@ -2231,28 +2231,26 @@ def _depo_blok_matrisi(hafta_gunleri, durumlar, gun_dosyalari):
 
 
 def depo_sayim_bolumu():
-    st.markdown("""
-    <div class="gb-header-row">
-        <div>
-            <div class="gb-title">Depo Sayım Fişleri</div>
-            <div class="gb-eyebrow">Depo sayımı haftalık programlanır — her gün deponun bir kısmı sayılır, hafta sonunda tüm depo sayılmış olur.</div>
+    ds_baslik_kolon, ds_yukleme_kolon = st.columns([1.4, 1])
+    with ds_baslik_kolon:
+        st.markdown("""
+        <div class="gb-header-row">
+            <div>
+                <div class="gb-title">Depo Sayım Fişleri</div>
+                <div class="gb-eyebrow">Depo sayımı haftalık programlanır — her gün deponun bir kısmı sayılır, hafta sonunda tüm depo sayılmış olur.</div>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    ds_yukleme_kolon, _ = st.columns([1, 1])
     with ds_yukleme_kolon, st.container(key="ds_yukleme_panel"):
         st.markdown('<div class="ds-panel-title">Günlük Sayım Excel Yükleme</div>', unsafe_allow_html=True)
-        c_tarih, c_dosya = st.columns([1, 2])
-        with c_tarih:
-            secili_tarih = st.date_input("Sayım Tarihi", value=date.today(), key="sayim_tarih")
-        with c_dosya:
-            if "sayim_uploader_key" not in st.session_state:
-                st.session_state.sayim_uploader_key = 0
-            yuklenen = st.file_uploader(
-                "Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"],
-                key=f"sayim_uploader_{st.session_state.sayim_uploader_key}",
-            )
+        secili_tarih = st.date_input("Sayım Tarihi", value=date.today(), key="sayim_tarih")
+        if "sayim_uploader_key" not in st.session_state:
+            st.session_state.sayim_uploader_key = 0
+        yuklenen = st.file_uploader(
+            "Sayım Excel Dosyasını Yükleyin", type=["xls", "xlsx"],
+            key=f"sayim_uploader_{st.session_state.sayim_uploader_key}",
+        )
         if yuklenen is not None:
             db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
             st.session_state.sayim_uploader_key += 1
