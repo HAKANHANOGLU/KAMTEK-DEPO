@@ -2098,7 +2098,12 @@ def _depo_sayim_kpi_seridi(kolonlar, hafta_gunleri, gun_dosyalari, blok_durumlar
     Rapor kutusuna - çağıran taraf kendi gerçek butonunu koyuyor, bu yüzden
     burada değil)."""
     toplam_blok = len(DEPO_BLOK_LISTESI)
-    bloklar_sayildi = {blok for (g, blok), v in blok_durumlari.items() if v.get("sayildi")}
+    # Blok listesi ileride yeniden adlandırılırsa DB'de eski isimle kalmış
+    # "yetim" kayıtlar burada sayılmasın diye güncel listeyle kesişim alınıyor.
+    bloklar_sayildi = {
+        blok for (g, blok), v in blok_durumlari.items()
+        if v.get("sayildi") and blok in DEPO_BLOK_LISTESI
+    }
     tamamlanma = round(len(bloklar_sayildi) / toplam_blok * 100) if toplam_blok else 0
 
     # Her blok haftada sadece BİR kez sayılıyor, hangi gün önemli değil - bu
@@ -2139,7 +2144,7 @@ def _depo_sayim_son_islemler(gun_isolari, gun_dosyalari, blok_durumlari):
                 "alt": datetime.fromisoformat(gun_iso).strftime("%d.%m.%Y"),
             })
     for (gun_iso, blok), durum in blok_durumlari.items():
-        if not durum.get("sayildi"):
+        if not durum.get("sayildi") or blok not in DEPO_BLOK_LISTESI:
             continue
         zaman = durum.get("isaretlenme_zamani") or gun_iso
         kim = durum.get("personel_adi") or "Bilinmiyor"
