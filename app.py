@@ -811,8 +811,32 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 .ds-gun-tarih { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--gb-text-soft); }
 .ds-gun-excel { display: flex; justify-content: flex-start; margin-top: 3px; margin-bottom: 4px; height: 12px; }
 .ds-blok-adi { font-size: 13px; color: var(--gb-text-dark); padding-top: 6px; }
+/* Haftalık Sayım Takvimi - her gün kendi kartında; kart kenarı o günün
+   durumuna göre renkleniyor (ikisi de tamamsa yeşil, biri tamamsa nötr).
+   Butonlar rozet gibi soldan hizalı, durumuna göre yeşil/soluk renkleniyor -
+   ama gerçek st.button olarak kalıyor, tıklanınca o günün detayı açılıyor. */
+[class*="st-key-ds_takvim_kart_"] {
+    border: 1.5px solid var(--gb-border); border-radius: 10px; padding: 10px 10px 8px 10px;
+}
+[class*="st-key-ds_takvim_kart_"][class*="_tam"] {
+    border-color: var(--gb-accent); background: #F5F9F8;
+}
+.ds-takvim-baslik {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px;
+    color: var(--gb-text-dark); margin-bottom: 8px;
+}
+.ds-takvim-baslik .mono { font-size: 11px; font-weight: 500; color: var(--gb-text-soft); }
 .st-key-ds_takvim_panel div[data-testid="stButton"] button {
-    border: 1px solid var(--gb-border) !important; border-radius: 6px !important; font-size: 12px !important;
+    border: none !important; border-radius: 6px !important; font-size: 11px !important;
+    justify-content: flex-start !important; text-align: left !important; padding: 4px 8px !important;
+    min-height: 0 !important;
+}
+.st-key-ds_takvim_panel div[class*="_ok"] div[data-testid="stButton"] button {
+    background: #E4F1EE !important; color: var(--gb-accent) !important; font-weight: 600 !important;
+}
+.st-key-ds_takvim_panel div[class*="_no"] div[data-testid="stButton"] button {
+    background: #FAFAF8 !important; color: var(--gb-text-soft) !important;
 }
 /* Blok satırlarını gerçek bir tablo gibi göstermek için her satırın altına
    ince bir çizgi - Streamlit'in kendi element sarmalayıcısı üzerinden,
@@ -2334,32 +2358,37 @@ def depo_sayim_bolumu():
 
     with st.container(key="ds_takvim_panel"):
         st.markdown('<div class="ds-panel-title">Haftalık Sayım Takvimi</div>', unsafe_allow_html=True)
-        baslik_cols = st.columns(7)
-        for col, isim in zip(baslik_cols, gun_isimleri):
-            col.markdown(f"**{isim}**")
-
-        gun_cols = st.columns(7)
         gun_otomatik_sayimlar = db.stok_sayim_oturumlari_getir_coklu(gun_isolari)
-        for col, gun, isim in zip(gun_cols, hafta_gunleri, gun_isimleri):
-            with col:
-                kayitlar = gun_dosyalari[gun.isoformat()]
-                tik = "✅" if kayitlar else "⬜"
-                etiket = f"{tik}\n{gun.strftime('%d.%m')}"
-                if st.button(etiket, key=f"gun_btn_{gun.isoformat()}", use_container_width=True):
-                    st.session_state.sayim_secili_gun = gun.isoformat()
+        gun_cols = st.columns(7)
+        for i, (col, gun, isim) in enumerate(zip(gun_cols, hafta_gunleri, gun_isimleri)):
+            gun_iso = gun.isoformat()
+            kayitlar = gun_dosyalari[gun_iso]
+            excel_var = bool(kayitlar)
+            otomatik = gun_otomatik_sayimlar[gun_iso]
+            oto_var = bool(otomatik)
+            durum_sinif = "tam" if (excel_var and oto_var) else ("kismi" if (excel_var or oto_var) else "yok")
+
+            with col, st.container(key=f"ds_takvim_kart_{i}_{durum_sinif}"):
+                st.markdown(
+                    f'<div class="ds-takvim-baslik"><span>{isim[:3]}</span>'
+                    f'<span class="mono">{gun.strftime("%d.%m")}</span></div>',
+                    unsafe_allow_html=True,
+                )
+                excel_etiket = f"{'✅' if excel_var else '⬜'} {'Excel yüklendi' if excel_var else 'Excel yok'}"
+                if st.button(excel_etiket, key=f"gun_btn_{gun_iso}_{'ok' if excel_var else 'no'}", use_container_width=True):
+                    st.session_state.sayim_secili_gun = gun_iso
                     st.session_state.sayim_secili_tur = "excel"
 
-                otomatik = gun_otomatik_sayimlar[gun.isoformat()]
-                otomatik_tik = "🟢" if otomatik else "⚪"
-                if st.button(f"{otomatik_tik}\nOtomatik sayım", key=f"gun_oto_btn_{gun.isoformat()}", use_container_width=True):
-                    st.session_state.sayim_secili_gun = gun.isoformat()
+                oto_etiket = f"{'🟢' if oto_var else '⚪'} {'Otomatik sayıldı' if oto_var else 'Sayılmadı'}"
+                if st.button(oto_etiket, key=f"gun_oto_btn_{gun_iso}_{'ok' if oto_var else 'no'}", use_container_width=True):
+                    st.session_state.sayim_secili_gun = gun_iso
                     st.session_state.sayim_secili_tur = "otomatik"
 
-                not_mevcut = notlar.get(gun.isoformat(), "")
-                yeni_not = st.text_input("Not", value=not_mevcut, key=f"not_{gun.isoformat()}", label_visibility="collapsed",
+                not_mevcut = notlar.get(gun_iso, "")
+                yeni_not = st.text_input("Not", value=not_mevcut, key=f"not_{gun_iso}", label_visibility="collapsed",
                                           placeholder="Not ekle...")
                 if yeni_not != not_mevcut:
-                    db.sayim_not_kaydet(gun.isoformat(), yeni_not)
+                    db.sayim_not_kaydet(gun_iso, yeni_not)
 
     st.markdown("---")
     secili_gun = st.session_state.sayim_secili_gun
