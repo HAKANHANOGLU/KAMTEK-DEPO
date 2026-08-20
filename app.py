@@ -952,9 +952,15 @@ if not st.session_state.giris_yapildi:
     _logo_b64 = _img_b64("kamtek_logo.png")
     st.markdown("""
     <style>
-    [data-testid="stAppViewContainer"] > .main .block-container { padding: 0 !important; max-width: 100% !important; }
-    header[data-testid="stHeader"] { background: transparent !important; }
+    header[data-testid="stHeader"] { display: none !important; }
+    [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > .main {
+        padding: 0 !important; margin: 0 !important;
+    }
+    .block-container, [data-testid="stMainBlockContainer"] {
+        padding: 0 !important; margin: 0 !important; max-width: 100% !important;
+    }
     div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
+    .giris-marka-baslik { color: #FFFFFF !important; }
     </style>
     """, unsafe_allow_html=True)
     col_marka, col_form = st.columns([1, 1.2])
@@ -966,7 +972,7 @@ if not st.session_state.giris_yapildi:
             <div style="background:#fff;border-radius:12px;padding:16px 20px;display:inline-block;margin-bottom:22px;z-index:1;width:fit-content;">
                 {logo_html}
             </div>
-            <div class="gb-logo-baslik" style="font-size:26px;color:#fff !important;line-height:1.2;z-index:1;">DEPO YÖNETİM<br>PANELİ</div>
+            <div class="giris-marka-baslik" style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;line-height:1.2;z-index:1;">DEPO YÖNETİM<br>PANELİ</div>
             <div style="font-size:13px;color:#7C8AA0;margin-top:10px;z-index:1;">Depo, sevkiyat ve kargo yönetimi<br>tek panelde.</div>
         </div>
         """, unsafe_allow_html=True)
