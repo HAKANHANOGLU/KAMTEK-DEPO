@@ -523,6 +523,19 @@ section[data-testid="stSidebar"] > div {
     padding-left: 8px !important;
     padding-right: 8px !important;
 }
+/* Çıkış Yap butonu sidebar'ın en altına sabitlensin diye içerik sütununu
+   flex yapıp aradaki boşluğu butonun kendi margin-top:auto'suna bırakıyoruz. */
+section[data-testid="stSidebar"] div[data-testid="stSidebarUserContent"] {
+    display: flex !important; flex-direction: column !important; min-height: 100vh !important;
+}
+.st-key-sidebar_cikis { margin-top: auto !important; padding-top: 14px; padding-bottom: 10px; }
+.st-key-sidebar_cikis div[data-testid="stButton"] button {
+    background: transparent !important; border: 1px solid #2A3B57 !important; border-radius: 8px !important;
+    color: #B7C1D1 !important; font-weight: 500 !important; font-size: 14px !important;
+}
+.st-key-sidebar_cikis div[data-testid="stButton"] button:hover {
+    border-color: var(--gb-danger) !important; color: #F0A99C !important;
+}
 /* GERÇEK sebep buradaydı: canlı sitede DOM'u inceleyince görüldü ki
    "KAMTEK DEPO" üstündeki boşluk padding'ten değil, Streamlit'in kendi
    stSidebarHeader bloğundan geliyordu - içinde biz hiç kullanmadığımız
@@ -1106,6 +1119,14 @@ def render_sidebar():
         _nav_item("kontrollistesi", "Kontrol Listesi", "kontrollistesi", aktif=aktif_sayfa == "kontrollistesi")
         bildirim_n = _bildirim_sayisi()
         _nav_item("bildirim", "Bildirim", "bildirim", aktif=aktif_sayfa == "bildirim", rozet=bildirim_n if bildirim_n > 0 else None)
+
+        with st.container(key="sidebar_cikis"):
+            if st.button("⏻  Çıkış Yap", key="cikis_yap_btn", use_container_width=True):
+                st.session_state.giris_yapildi = False
+                st.session_state.rol = None
+                if "g" in st.query_params:
+                    del st.query_params["g"]
+                st.rerun()
 
 
 _KL_GUN_ISIMLERI_UZUN = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
