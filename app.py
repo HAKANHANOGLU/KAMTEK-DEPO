@@ -804,8 +804,15 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
     display: flex !important; justify-content: center !important; align-items: center !important;
     width: 100% !important; min-height: 38px !important;
 }
-.st-key-ds_matris_panel [data-testid="stCheckbox"] > label {
-    justify-content: center !important;
+.st-key-ds_matris_panel [data-testid="stCheckbox"] label {
+    justify-content: center !important; width: 100% !important; gap: 0 !important;
+}
+/* label_visibility="collapsed" metni GÖRÜNMEZ yapıyor ama (satır
+   hizası korunsun diye) genişliğini KORUYOR - bu da checkbox kutusunu
+   görünmeyen etiketin solunda, ortadan kaymış gösteriyordu. Genişliği de
+   sıfırlayıp asıl kutuyu gerçekten ortalıyoruz. */
+.st-key-ds_matris_panel [data-testid="stCheckbox"] label > div:last-child {
+    display: none !important; width: 0 !important;
 }
 .st-key-ds_matris_panel [data-testid="stCheckbox"] span[aria-hidden="true"] {
     border-radius: 50% !important; width: 17px !important; height: 17px !important;
