@@ -766,27 +766,33 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 }
 .st-key-ds_yukleme_panel {
     border-top: 3px solid var(--gb-accent) !important; border-left: 3px solid var(--gb-info) !important;
-    padding: 10px 16px 8px 16px !important;
+    padding: 8px 14px 6px 14px !important;
 }
 /* Panel, KPI kartları satırıyla alttan aynı hizada bitsin diye elemanlar
    arası varsayılan boşluk (Streamlit'in dikey blok gap'i), etiketler ve
    yükleme kutusu olabildiğince sıkılaştırıldı. */
-.st-key-ds_yukleme_panel .ds-panel-title { margin-bottom: 6px; }
+.st-key-ds_yukleme_panel .ds-panel-title { margin-bottom: 3px; font-size: 13px; }
 .st-key-ds_yukleme_panel [data-testid="stVerticalBlock"] {
-    gap: 0.2rem !important;
+    gap: 0.1rem !important;
+}
+.st-key-ds_yukleme_panel [data-testid="stWidgetLabel"] {
+    min-height: 0 !important;
 }
 .st-key-ds_yukleme_panel [data-testid="stWidgetLabel"] p {
-    font-size: 11px !important; margin-bottom: 0 !important;
+    font-size: 10.5px !important; margin-bottom: 0 !important; line-height: 1.3 !important;
 }
 .st-key-ds_yukleme_panel [data-testid="stDateInput"] input {
-    padding-top: 4px !important; padding-bottom: 4px !important;
+    padding-top: 2px !important; padding-bottom: 2px !important; font-size: 13px !important;
 }
 .st-key-ds_yukleme_panel [data-testid="stFileUploaderDropzone"],
 .st-key-ds_yukleme_panel [data-testid="stFileUploader"] section {
-    padding: 4px 10px !important; min-height: 0 !important;
+    padding: 2px 8px !important; min-height: 0 !important;
+}
+.st-key-ds_yukleme_panel [data-testid="baseButton-secondary"] {
+    padding: 2px 10px !important; min-height: 0 !important;
 }
 .st-key-ds_yukleme_panel small {
-    font-size: 10px !important;
+    font-size: 9.5px !important;
 }
 /* Matris ve Son İşlemler panelleri aynı st.columns satırında, alt-üst
    hizalı dursun diye - flex satırının varsayılan "stretch" davranışından
