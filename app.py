@@ -766,19 +766,27 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 }
 .st-key-ds_yukleme_panel {
     border-top: 3px solid var(--gb-accent) !important; border-left: 3px solid var(--gb-info) !important;
-    padding: 12px 18px 10px 18px !important;
+    padding: 10px 16px 8px 16px !important;
 }
-/* Panel çok fazla dikey boşluk kaplıyordu - başlık solundaki alt yazıyla
-   aynı hizada bitsin diye elemanlar arası varsayılan boşluk (Streamlit'in
-   dikey blok gap'i) ve etiket yazı tipleri sıkılaştırıldı. */
+/* Panel, KPI kartları satırıyla alttan aynı hizada bitsin diye elemanlar
+   arası varsayılan boşluk (Streamlit'in dikey blok gap'i), etiketler ve
+   yükleme kutusu olabildiğince sıkılaştırıldı. */
+.st-key-ds_yukleme_panel .ds-panel-title { margin-bottom: 6px; }
 .st-key-ds_yukleme_panel [data-testid="stVerticalBlock"] {
-    gap: 0.35rem !important;
+    gap: 0.2rem !important;
 }
 .st-key-ds_yukleme_panel [data-testid="stWidgetLabel"] p {
-    font-size: 12px !important; margin-bottom: 0 !important;
+    font-size: 11px !important; margin-bottom: 0 !important;
 }
 .st-key-ds_yukleme_panel [data-testid="stDateInput"] input {
-    padding-top: 6px !important; padding-bottom: 6px !important;
+    padding-top: 4px !important; padding-bottom: 4px !important;
+}
+.st-key-ds_yukleme_panel [data-testid="stFileUploaderDropzone"],
+.st-key-ds_yukleme_panel [data-testid="stFileUploader"] section {
+    padding: 4px 10px !important; min-height: 0 !important;
+}
+.st-key-ds_yukleme_panel small {
+    font-size: 10px !important;
 }
 /* Matris ve Son İşlemler panelleri aynı st.columns satırında, alt-üst
    hizalı dursun diye - flex satırının varsayılan "stretch" davranışından
