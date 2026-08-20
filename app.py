@@ -842,8 +842,8 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
    st.button, tıklanınca sayfanın altında rapor tablosu açılıp kapanıyor.
    Son İşlemler paneliyle aynı genişlikte, kendi sütununda üstte duruyor. */
 .st-key-ds_rapor_tile {
-    background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
-    border-left: 3px solid var(--gb-violet) !important; border-radius: 10px !important;
+    background: #FFFFFF !important; border: 6px solid var(--gb-danger) !important;
+    border-radius: 10px !important;
     padding: 0 !important; margin-bottom: 16px !important; box-sizing: border-box;
 }
 .st-key-ds_rapor_tile div[data-testid="stButton"] button {
