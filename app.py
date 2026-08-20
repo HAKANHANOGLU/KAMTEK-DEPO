@@ -768,7 +768,7 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
    hizalı dursun diye - flex satırının varsayılan "stretch" davranışından
    yararlanıp ikisini de %100 yükseklik yapıyoruz, içerik miktarı (13 blok
    satırı vs. birkaç log satırı) farklı olsa bile en uzun olana eşitleniyor. */
-div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-testid="column"] {
+div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-testid="stColumn"] {
     display: flex !important;
 }
 .st-key-ds_son_islemler_panel, .st-key-ds_matris_panel { height: 100% !important; width: 100%; }
@@ -791,13 +791,13 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
     border-bottom: 1px solid #F1EFE9 !important; padding-bottom: 2px !important;
 }
 [class*="st-key-ds_blokrow_"] [data-testid="stVerticalBlockBorderWrapper"],
-[class*="st-key-ds_blokrow_"] [data-testid="column"] {
+[class*="st-key-ds_blokrow_"] [data-testid="stColumn"] {
     display: flex !important; align-items: center !important;
 }
 /* Gün başlıkları (Pzt/Sal/...) ile altındaki işaretleme kutucuğu aynı
    dikey eksende hizalı dursun diye HEM başlık hücresi HEM checkbox hücresi
    sütun genişliği boyunca ortalanıyor. */
-.st-key-ds_matris_panel [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+.st-key-ds_matris_panel [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
     display: flex !important; flex-direction: column !important; align-items: center !important;
 }
 .st-key-ds_matris_panel [data-testid="stCheckbox"] {
