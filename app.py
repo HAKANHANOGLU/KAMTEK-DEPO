@@ -807,12 +807,16 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 .st-key-ds_matris_panel [data-testid="stCheckbox"] label {
     justify-content: center !important; width: 100% !important; gap: 0 !important;
 }
-/* label_visibility="collapsed" metni GÖRÜNMEZ yapıyor ama (satır
-   hizası korunsun diye) genişliğini KORUYOR - bu da checkbox kutusunu
-   görünmeyen etiketin solunda, ortadan kaymış gösteriyordu. Genişliği de
-   sıfırlayıp asıl kutuyu gerçekten ortalıyoruz. */
-.st-key-ds_matris_panel [data-testid="stCheckbox"] label > div:last-child {
-    display: none !important; width: 0 !important;
+/* label_visibility="collapsed" metni GÖRÜNMEZ yapıyor ama (satır hizası
+   korunsun diye) genişliğini KORUYOR - bu da checkbox kutusunu görünmeyen
+   etiketin solunda, ortadan kaymış gösteriyordu. Streamlit bu metni
+   [data-testid="stMarkdownContainer"] içine koyuyor (bkz. app.py:568) -
+   olası TÜM varyantları (doğrudan testid, iç div'ler, "visibility:hidden"
+   inline stili) tek tek sıfırlıyoruz ki gerçekten hiç yer kaplamasın. */
+.st-key-ds_matris_panel [data-testid="stCheckbox"] [data-testid="stMarkdownContainer"],
+.st-key-ds_matris_panel [data-testid="stCheckbox"] label > div,
+.st-key-ds_matris_panel [data-testid="stCheckbox"] label [style*="visibility"] {
+    display: none !important; width: 0 !important; margin: 0 !important; padding: 0 !important;
 }
 .st-key-ds_matris_panel [data-testid="stCheckbox"] span[aria-hidden="true"] {
     border-radius: 50% !important; width: 17px !important; height: 17px !important;
