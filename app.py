@@ -881,6 +881,33 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
     font-family: 'Space Grotesk', sans-serif !important; font-size: 15px !important; font-weight: 600 !important;
     color: var(--gb-text-dark) !important; white-space: pre-line !important; text-align: left !important;
 }
+
+/* Sevkiyat Planlama - Varış İli / Planlanacak Kargolar / Gönderi Hesapla
+   panelleri, Depo Sayım Fişleri'ndeki panel diliyle aynı görsel dil. */
+.ptitle { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--gb-text-dark); }
+.psub { font-size: 12px; color: var(--gb-text-soft); }
+.st-key-sevk_il_panel, .st-key-sevk_plan_panel, .st-key-sevk_hesap_panel {
+    background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
+    border-radius: 10px !important; padding: 18px 20px !important; margin-bottom: 16px !important;
+}
+.st-key-sevk_plan_panel { border-left: 3px solid var(--gb-violet) !important; }
+.st-key-sevk_hesap_panel { border-left: 3px solid var(--gb-accent) !important; }
+/* Kargo fiyat kartları - en ucuz/seçili olan yeşil dolgulu, diğerleri nötr. */
+[class*="st-key-sevk_kargo_kart_"] {
+    border: 1px solid var(--gb-border); border-radius: 8px; padding: 12px; margin-bottom: 8px;
+}
+[class*="st-key-sevk_kargo_kart_"][class*="_secili"] {
+    border: 2px solid var(--gb-accent); background: var(--gb-accent-soft);
+}
+.sevk-rozet {
+    display: inline-block; font-size: 9.5px; font-weight: 700; color: #fff; background: var(--gb-accent);
+    padding: 2px 7px; border-radius: 10px; margin-bottom: 6px;
+}
+.sevk-kargo-ad { font-size: 12.5px; font-weight: 600; color: var(--gb-text-dark); }
+.sevk-kargo-tutar { font-size: 19px; font-weight: 700; color: var(--gb-text-dark); margin: 6px 0 8px 0; }
+[class*="st-key-sevk_kargo_kart_"][class*="_secili"] div[data-testid="stButton"] button {
+    background: var(--gb-accent) !important; color: #fff !important; border-color: var(--gb-accent) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1415,8 +1442,9 @@ def sayfa_sevkiyat():
     geri_butonu()
     st.header("Sevkiyat Planlama")
 
-    col_map, col_bosluk = st.columns([1, 1])
-    with col_map:
+    col_map, col_bosluk = st.columns([3, 1])
+    with col_map, st.container(key="sevk_il_panel"):
+        st.markdown('<div class="ptitle">Varış İli</div>', unsafe_allow_html=True)
         if "secili_il" not in st.session_state:
             st.session_state.secili_il = "İZMİR"
 
@@ -1426,7 +1454,7 @@ def sayfa_sevkiyat():
         if "harita_secim_bekliyor" in st.session_state:
             st.session_state.secili_il = st.session_state.pop("harita_secim_bekliyor")
 
-        secili_il = st.selectbox("Varış İli", data.IL_LISTESI, key="secili_il")
+        secili_il = st.selectbox("Varış İli", data.IL_LISTESI, key="secili_il", label_visibility="collapsed")
         try:
             import plotly.graph_objects as go
 
@@ -1480,7 +1508,7 @@ def sayfa_sevkiyat():
         except Exception as e:
             st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
 
-    with col_bosluk:
+    with col_bosluk, st.container(key="sevk_plan_panel"):
         with st.container(key="kartplan"):
             if st.button("📝\n\nPlanlanacak Kargolar", use_container_width=True):
                 st.session_state.planlanan_goster = not st.session_state.get("planlanan_goster", False)
@@ -1514,75 +1542,109 @@ def sayfa_sevkiyat():
                 st.success("Planlanan kargolar kaydedildi.")
 
     st.markdown("---")
-    st.subheader("Gönderi Hesapla")
-    st.caption("Her satıra bir gönderi grubu için Miktar (adet) ve Desi bilgisini girin.")
+    with st.container(key="sevk_hesap_panel"):
+        st.markdown('<div class="ptitle">Gönderi Hesapla</div>', unsafe_allow_html=True)
+        st.caption("Her satıra bir gönderi grubu için Miktar (adet) ve Desi bilgisini girin.")
 
-    if "sevkiyat_df" not in st.session_state:
-        st.session_state.sevkiyat_df = pd.DataFrame(
-            {"Miktar": [None] * 15, "Desi": [None] * 15}
-        )
-
-    edited = st.data_editor(
-        st.session_state.sevkiyat_df,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="sevkiyat_editor",
-        column_config={
-            "Miktar": st.column_config.NumberColumn("Miktar", min_value=0, step=1),
-            "Desi": st.column_config.NumberColumn("Desi", min_value=0, step=1),
-        },
-    )
-
-    col_hesapla, col_kargolastir = st.columns(2)
-    hesapla_tiklandi = col_hesapla.button("Hesapla", type="primary", use_container_width=True)
-    kargolastir_tiklandi = col_kargolastir.button("📦 Kargolaştır", use_container_width=True)
-
-    if hesapla_tiklandi:
-        gecerli_satirlar = [
-            (row["Miktar"], row["Desi"]) for _, row in edited.iterrows()
-            if pd.notna(row["Miktar"]) and pd.notna(row["Desi"]) and row["Miktar"] > 0 and row["Desi"] > 0
-        ]
-        if not gecerli_satirlar:
-            st.warning("Lütfen en az bir satıra miktar ve desi girin.")
-            st.session_state.hesap_sonuclari = None
-        else:
-            sonuclar = []
-            for kargo in data.PRICING:
-                if not data.carrier_ships_to(kargo, secili_il):
-                    continue
-                toplam = 0
-                for miktar, desi in gecerli_satirlar:
-                    birim = data.calc_unit_price(kargo, desi)
-                    if birim is not None:
-                        toplam += birim * miktar
-                sonuclar.append((kargo, toplam))
-            if not sonuclar:
-                st.warning(f"{secili_il} iline gönderim yapan kargo firması bulunamadı.")
-            st.session_state.hesap_sonuclari = sonuclar
-            st.session_state.hesap_il = secili_il
-            st.session_state.hesap_detay = gecerli_satirlar
-
-    sonuclar = st.session_state.get("hesap_sonuclari")
-    if sonuclar:
-        st.markdown(f"**{st.session_state.hesap_il} için hesaplanan fiyatlar:**")
-        en_ucuz_kargo = min(sonuclar, key=lambda x: x[1])[0]
-        secenekler = [f"{kargo} — {toplam:,.2f} TL (+ KDV)" + ("  ✓ Önerilen" if kargo == en_ucuz_kargo else "")
-                      for kargo, toplam in sonuclar]
-        with st.container(key="kargo_radyo"):
-            secim = st.radio("Kargo firması seçin:", secenekler, key="kargo_secim_radio")
-        secilen_index = secenekler.index(secim)
-        secilen_kargo, secilen_tutar = sonuclar[secilen_index]
-
-        if kargolastir_tiklandi:
-            detay_ozet = "; ".join(f"{m} adet x {d} desi" for m, d in st.session_state.hesap_detay)
-            db.tamamlanan_kargo_kaydet(
-                date.today().isoformat(), st.session_state.hesap_il, secilen_kargo, secilen_tutar, detay_ozet,
+        if "sevkiyat_df" not in st.session_state:
+            st.session_state.sevkiyat_df = pd.DataFrame(
+                {"Satır": [f"Satır {i + 1}" for i in range(5)], "Miktar": [float("nan")] * 5, "Desi": [float("nan")] * 5}
             )
-            st.success(f"{secilen_kargo} ile kargolaştırıldı ({secilen_tutar:,.2f} TL). "
-                       f"'Tamamlanmış Kargolar' sayfasından takip edebilirsiniz.")
-            st.session_state.hesap_sonuclari = None
-    elif kargolastir_tiklandi:
-        st.warning("Önce 'Hesapla' ile bir fiyat hesaplaması yapıp kargo firması seçmeniz gerekiyor.")
+
+        edited = st.data_editor(
+            st.session_state.sevkiyat_df,
+            num_rows="fixed",
+            use_container_width=True,
+            key="sevkiyat_editor",
+            column_config={
+                "Satır": st.column_config.TextColumn("Satır", disabled=True),
+                "Miktar": st.column_config.NumberColumn("Miktar", min_value=0, step=1),
+                "Desi": st.column_config.NumberColumn("Desi", min_value=0, step=1),
+            },
+        )
+        st.session_state.sevkiyat_df = edited
+
+        with st.popover("➕ Satır Ekle"):
+            ek_sayi = st.number_input("Eklenecek satır sayısı", min_value=1, max_value=50, value=1, key="sevk_satir_ekle_sayi")
+            if st.button("Ekle", key="sevk_satir_ekle_btn"):
+                mevcut_sayi = len(edited)
+                ek_df = pd.DataFrame({
+                    "Satır": [f"Satır {mevcut_sayi + i + 1}" for i in range(ek_sayi)],
+                    "Miktar": [float("nan")] * ek_sayi, "Desi": [float("nan")] * ek_sayi,
+                })
+                st.session_state.sevkiyat_df = pd.concat([edited, ek_df], ignore_index=True)
+                st.rerun()
+
+        col_hesapla, col_kargolastir = st.columns(2)
+        hesapla_tiklandi = col_hesapla.button("Hesapla", type="primary", use_container_width=True)
+        kargolastir_tiklandi = col_kargolastir.button("📦 Kargolaştır", use_container_width=True)
+
+        if hesapla_tiklandi:
+            gecerli_satirlar = [
+                (row["Miktar"], row["Desi"]) for _, row in edited.iterrows()
+                if pd.notna(row["Miktar"]) and pd.notna(row["Desi"]) and row["Miktar"] > 0 and row["Desi"] > 0
+            ]
+            if not gecerli_satirlar:
+                st.warning("Lütfen en az bir satıra miktar ve desi girin.")
+                st.session_state.hesap_sonuclari = None
+            else:
+                sonuclar = []
+                for kargo in data.PRICING:
+                    if not data.carrier_ships_to(kargo, secili_il):
+                        continue
+                    toplam = 0
+                    for miktar, desi in gecerli_satirlar:
+                        birim = data.calc_unit_price(kargo, desi)
+                        if birim is not None:
+                            toplam += birim * miktar
+                    sonuclar.append((kargo, toplam))
+                if not sonuclar:
+                    st.warning(f"{secili_il} iline gönderim yapan kargo firması bulunamadı.")
+                    st.session_state.hesap_sonuclari = None
+                else:
+                    sonuclar.sort(key=lambda x: x[1])
+                    st.session_state.hesap_sonuclari = sonuclar
+                    st.session_state.hesap_il = secili_il
+                    st.session_state.hesap_detay = gecerli_satirlar
+                    st.session_state.kargo_secilen = sonuclar[0][0]
+
+        sonuclar = st.session_state.get("hesap_sonuclari")
+        if sonuclar:
+            en_ucuz_kargo = sonuclar[0][0]
+            if st.session_state.get("kargo_secilen") not in dict(sonuclar):
+                st.session_state.kargo_secilen = en_ucuz_kargo
+
+            st.markdown(f'<div class="psub" style="margin-top:14px;">{st.session_state.hesap_il} için hesaplanan fiyatlar — en ucuz otomatik önerilip seçili geliyor</div>', unsafe_allow_html=True)
+            kargo_kolonlari = st.columns(len(sonuclar))
+            for j, (kol, (kargo, toplam)) in enumerate(zip(kargo_kolonlari, sonuclar)):
+                secili_mi = st.session_state.kargo_secilen == kargo
+                onerilen_mi = kargo == en_ucuz_kargo
+                durum = "secili" if secili_mi else "no"
+                with kol, st.container(key=f"sevk_kargo_kart_{j}_{durum}"):
+                    if onerilen_mi:
+                        st.markdown('<div class="sevk-rozet">ÖNERİLEN</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="sevk-kargo-ad">{kargo}</div>'
+                        f'<div class="sevk-kargo-tutar mono">{toplam:,.2f} TL</div>',
+                        unsafe_allow_html=True,
+                    )
+                    if st.button("✓ Seçili" if secili_mi else "Seç", key=f"sevk_kargo_sec_{j}", use_container_width=True):
+                        st.session_state.kargo_secilen = kargo
+                        st.rerun()
+
+            secilen_kargo = st.session_state.kargo_secilen
+            secilen_tutar = dict(sonuclar)[secilen_kargo]
+
+            if kargolastir_tiklandi:
+                detay_ozet = "; ".join(f"{m} adet x {d} desi" for m, d in st.session_state.hesap_detay)
+                db.tamamlanan_kargo_kaydet(
+                    date.today().isoformat(), st.session_state.hesap_il, secilen_kargo, secilen_tutar, detay_ozet,
+                )
+                st.success(f"{secilen_kargo} ile kargolaştırıldı ({secilen_tutar:,.2f} TL). "
+                           f"'Tamamlanmış Kargolar' sayfasından takip edebilirsiniz.")
+                st.session_state.hesap_sonuclari = None
+        elif kargolastir_tiklandi:
+            st.warning("Önce 'Hesapla' ile bir fiyat hesaplaması yapıp kargo firması seçmeniz gerekiyor.")
 
 
 # ------------------------------------------------------------------
