@@ -765,7 +765,7 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
     border-radius: 10px !important; padding: 18px 20px 14px 20px !important; margin-bottom: 16px !important;
 }
 .st-key-ds_yukleme_panel {
-    border: 4px solid var(--gb-accent) !important;
+    border: 6px solid var(--gb-accent) !important;
     padding: 8px 14px 6px 14px !important;
 }
 /* Panel, KPI kartları satırıyla alttan aynı hizada bitsin diye elemanlar
