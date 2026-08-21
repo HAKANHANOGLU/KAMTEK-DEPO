@@ -2559,9 +2559,20 @@ _EXCEL_YUKLENDI_IKON = (
 )
 
 
-def _depo_blok_matrisi(hafta_gunleri, durumlar, gun_dosyalari):
+def _depo_blok_matrisi(hafta_gunleri, durumlar, gun_dosyalari, durumlar_db):
     """Blok/bölge x gün matrisi - excel'den bağımsız, personelin elle
-    işaretlediği 'bu blok bu gün sayıldı' durumunu gösterir/günceller."""
+    işaretlediği 'bu blok bu gün sayıldı' durumunu gösterir/günceller.
+
+    `durumlar`, KPI'ların tıklama anında doğru görünmesi için session_state
+    ile önceden birleştirilmiş (bkz. depo_sayim_bolumu) - checkbox'ın
+    `value=`'i ve KPI hesabı bunu kullanır. Ama TAM O YÜZDEN, "değişti mi"
+    kontrolünü bu birleştirilmiş sözlüğe göre yapmak YANLIŞ: bir tık sonrası
+    session_state zaten yeni değeri taşıdığı için, birleştirilmiş sözlükteki
+    "mevcut" değer de otomatik olarak yeni değere eşitleniyor ve fark hiç
+    oluşmuyor - veritabanına yazma satırı asla çalışmıyordu (kutucuk ekranda
+    yeşil görünüyordu ama hiçbir zaman kaydedilmiyordu, sayfa
+    yenilenince/oturum bitince kayboluyordu). Bu yüzden "değişti mi" kontrolü
+    HAM veritabanı sözlüğüne (`durumlar_db`) göre yapılıyor."""
     with st.container(key="ds_matris_panel"):
         st.markdown('<div class="ds-panel-title">Haftalık Durum Matrisi</div>', unsafe_allow_html=True)
         st.markdown('<div class="ds-panel-sub">Excel\'de blok bilgisi olmadığı için, hangi bölgenin sayıldığını personel burada işaretler. Miktar/fark kontrolü excel detayından yapılır.</div>', unsafe_allow_html=True)
@@ -2593,7 +2604,8 @@ def _depo_blok_matrisi(hafta_gunleri, durumlar, gun_dosyalari):
                             blok, value=sayildi_mevcut, key=f"blok_durum_{gun_iso}_{blok}",
                             label_visibility="collapsed",
                         )
-                    if yeni_deger != sayildi_mevcut:
+                    db_sayildi = bool(durumlar_db.get((gun_iso, blok), {}).get("sayildi"))
+                    if yeni_deger != db_sayildi:
                         # st.rerun() gerekmiyor: checkbox tıklandığı an Streamlit
                         # zaten otomatik olarak yeniden çalıştırıyor ve yukarıda
                         # (depo_sayim_bolumu) session_state'ten okunan değer bu
@@ -2685,7 +2697,7 @@ def depo_sayim_bolumu():
 
     col_matris, col_son_islemler = st.columns([2.4, 1])
     with col_matris:
-        _depo_blok_matrisi(hafta_gunleri, blok_durumlari, gun_dosyalari)
+        _depo_blok_matrisi(hafta_gunleri, blok_durumlari, gun_dosyalari, blok_durumlari_db)
     with col_son_islemler:
         with st.container(key="ds_rapor_tile"):
             if st.button("Haftalık Rapor\nDetaylı tabloyu aç/kapat", key="ds_rapor_ac_btn", use_container_width=True):
