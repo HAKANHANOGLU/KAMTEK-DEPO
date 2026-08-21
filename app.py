@@ -1694,16 +1694,22 @@ def sayfa_sevkiyat():
         st.markdown('<div class="ptitle">Gönderi Hesapla</div>', unsafe_allow_html=True)
         st.caption("Her satıra bir gönderi grubu için Miktar (adet) ve Desi bilgisini girin.")
 
+        if st.session_state.get("kargolastir_basarili_mesaj"):
+            st.success(st.session_state.kargolastir_basarili_mesaj)
+            st.session_state.kargolastir_basarili_mesaj = None
+
         if "sevkiyat_df" not in st.session_state:
             st.session_state.sevkiyat_df = pd.DataFrame(
                 {"Satır": [f"Satır {i + 1}" for i in range(5)], "Miktar": [float("nan")] * 5, "Desi": [float("nan")] * 5}
             )
+        if "sevkiyat_editor_key" not in st.session_state:
+            st.session_state.sevkiyat_editor_key = 0
 
         edited = st.data_editor(
             st.session_state.sevkiyat_df,
             num_rows="fixed",
             use_container_width=True,
-            key="sevkiyat_editor",
+            key=f"sevkiyat_editor_{st.session_state.sevkiyat_editor_key}",
             column_config={
                 "Satır": st.column_config.TextColumn("Satır", disabled=True),
                 "Miktar": st.column_config.NumberColumn("Miktar", min_value=0, step=1),
@@ -1788,9 +1794,20 @@ def sayfa_sevkiyat():
                 db.tamamlanan_kargo_kaydet(
                     date.today().isoformat(), st.session_state.hesap_il, secilen_kargo, secilen_tutar, detay_ozet,
                 )
-                st.success(f"{secilen_kargo} ile kargolaştırıldı ({secilen_tutar:,.2f} TL). "
-                           f"'Tamamlanmış Kargolar' sayfasından takip edebilirsiniz.")
+                st.session_state.kargolastir_basarili_mesaj = (
+                    f"{secilen_kargo} ile kargolaştırıldı ({secilen_tutar:,.2f} TL). "
+                    f"'Tamamlanmış Kargolar' sayfasından takip edebilirsiniz."
+                )
                 st.session_state.hesap_sonuclari = None
+                st.session_state.kargo_secilen = None
+                # Tablo yeni veri girişine hazır olsun diye sıfırlanıyor - data_editor
+                # kendi widget durumunu key'e göre sakladığı için, sadece dataframe'i
+                # değiştirmek yetmiyor, key'i de değiştirip gerçekten sıfırlıyoruz.
+                st.session_state.sevkiyat_df = pd.DataFrame(
+                    {"Satır": [f"Satır {i + 1}" for i in range(5)], "Miktar": [float("nan")] * 5, "Desi": [float("nan")] * 5}
+                )
+                st.session_state.sevkiyat_editor_key += 1
+                st.rerun()
         elif kargolastir_tiklandi:
             st.warning("Önce 'Hesapla' ile bir fiyat hesaplaması yapıp kargo firması seçmeniz gerekiyor.")
 
