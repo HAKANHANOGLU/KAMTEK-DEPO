@@ -209,11 +209,16 @@ footer {visibility: hidden;}
     font-size: 40px !important;
 }
 .st-key-kartplan button {
-    background-color: #F1E9FB !important; border: none !important; border-radius: 32px !important;
-    height: 130px !important; font-weight: 700 !important; color: #5B2A86 !important;
-    line-height: 1.4 !important; width: 100% !important; font-size: 30px !important;
+    background-color: var(--gb-violet-soft) !important; border: 1px solid var(--gb-border) !important;
+    border-radius: 10px !important; height: auto !important; min-height: 0 !important;
+    padding: 13px 16px !important; font-weight: 600 !important; color: var(--gb-violet) !important;
+    line-height: 1.3 !important; width: 100% !important; font-size: 14px !important;
+    text-align: left !important; justify-content: flex-start !important;
 }
-.st-key-kartplan button * { font-size: 30px !important; }
+.st-key-kartplan button * { font-size: 14px !important; }
+.st-key-kartplan button:hover {
+    background-color: #E3D9F5 !important; border-color: var(--gb-violet) !important;
+}
 .st-key-ik_kart_personel button, .st-key-ik_kart_puantaj button,
 .st-key-pl_kart_gorevler button, .st-key-pl_kart_transfer button {
     background-color: #F1E9FB !important; border: none !important; border-radius: 24px !important;
@@ -925,6 +930,18 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 }
 .st-key-sevk_plan_panel { border-left: 3px solid var(--gb-violet) !important; }
 .st-key-sevk_hesap_panel { border-left: 3px solid var(--gb-accent) !important; }
+/* Varış İli (harita) paneliyle Planlanacak Kargolar paneli aynı satırda -
+   üst/alt kenarları hizalı dursun diye ikisini de %100 yükseklik yapıp
+   Depo Sayım Fişleri'ndeki matris/son-işlemler paneliyle aynı deseni
+   (bkz. .st-key-ds_matris_panel) kullanıyoruz. */
+div[data-testid="stHorizontalBlock"]:has(.st-key-sevk_il_panel) > div[data-testid="stColumn"] {
+    display: flex !important;
+}
+.st-key-sevk_il_panel, .st-key-sevk_plan_panel { height: 100% !important; width: 100%; }
+.st-key-sevk_plan_panel [data-testid="stDataFrame"],
+.st-key-sevk_hesap_panel [data-testid="stDataFrame"] {
+    border: 1px solid var(--gb-border) !important; border-radius: 8px !important; overflow: hidden !important;
+}
 /* Kargo fiyat kartları - en ucuz/seçili olan yeşil dolgulu, diğerleri nötr. */
 [class*="st-key-sevk_kargo_kart_"] {
     border: 1px solid var(--gb-border); border-radius: 8px; padding: 12px; margin-bottom: 8px;
@@ -1554,28 +1571,28 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
 <style>
   body{ margin:0; }
   .kh-wrap{ position:relative; font-family: system-ui, sans-serif; }
-  .kh-map{ display:block; width:100%; height:auto; }
-  .kh-il{ fill:#F4F6F5; stroke:#E7E3DA; stroke-width:1; stroke-linejoin:round; cursor:pointer; transition:fill .2s ease; }
-  .kh-il:hover{ fill:#E4F1EE; }
-  .kh-il.kh-is-selected{ fill:#E4F1EE; stroke:#1E7F72; stroke-width:1.4; }
-  .kh-il.kh-is-depot{ stroke:#1E7F72; stroke-width:1.4; }
+  .kh-map{ display:block; width:100%; height:265px; }
+  .kh-il{ fill:#F4F6F5; stroke:#E7E3DA; stroke-width:1; stroke-linejoin:round; cursor:pointer; transition:fill .15s ease; }
+  .kh-il:hover{ fill:#E3EEFB; }
+  .kh-il.kh-is-selected{ fill:#E3EEFB; stroke:#378ADD; stroke-width:1.4; }
+  .kh-il.kh-is-depot{ stroke:#378ADD; stroke-width:1.4; }
   .kh-marker circle{ stroke:#fff; stroke-width:2; }
   .kh-marker text{ font-size:11px; font-weight:600; paint-order:stroke; stroke:#fff; stroke-width:3; stroke-linejoin:round; fill:#1B2430; }
-  .kh-depot circle{ fill:#1E7F72; }
-  .kh-depot text{ fill:#1E7F72; }
-  .kh-selected circle{ fill:#1E7F72; }
-  .kh-route{ fill:none; stroke:#1E7F72; stroke-width:2; stroke-linecap:round; opacity:.85; pointer-events:none; }
+  .kh-depot circle{ fill:#378ADD; }
+  .kh-depot text{ fill:#2568B0; }
+  .kh-selected circle{ fill:#378ADD; }
+  .kh-route{ fill:none; stroke:#378ADD; stroke-width:2; stroke-linecap:round; opacity:.85; pointer-events:none; }
   .kh-truck{ opacity:0; pointer-events:none; }
-  .kh-truck rect, .kh-truck path{ fill:#fff; stroke:#1E7F72; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
-  .kh-truck line{ stroke:#1E7F72; stroke-width:1.6; }
+  .kh-truck rect, .kh-truck path{ fill:#fff; stroke:#2568B0; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .kh-truck line{ stroke:#2568B0; stroke-width:1.6; }
   .kh-wheel{ fill:#1B2430; }
   .kh-tooltip{ position:fixed; pointer-events:none; background:#1B2430; color:#fff; font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px; white-space:nowrap; transform:translate(-50%,-135%); opacity:0; transition:opacity .12s ease; z-index:5; }
   .kh-tooltip.show{ opacity:1; }
   .kh-caption{ display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:#8A93A0; }
-  .kh-dot{ width:7px; height:7px; border-radius:50%; background:#1E7F72; flex:none; }
+  .kh-dot{ width:7px; height:7px; border-radius:50%; background:#378ADD; flex:none; }
 </style>
 <div class="kh-wrap">
-  <svg class="kh-map" viewBox="0 0 $W $H" role="img" aria-label="Türkiye haritası, ile tıklayarak varış ili seçilir">
+  <svg class="kh-map" viewBox="0 0 $W $H" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Türkiye haritası, ile tıklayarak varış ili seçilir">
     <g id="khLayer">
       $PATHS
     </g>
@@ -1623,7 +1640,7 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
 
   function ease(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
 
-  function drive(fromPt, toPt, onDone){
+  function drive(fromPt, toPt){
     var dx = toPt[0]-fromPt[0], dy = toPt[1]-fromPt[1];
     var len = Math.hypot(dx, dy) || 1;
     var nx = -dy/len, ny = dx/len;
@@ -1634,7 +1651,7 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
     route.style.strokeDasharray = L;
     route.style.strokeDashoffset = L;
     truck.style.opacity = '1';
-    var dur = Math.max(700, Math.min(1600, len*6));
+    var dur = Math.max(450, Math.min(900, len*3.5));
     var start = null;
     function frame(ts){
       if(start === null) start = ts;
@@ -1646,7 +1663,7 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
       truck.setAttribute('transform', 'translate(' + pt.x + ',' + pt.y + ') rotate(' + ang + ')');
       route.style.strokeDashoffset = String(L*(1-et));
       if(t < 1){ requestAnimationFrame(frame); }
-      else { truck.style.opacity = '0'; if(onDone) onDone(); }
+      else { truck.style.opacity = '0'; }
     }
     requestAnimationFrame(frame);
   }
@@ -1671,7 +1688,16 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
     if(!name || name === SELECTED) return;
     var target = CENTROIDS[name];
     if(!target) return;
-    drive(CENTROIDS[DEPOT], target, function(){ commitSelection(name); });
+    // Sunucu round-trip'ini beklemeden anında görsel geri bildirim: seçili
+    // il ve etiketi hemen güncelleniyor, kamyon animasyonu ve Streamlit'e
+    // bildirim (commitSelection) paralel/arka planda ilerliyor.
+    var prevPath = layer.querySelector('.kh-is-selected');
+    if(prevPath) prevPath.classList.remove('kh-is-selected');
+    t.classList.add('kh-is-selected');
+    place(selectedMarker, target, name);
+    SELECTED = name;
+    drive(CENTROIDS[DEPOT], target);
+    commitSelection(name);
   });
   layer.addEventListener('mousemove', function(e){
     var t = e.target.closest ? e.target.closest('.kh-il') : null;
@@ -1730,20 +1756,25 @@ def sayfa_sevkiyat():
 
         try:
             harita = _il_haritasi_json()
-            components.html(
-                _sevkiyat_harita_html(harita, secili_il),
-                height=int(harita["H"] * 800 / harita["W"]) + 60,
-            )
+            # .kh-map'in CSS'te sabit bir yüksekliği (265px) var (bkz.
+            # _SEVK_HARITA_TEMPLATE) - bu yüzden burada da sabit bir yükseklik
+            # kullanıyoruz; sütun genişliğine göre değişen bir formül,
+            # components.html'in SABİT iframe yüksekliğiyle uyuşmayıp
+            # haritayı taşırıyor ya da altını boş bırakıyordu.
+            components.html(_sevkiyat_harita_html(harita, secili_il), height=310)
         except Exception as e:
             st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
 
     with col_bosluk, st.container(key="sevk_plan_panel"):
         with st.container(key="kartplan"):
-            if st.button("📝\n\nPlanlanacak Kargolar", use_container_width=True):
-                st.session_state.planlanan_goster = not st.session_state.get("planlanan_goster", False)
+            goster = st.session_state.get("planlanan_goster", False)
+            etiket = "📝 Planlanacak Kargolar  ▲" if goster else "📝 Planlanacak Kargolar  ▼"
+            if st.button(etiket, use_container_width=True):
+                st.session_state.planlanan_goster = not goster
 
         if st.session_state.get("planlanan_goster", False):
             st.caption("Müşteri adı, alıcı adres, koli adedi ve planlanan tarihi buraya serbestçe yazabilirsiniz.")
+            st.caption("Bir satırı silmek için en soldaki kutucuğu işaretleyip Delete tuşuna basın.")
             mevcut = db.planlanan_kargolar_getir()
             if mevcut:
                 df_plan = pd.DataFrame(mevcut)[
