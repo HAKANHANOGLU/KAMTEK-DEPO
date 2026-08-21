@@ -9,6 +9,8 @@ import hashlib
 import io
 import base64
 import html
+import json
+import string
 
 import data
 import db
@@ -939,6 +941,15 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 [class*="st-key-sevk_kargo_kart_"][class*="_secili"] div[data-testid="stButton"] button {
     background: var(--gb-accent) !important; color: #fff !important; border-color: var(--gb-accent) !important;
 }
+/* Harita üzerindeki bir ile tıklandığında, o bilgiyi Python'a taşıyan
+   gizli text_input (bkz. _harita_tiklama_isle) - görünmez ama odaklanabilir
+   kalması lazım (display:none focus() çağrısını yok sayar), bu yüzden
+   "sr-only" tekniğiyle gizleniyor. */
+.st-key-sevk_harita_tiklama_gizli {
+    position: absolute !important; width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1518,72 +1529,176 @@ def sayfa_home():
 # ------------------------------------------------------------------
 # SEVKİYAT PLANLAMA
 # ------------------------------------------------------------------
-# geojson'daki il isimleri bizim ALL-CAPS listemizle birebir eşleşmiyor
-# (örn. "İstanbul", "Afyon"), bu yüzden normalize ederek eşleştiriyoruz.
-# Modül seviyesinde tanımlı (nested/closure değil) çünkü _il_harita_verisi'nin
-# döndürdüğü sözlüğün içine konursa st.cache_data pickle ile serialize
-# edemiyor ("Cannot serialize the return value") - fonksiyonlar sadece
-# modül seviyesinde tanımlıysa referansla picklenebilir.
-_IL_EK_ESLESTIRME = {"AFYONKARAHİSAR": "AFYON", "MERSİN": "İÇEL"}
-
-
-def _norm_il(s):
-    s = _IL_EK_ESLESTIRME.get(s.upper(), s.upper())
-    return excel_utils.norm(s)
-
-
 @st.cache_data(ttl=None, show_spinner=False)
-def _il_harita_verisi():
-    """Türkiye il sınırları + il ismi eşleştirme haritalarını GitHub'dan bir
-    kez çeker ve kalıcı önbellekler. Eskiden bu ağ isteği ve 81 ilin
-    centroid/bbox hesaplaması Sevkiyat Planlama sayfasına HER girişte yeniden
-    yapılıyordu — sayfa geçişini belirgin şekilde yavaşlatan asıl sebep
-    buydu. Veri statik olduğu için süresiz önbellekleniyor (uygulama yeniden
-    başlatılınca zaten temizlenir). Dönen sözlük yalnızca picklenebilir
-    (dict/list/str/float) değerler içermeli - fonksiyon KONMAMALI."""
-    import requests
+def _il_haritasi_json():
+    """static/il_haritasi.json içindeki gerçek il sınırlarını (tr-geojson'dan
+    sadeleştirilmiş SVG yollarına dönüştürülmüş) bir kez okuyup önbellekler."""
+    import os
+    yol = os.path.join(os.path.dirname(__file__), "static", "il_haritasi.json")
+    with open(yol, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-    geojson_url = "https://raw.githubusercontent.com/cihadturhan/tr-geojson/master/geo/tr-cities-utf8.json"
-    geojson = requests.get(geojson_url, timeout=8).json()
 
-    def _il_centroid_bbox(feature):
-        geom = feature["geometry"]
-        coords = geom["coordinates"]
-        depth = 2 if geom["type"] == "Polygon" else 3
-        pts = []
+def _harita_tiklama_isle():
+    """Aşağıdaki gizli text_input'un on_change'i - haritadaki bir il şekline
+    tıklandığında components.html içindeki JS bu input'un değerini set edip
+    focus/blur tetikliyor, Streamlit bunu normal bir widget değişikliği
+    olarak işleyip bu callback'i çağırıyor (bkz. _sevkiyat_harita_html)."""
+    v = (st.session_state.get("sevk_harita_tiklama_deger") or "").strip()
+    if v and v in data.IL_LISTESI and v != st.session_state.get("secili_il"):
+        st.session_state["harita_secim_bekliyor"] = v
+    st.session_state["sevk_harita_tiklama_deger"] = ""
 
-        def collect(c, d):
-            if d == 0:
-                pts.append(c)
-            else:
-                for cc in c:
-                    collect(cc, d - 1)
 
-        collect(coords, depth)
-        xs = [p[0] for p in pts]
-        ys = [p[1] for p in pts]
-        return sum(xs) / len(xs), sum(ys) / len(ys), max(xs) - min(xs), max(ys) - min(ys)
+_SEVK_HARITA_TEMPLATE = string.Template(r"""
+<style>
+  body{ margin:0; }
+  .kh-wrap{ position:relative; font-family: system-ui, sans-serif; }
+  .kh-map{ display:block; width:100%; height:auto; }
+  .kh-il{ fill:#F4F6F5; stroke:#E7E3DA; stroke-width:1; stroke-linejoin:round; cursor:pointer; transition:fill .2s ease; }
+  .kh-il:hover{ fill:#E4F1EE; }
+  .kh-il.kh-is-selected{ fill:#E4F1EE; stroke:#1E7F72; stroke-width:1.4; }
+  .kh-il.kh-is-depot{ stroke:#1E7F72; stroke-width:1.4; }
+  .kh-marker circle{ stroke:#fff; stroke-width:2; }
+  .kh-marker text{ font-size:11px; font-weight:600; paint-order:stroke; stroke:#fff; stroke-width:3; stroke-linejoin:round; fill:#1B2430; }
+  .kh-depot circle{ fill:#1E7F72; }
+  .kh-depot text{ fill:#1E7F72; }
+  .kh-selected circle{ fill:#1E7F72; }
+  .kh-route{ fill:none; stroke:#1E7F72; stroke-width:2; stroke-linecap:round; opacity:.85; pointer-events:none; }
+  .kh-truck{ opacity:0; pointer-events:none; }
+  .kh-truck rect, .kh-truck path{ fill:#fff; stroke:#1E7F72; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  .kh-truck line{ stroke:#1E7F72; stroke-width:1.6; }
+  .kh-wheel{ fill:#1B2430; }
+  .kh-tooltip{ position:fixed; pointer-events:none; background:#1B2430; color:#fff; font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px; white-space:nowrap; transform:translate(-50%,-135%); opacity:0; transition:opacity .12s ease; z-index:5; }
+  .kh-tooltip.show{ opacity:1; }
+  .kh-caption{ display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:#8A93A0; }
+  .kh-dot{ width:7px; height:7px; border-radius:50%; background:#1E7F72; flex:none; }
+</style>
+<div class="kh-wrap">
+  <svg class="kh-map" viewBox="0 0 $W $H" role="img" aria-label="Türkiye haritası, ile tıklayarak varış ili seçilir">
+    <g id="khLayer">
+      $PATHS
+    </g>
+    <path class="kh-route" id="khRoute" d=""></path>
+    <g class="kh-marker kh-depot" id="khDepot"><circle r="5"></circle><text text-anchor="middle" y="-10"></text></g>
+    <g class="kh-marker kh-selected" id="khSelected"><circle r="6"></circle><text text-anchor="middle" y="-12"></text></g>
+    <g class="kh-truck" id="khTruck">
+      <g transform="translate(-11,-7)">
+        <rect x="0" y="0" width="13" height="9" rx="1.5"></rect>
+        <path d="M13 3 h5 l3 3.2 V9 h-8 z"></path>
+        <line x1="13" y1="3" x2="13" y2="9"></line>
+        <circle class="kh-wheel" cx="4" cy="10" r="1.8"></circle>
+        <circle class="kh-wheel" cx="17" cy="10" r="1.8"></circle>
+      </g>
+    </g>
+  </svg>
+  <div class="kh-tooltip" id="khTooltip"></div>
+  <div class="kh-caption"><span class="kh-dot"></span> Haritadan bir ile tıklayarak varış ilini seçebilirsiniz.</div>
+</div>
+<script>
+(function(){
+  var CENTROIDS = $CENTROIDS_JSON;
+  var DEPOT = $DEPOT_JSON;
+  var SELECTED = $SELECTED_JSON;
 
-    geojson_isim_haritasi = {_norm_il(f["properties"]["name"]): f["properties"]["name"] for f in geojson["features"]}
-    norm_to_il = {_norm_il(il): il for il in data.IL_LISTESI}
+  var layer = document.getElementById('khLayer');
+  var tooltip = document.getElementById('khTooltip');
+  var depotMarker = document.getElementById('khDepot');
+  var selectedMarker = document.getElementById('khSelected');
+  var truck = document.getElementById('khTruck');
+  var route = document.getElementById('khRoute');
 
-    lons, lats, texts, sizes = [], [], [], []
-    for f in geojson["features"]:
-        cx, cy, w, h = _il_centroid_bbox(f)
-        lons.append(cx)
-        lats.append(cy)
-        texts.append(f["properties"]["name"])
-        # küçük illerde küçük, büyük illerde biraz daha büyük yazı - sınırı taşmasın diye
-        alan = w * h
-        sizes.append(max(5, min(10, alan * 350)))
+  function place(g, pt, name){
+    if(!pt) return;
+    g.setAttribute('transform', 'translate(' + pt[0] + ',' + pt[1] + ')');
+    var t = g.querySelector('text');
+    if(t && name) t.textContent = name;
+  }
+  place(depotMarker, CENTROIDS[DEPOT], DEPOT + ' (Depo)');
+  place(selectedMarker, CENTROIDS[SELECTED], SELECTED);
+  var startPath = layer.querySelector('[data-name="' + SELECTED + '"]');
+  if(startPath) startPath.classList.add('kh-is-selected');
+  var depotPath = layer.querySelector('[data-name="' + DEPOT + '"]');
+  if(depotPath) depotPath.classList.add('kh-is-depot');
 
-    return {
-        "geojson": geojson,
-        "geojson_isim_haritasi": geojson_isim_haritasi,
-        "norm_to_il": norm_to_il,
-        "tum_isimler": [f["properties"]["name"] for f in geojson["features"]],
-        "lons": lons, "lats": lats, "texts": texts, "sizes": sizes,
+  function ease(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
+
+  function drive(fromPt, toPt, onDone){
+    var dx = toPt[0]-fromPt[0], dy = toPt[1]-fromPt[1];
+    var len = Math.hypot(dx, dy) || 1;
+    var nx = -dy/len, ny = dx/len;
+    var bow = Math.min(40, len*0.2);
+    var mx = (fromPt[0]+toPt[0])/2 + nx*bow, my = (fromPt[1]+toPt[1])/2 + ny*bow;
+    route.setAttribute('d', 'M ' + fromPt[0] + ' ' + fromPt[1] + ' Q ' + mx + ' ' + my + ' ' + toPt[0] + ' ' + toPt[1]);
+    var L = route.getTotalLength();
+    route.style.strokeDasharray = L;
+    route.style.strokeDashoffset = L;
+    truck.style.opacity = '1';
+    var dur = Math.max(700, Math.min(1600, len*6));
+    var start = null;
+    function frame(ts){
+      if(start === null) start = ts;
+      var t = Math.min(1, (ts-start)/dur);
+      var et = ease(t);
+      var pt = route.getPointAtLength(et*L);
+      var ahead = route.getPointAtLength(Math.min(L, et*L + 2));
+      var ang = Math.atan2(ahead.y-pt.y, ahead.x-pt.x) * 180/Math.PI;
+      truck.setAttribute('transform', 'translate(' + pt.x + ',' + pt.y + ') rotate(' + ang + ')');
+      route.style.strokeDashoffset = String(L*(1-et));
+      if(t < 1){ requestAnimationFrame(frame); }
+      else { truck.style.opacity = '0'; if(onDone) onDone(); }
     }
+    requestAnimationFrame(frame);
+  }
+
+  function commitSelection(name){
+    try {
+      var pdoc = window.parent.document;
+      var input = pdoc.querySelector('.st-key-sevk_harita_tiklama_gizli input');
+      if(!input) return;
+      var setter = Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype, 'value').set;
+      input.focus();
+      setter.call(input, name);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.blur();
+    } catch(e) { /* köprü başarısız olursa sessizce geç, harita görsel kalmaya devam eder */ }
+  }
+
+  layer.addEventListener('click', function(e){
+    var t = e.target.closest ? e.target.closest('.kh-il') : null;
+    if(!t) return;
+    var name = t.getAttribute('data-name');
+    if(!name || name === SELECTED) return;
+    var target = CENTROIDS[name];
+    if(!target) return;
+    drive(CENTROIDS[DEPOT], target, function(){ commitSelection(name); });
+  });
+  layer.addEventListener('mousemove', function(e){
+    var t = e.target.closest ? e.target.closest('.kh-il') : null;
+    if(!t){ tooltip.classList.remove('show'); return; }
+    tooltip.textContent = t.getAttribute('data-name');
+    tooltip.style.left = e.clientX + 'px';
+    tooltip.style.top = e.clientY + 'px';
+    tooltip.classList.add('show');
+  });
+  layer.addEventListener('mouseleave', function(){ tooltip.classList.remove('show'); });
+})();
+</script>
+""")
+
+
+def _sevkiyat_harita_html(harita, secili_il):
+    paths = "\n      ".join(
+        f'<path class="kh-il" data-name="{p["name"]}" d="{p["d"]}"></path>'
+        for p in harita["provinces"]
+    )
+    centroids = {p["name"]: [p["cx"], p["cy"]] for p in harita["provinces"]}
+    return _SEVK_HARITA_TEMPLATE.substitute(
+        W=harita["W"], H=harita["H"], PATHS=paths,
+        CENTROIDS_JSON=json.dumps(centroids, ensure_ascii=False),
+        DEPOT_JSON=json.dumps(harita["depot"], ensure_ascii=False),
+        SELECTED_JSON=json.dumps(secili_il, ensure_ascii=False),
+    )
 
 
 def sayfa_sevkiyat():
@@ -1603,56 +1718,22 @@ def sayfa_sevkiyat():
             st.session_state.secili_il = st.session_state.pop("harita_secim_bekliyor")
 
         secili_il = st.selectbox("Varış İli", data.IL_LISTESI, key="secili_il", label_visibility="collapsed")
+
+        # Görünmez köprü - harita üstündeki bir ile tıklanınca JS bu input'u
+        # değiştirip focus/blur tetikliyor, Streamlit'in normal widget akışı
+        # üzerinden _harita_tiklama_isle çağrılıyor (bkz. yukarısı).
+        with st.container(key="sevk_harita_tiklama_gizli"):
+            st.text_input(
+                "harita tıklama köprüsü", key="sevk_harita_tiklama_deger",
+                on_change=_harita_tiklama_isle, label_visibility="collapsed",
+            )
+
         try:
-            import plotly.graph_objects as go
-
-            hv = _il_harita_verisi()
-            geojson = hv["geojson"]
-            norm_to_il = hv["norm_to_il"]
-            gercek_isim = hv["geojson_isim_haritasi"].get(_norm_il(secili_il))
-
-            if gercek_isim is None:
-                st.info(f"{secili_il} haritada bulunamadı, sadece il seçimiyle devam edebilirsiniz.")
-            else:
-                df_map = pd.DataFrame({"il": hv["tum_isimler"]})
-                df_map["secili"] = df_map["il"].apply(lambda x: 1 if x == gercek_isim else 0)
-                lons, lats, texts, sizes = hv["lons"], hv["lats"], hv["texts"], hv["sizes"]
-
-                fig = go.Figure()
-                fig.add_trace(go.Choropleth(
-                    geojson=geojson, locations=df_map["il"], z=df_map["secili"],
-                    featureidkey="properties.name",
-                    colorscale=[[0, "#E6F1FB"], [1, "#378ADD"]],
-                    showscale=False, marker_line_color="#9DB8CC", marker_line_width=0.6,
-                ))
-                fig.add_trace(go.Scattergeo(
-                    lon=lons, lat=lats, text=texts, mode="text",
-                    textfont=dict(size=sizes, color="#1F2937"),
-                    hoverinfo="skip", showlegend=False,
-                ))
-                fig.update_geos(fitbounds="locations", visible=False)
-                fig.update_layout(height=420, margin=dict(l=0, r=0, t=0, b=0))
-
-                event = st.plotly_chart(
-                    fig, use_container_width=True, key="il_haritasi",
-                    on_select="rerun", selection_mode="points",
-                )
-                st.caption("Haritadan bir ile tıklayarak da varış ilini seçebilirsiniz.")
-
-                if event and event.get("selection", {}).get("points"):
-                    tiklanan = event["selection"]["points"][0]
-                    loc = tiklanan.get("location")
-                    if not loc:
-                        # Tıklama, il isimlerini gösteren metin katmanına denk gelmiş olabilir;
-                        # bu durumda nokta indeksinden ilin adını buluyoruz.
-                        pt_idx = tiklanan.get("point_index", tiklanan.get("pointIndex"))
-                        if pt_idx is not None and 0 <= pt_idx < len(texts):
-                            loc = texts[pt_idx]
-                    if loc:
-                        eslesen_il = norm_to_il.get(_norm_il(loc))
-                        if eslesen_il and eslesen_il != st.session_state.secili_il:
-                            st.session_state["harita_secim_bekliyor"] = eslesen_il
-                            st.rerun()
+            harita = _il_haritasi_json()
+            components.html(
+                _sevkiyat_harita_html(harita, secili_il),
+                height=int(harita["H"] * 800 / harita["W"]) + 60,
+            )
         except Exception as e:
             st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
 
