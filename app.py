@@ -872,6 +872,22 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 .st-key-ds_matris_panel [data-testid="stCheckbox"] label [data-testid="stWidgetLabel"] {
     display: none !important; width: 0 !important; height: 0 !important;
 }
+/* Dar ekranda (telefon) Streamlit 8 sütunu (blok adı + 7 gün) alt alta
+   diziyor, matrisi anlamsız bir listeye çeviriyordu. Sütunları yan yana
+   sabit tutup panelin kendisini YATAY kaydırılabilir yapıyoruz - böylece
+   sağa kaydırarak tüm haftayı görebiliyorsunuz, hizalama da bozulmuyor. */
+@media (max-width: 768px) {
+    .st-key-ds_matris_panel { overflow-x: auto !important; }
+    .st-key-ds_matris_panel [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important; height: auto !important; min-width: 720px !important;
+    }
+    .st-key-ds_matris_panel [data-testid="stColumn"] {
+        width: auto !important; min-width: 84px !important; flex: 0 0 84px !important; height: auto !important;
+    }
+    .st-key-ds_matris_panel [data-testid="stColumn"]:first-child {
+        min-width: 140px !important; flex: 0 0 140px !important;
+    }
+}
 .ds-log-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #F1EFE9; }
 .ds-log-row:last-child { border-bottom: none; }
 .ds-log-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--gb-accent); }
