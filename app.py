@@ -3227,14 +3227,49 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
         st.info("Stok verisi bulunamadı.")
         return
 
-    # Aynı gün içindeki taslağı veritabanında tutan anahtar - sayım sırasında
-    # telefon çalıp Streamlit bağlantısı kopup session_state sıfırlansa bile
-    # (mobilde sekme arka planda öldürülünce olan buydu) sayfa yeniden
-    # açıldığında bu anahtardan kaldığı yerden devam edilebiliyor.
-    oturum_anahtari = f"{anahtar_onek}_{date.today().isoformat()}"
+    # Birden fazla personel AYNI ANDA, kendi telefonlarından sayım yapabiliyor
+    # (aynı depo, aynı gün). Personel seçimi bu yüzden en başta ve ZORUNLU -
+    # eskiden taslak anahtarı sadece `{anahtar_onek}_{tarih}` idi, yani TÜM
+    # personel aynı veritabanı taslağını paylaşıyordu: biri "Sayımı Tamamla"ya
+    # bastığında, henüz kendi adını atamamış diğer personelin o ana kadar
+    # girdiği satırlar da (aynı paylaşılan taslaktan geldiği için) onun
+    # sayımına karışıyordu - özellikle mobilde bağlantı kopup session_state
+    # sıfırlanınca taslak yeniden DB'den yüklenirken. Artık taslak anahtarı
+    # personel adını da içeriyor, böylece her personelin taslağı tamamen
+    # izole; personel seçilmeden sayım ekranı hiç açılmıyor.
+    secili_personel_key = f"{anahtar_onek}_secili_personel"
+    personeller = db.personel_listele()
+    personel_adlari = [p["ad_soyad"] for p in personeller]
 
-    girisler_key = f"{anahtar_onek}_girisler"
-    editor_key_key = f"{anahtar_onek}_editor_key"
+    if not st.session_state.get(secili_personel_key):
+        st.info("Birden fazla personel aynı anda sayım yapabildiği için, önce sayımı yapan kişiyi seçin.")
+        secim = st.selectbox(
+            "Sayımı yapan personel", ["(Seçiniz)"] + personel_adlari, key=f"{anahtar_onek}_personel_secim_baslangic",
+        )
+        if st.button("Devam Et", type="primary", key=f"{anahtar_onek}_personel_devam_btn"):
+            if secim == "(Seçiniz)":
+                st.warning("Lütfen bir personel seçin.")
+            else:
+                st.session_state[secili_personel_key] = secim
+                st.rerun()
+        return
+
+    secilen_personel = st.session_state[secili_personel_key]
+    cp_ad, cp_degistir = st.columns([4, 1])
+    cp_ad.caption(f"👤 Sayımı yapan: **{secilen_personel}**")
+    if cp_degistir.button("Değiştir", key=f"{anahtar_onek}_personel_degistir_btn"):
+        del st.session_state[secili_personel_key]
+        st.rerun()
+
+    # Aynı gün + aynı personel için taslağı veritabanında tutan anahtar -
+    # sayım sırasında telefon çalıp Streamlit bağlantısı kopup session_state
+    # sıfırlansa bile (mobilde sekme arka planda öldürülünce olan buydu)
+    # sayfa yeniden açıldığında (AYNI personel seçilince) bu anahtardan
+    # kaldığı yerden devam edilebiliyor - başka personelin taslağına karışmaz.
+    oturum_anahtari = f"{anahtar_onek}_{date.today().isoformat()}_{secilen_personel}"
+
+    girisler_key = f"{anahtar_onek}_{secilen_personel}_girisler"
+    editor_key_key = f"{anahtar_onek}_{secilen_personel}_editor_key"
     if girisler_key not in st.session_state:
         # Önce veritabanındaki taslağı geri yükle (bağlantı kopması sonrası
         # kurtarma) - hiç taslak yoksa (ilk kez sayım başlıyor) boş sözlük.
@@ -3290,7 +3325,7 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
     # dahil edildiğinde daraltılsalar bile telefon ekranında hafif yatay
     # kaydırma kalıyordu ("hiç kıpırdamasın" istendi). Marka hâlâ arama/
     # kategori filtresinde kullanılıyor, sadece tablo sütunu olarak
-    # gösterilmiyor. Personel ataması "Personeli Ata" düğmesinden yapılıyor.
+    # gösterilmiyor. Personel, sayfanın en başında zaten seçildi.
     df_goster["Sayım"] = df_goster["Ürün Adı"].apply(lambda u: girisler.get(u, {}).get("Sayım", ""))
     df_goster = df_goster[["Ürün Adı", "Sayım"]]
 
@@ -3305,50 +3340,28 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
     )
 
     # Kullanıcının bu görünümde girdiği Sayım değerlerini kalıcı sözlüğe geri
-    # yaz. Personel tabloda hiç gösterilmiyor, sadece "Personeli Ata"
-    # düğmesinden atanıyor - burada mevcut değeri koru. Değişen her satır
-    # AYNI ANDA veritabanına da (taslak olarak) yazılıyor ki bağlantı kopsa
-    # bile veri kaybolmasın - sadece GERÇEKTEN değişen satırlar için (her
-    # sayfa yenilemesinde tüm satırları yeniden yazmamak için).
+    # yaz - personel artık başta seçildiği için her satıra doğrudan atanıyor,
+    # ayrı bir "Personeli Ata" adımına gerek yok. Değişen her satır AYNI ANDA
+    # veritabanına da (taslak olarak) yazılıyor ki bağlantı kopsa bile veri
+    # kaybolmasın - sadece GERÇEKTEN değişen satırlar için (her sayfa
+    # yenilemesinde tüm satırları yeniden yazmamak için).
     for _, row in edited.iterrows():
         urun = row["Ürün Adı"]
         sayim_deger = row["Sayım"]
         sayim_dolu = str(sayim_deger).strip() not in ("", "nan", "None")
-        mevcut_personel = girisler.get(urun, {}).get("Personel", "")
         onceki_sayim = girisler.get(urun, {}).get("Sayım")
         degisti = (sayim_dolu and sayim_deger != onceki_sayim) or (not sayim_dolu and urun in girisler)
-        if sayim_dolu or mevcut_personel:
-            girisler[urun] = {"Sayım": sayim_deger, "Personel": mevcut_personel}
+        if sayim_dolu:
+            girisler[urun] = {"Sayım": sayim_deger, "Personel": secilen_personel}
         elif urun in girisler:
             del girisler[urun]
         if degisti:
             try:
-                db.stok_sayim_taslak_kaydet(oturum_anahtari, urun, sayim_deger if sayim_dolu else None, mevcut_personel)
+                db.stok_sayim_taslak_kaydet(oturum_anahtari, urun, sayim_deger if sayim_dolu else None, secilen_personel)
             except Exception:
                 pass
 
     st.markdown("---")
-    personeller = db.personel_listele()
-    personel_adlari = [p["ad_soyad"] for p in personeller]
-    cp1, cp2 = st.columns([3, 1])
-    secilen_personel = cp1.selectbox(
-        "Sayan personeli seçin — sayım girilmiş tüm satırlara otomatik atanır",
-        ["(Seçiniz)"] + personel_adlari, key=f"{anahtar_onek}_personel_secim",
-    )
-    if cp2.button("👤 Personeli Ata", use_container_width=True, key=f"{anahtar_onek}_personel_ata_btn"):
-        if secilen_personel == "(Seçiniz)":
-            st.warning("Önce bir personel seçin.")
-        else:
-            for urun, deger in girisler.items():
-                if str(deger.get("Sayım", "")).strip() not in ("", "nan", "None"):
-                    deger["Personel"] = secilen_personel
-                    try:
-                        db.stok_sayim_taslak_kaydet(oturum_anahtari, urun, deger.get("Sayım"), secilen_personel)
-                    except Exception:
-                        pass
-            st.session_state[editor_key_key] += 1
-            st.rerun()
-
     if st.button("✅ Sayımı Tamamla", type="primary", key=f"{anahtar_onek}_tamamla_btn"):
         if not girisler:
             st.warning("Lütfen en az bir ürün için sayım miktarı girin.")
@@ -3356,13 +3369,10 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
             stok_haritasi = {row["Ürün Adı"]: row["Stok"] for _, row in df.iterrows()}
             tum_sayilan = []
             fark_sayisi = 0
-            personel_ozet_set = set()
             for urun, deger in girisler.items():
                 sayim_deger = deger.get("Sayım")
                 if str(sayim_deger).strip() in ("", "nan", "None"):
                     continue
-                if deger.get("Personel"):
-                    personel_ozet_set.add(str(deger["Personel"]))
                 try:
                     guncel = float(str(stok_haritasi.get(urun, 0)).replace(",", "."))
                     sayilan_sayi = float(str(sayim_deger).replace(",", "."))
@@ -3377,8 +3387,7 @@ def _stok_sayim_bolumu(urunler, anahtar_onek="sayim"):
                     "fark": fark_deger,
                 })
             toplam_sayilan = len(tum_sayilan)
-            personel_ozet = ", ".join(personel_ozet_set) if personel_ozet_set else None
-            db.stok_sayim_oturumu_kaydet(date.today().isoformat(), personel_ozet, tum_sayilan)
+            db.stok_sayim_oturumu_kaydet(date.today().isoformat(), secilen_personel, tum_sayilan)
             try:
                 db.stok_sayim_taslak_temizle(oturum_anahtari)
             except Exception:
