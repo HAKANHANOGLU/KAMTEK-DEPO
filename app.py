@@ -930,14 +930,6 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 }
 .st-key-sevk_plan_panel { border-left: 3px solid var(--gb-violet) !important; }
 .st-key-sevk_hesap_panel { border-left: 3px solid var(--gb-accent) !important; }
-/* Varış İli (harita) paneliyle Planlanacak Kargolar paneli aynı satırda -
-   üst/alt kenarları hizalı dursun diye ikisini de %100 yükseklik yapıp
-   Depo Sayım Fişleri'ndeki matris/son-işlemler paneliyle aynı deseni
-   (bkz. .st-key-ds_matris_panel) kullanıyoruz. */
-div[data-testid="stHorizontalBlock"]:has(.st-key-sevk_il_panel) > div[data-testid="stColumn"] {
-    display: flex !important;
-}
-.st-key-sevk_il_panel, .st-key-sevk_plan_panel { height: 100% !important; width: 100%; }
 .st-key-sevk_plan_panel [data-testid="stDataFrame"],
 .st-key-sevk_hesap_panel [data-testid="stDataFrame"] {
     border: 1px solid var(--gb-border) !important; border-radius: 8px !important; overflow: hidden !important;
@@ -1571,7 +1563,7 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
 <style>
   body{ margin:0; }
   .kh-wrap{ position:relative; font-family: system-ui, sans-serif; }
-  .kh-map{ display:block; width:100%; height:265px; }
+  .kh-map{ display:block; width:100%; height:420px; }
   .kh-il{ fill:#F4F6F5; stroke:#E7E3DA; stroke-width:1; stroke-linejoin:round; cursor:pointer; transition:fill .15s ease; }
   .kh-il:hover{ fill:#E3EEFB; }
   .kh-il.kh-is-selected{ fill:#E3EEFB; stroke:#378ADD; stroke-width:1.4; }
@@ -1727,12 +1719,102 @@ def _sevkiyat_harita_html(harita, secili_il):
     )
 
 
+_PLANLANAN_KOLONLAR = ["Müşteri Adı", "Alıcı Adres", "Açıklama", "Sipariş Tarihi", "Koli Adedi", "Planlanan Tarih"]
+
+
+def _planlanan_df_olustur(satirlar, min_satir=5):
+    """DB'den gelen kayıtları (varsa) data_editor şekline çevirir, en az
+    `min_satir` satıra tamamlar (boş satırlarla) - gerçek kayıt sayısı daha
+    fazlaysa hepsi gösterilir, hiçbiri gizlenmez."""
+    n = max(min_satir, len(satirlar))
+    veri = {"Sil": [False] * n, "Satır": [f"Satır {i + 1}" for i in range(n)]}
+    for kolon, alan in zip(
+        _PLANLANAN_KOLONLAR,
+        ["musteri_adi", "alici_adresi", "aciklama", "siparis_tarihi", "koli_adedi", "planlanan_tarih"],
+    ):
+        veri[kolon] = [(satirlar[i].get(alan) or "") if i < len(satirlar) else "" for i in range(n)]
+    return pd.DataFrame(veri)
+
+
 def sayfa_sevkiyat():
     geri_butonu()
     st.header("Sevkiyat Planlama")
 
-    col_map, col_bosluk = st.columns([3, 1])
-    with col_map, st.container(key="sevk_il_panel"):
+    with st.container(key="sevk_plan_panel"):
+        with st.container(key="kartplan"):
+            goster = st.session_state.get("planlanan_goster", False)
+            etiket = "📝 Planlanacak Kargolar  ▲" if goster else "📝 Planlanacak Kargolar  ▼"
+            if st.button(etiket, use_container_width=True):
+                st.session_state.planlanan_goster = not goster
+
+        if st.session_state.get("planlanan_goster", False):
+            st.caption(
+                "Müşteri adı, alıcı adres, koli adedi ve planlanan tarihi buraya serbestçe yazabilirsiniz. "
+                "Bir satırı silmek için soldaki kutucuğu işaretleyip '🗑 Seçili Satırları Sil'e basın."
+            )
+            if "planlanan_editor_key" not in st.session_state:
+                st.session_state.planlanan_editor_key = 0
+            if "planlanan_df" not in st.session_state:
+                st.session_state.planlanan_df = _planlanan_df_olustur(db.planlanan_kargolar_getir())
+
+            edited_plan = st.data_editor(
+                st.session_state.planlanan_df,
+                num_rows="fixed", use_container_width=True,
+                key=f"planlanan_editor_{st.session_state.planlanan_editor_key}",
+                column_config={
+                    "Sil": st.column_config.CheckboxColumn("Sil", width="small"),
+                    "Satır": st.column_config.TextColumn("Satır", disabled=True, width="small"),
+                },
+            )
+            st.session_state.planlanan_df = edited_plan
+
+            with st.popover("➕ Satır Ekle"):
+                ek_sayi = st.number_input("Eklenecek satır sayısı", min_value=1, max_value=50, value=1, key="planlanan_satir_ekle_sayi")
+                if st.button("Ekle", key="planlanan_satir_ekle_btn"):
+                    mevcut_sayi = len(edited_plan)
+                    ek_df = pd.DataFrame({
+                        "Sil": [False] * ek_sayi,
+                        "Satır": [f"Satır {mevcut_sayi + i + 1}" for i in range(ek_sayi)],
+                        **{k: [""] * ek_sayi for k in _PLANLANAN_KOLONLAR},
+                    })
+                    st.session_state.planlanan_df = pd.concat([edited_plan, ek_df], ignore_index=True)
+                    st.session_state.planlanan_editor_key += 1
+                    st.rerun()
+
+            col_sil, col_kaydet = st.columns(2)
+            if col_sil.button("🗑 Seçili Satırları Sil", use_container_width=True):
+                kalanlar = edited_plan[~edited_plan["Sil"]].drop(columns=["Sil", "Satır"]).reset_index(drop=True)
+                if len(kalanlar) == len(edited_plan):
+                    st.warning("Silmek için en az bir satırı işaretleyin.")
+                else:
+                    yeniden = kalanlar.copy()
+                    yeniden.insert(0, "Satır", [f"Satır {i + 1}" for i in range(len(yeniden))])
+                    yeniden.insert(0, "Sil", False)
+                    # En az 5 satır her zaman görünsün diye eksikse boş satırlarla tamamla.
+                    while len(yeniden) < 5:
+                        bos = pd.DataFrame([{"Sil": False, "Satır": f"Satır {len(yeniden) + 1}",
+                                              **{k: "" for k in _PLANLANAN_KOLONLAR}}])
+                        yeniden = pd.concat([yeniden, bos], ignore_index=True)
+                    st.session_state.planlanan_df = yeniden
+                    st.session_state.planlanan_editor_key += 1
+                    st.rerun()
+            if col_kaydet.button("Kaydet", key="planlanan_kaydet", type="primary", use_container_width=True):
+                satirlar = [
+                    {
+                        "musteri_adi": row["Müşteri Adı"], "alici_adresi": row["Alıcı Adres"],
+                        "aciklama": row["Açıklama"], "siparis_tarihi": row["Sipariş Tarihi"],
+                        "koli_adedi": row["Koli Adedi"], "planlanan_tarih": row["Planlanan Tarih"],
+                    }
+                    for _, row in edited_plan.iterrows()
+                    if any(str(row[c]).strip() not in ("", "nan", "None") for c in _PLANLANAN_KOLONLAR)
+                ]
+                db.planlanan_kargolar_kaydet(satirlar)
+                st.session_state.planlanan_df = _planlanan_df_olustur(satirlar)
+                st.session_state.planlanan_editor_key += 1
+                st.success("Planlanan kargolar kaydedildi.")
+                st.rerun()
+
+    with st.container(key="sevk_il_panel"):
         st.markdown('<div class="ptitle">Varış İli</div>', unsafe_allow_html=True)
         if "secili_il" not in st.session_state:
             st.session_state.secili_il = "İZMİR"
@@ -1756,50 +1838,14 @@ def sayfa_sevkiyat():
 
         try:
             harita = _il_haritasi_json()
-            # .kh-map'in CSS'te sabit bir yüksekliği (265px) var (bkz.
+            # .kh-map'in CSS'te sabit bir yüksekliği (420px) var (bkz.
             # _SEVK_HARITA_TEMPLATE) - bu yüzden burada da sabit bir yükseklik
-            # kullanıyoruz; sütun genişliğine göre değişen bir formül,
+            # kullanıyoruz; sayfa genişliğine göre değişen bir formül,
             # components.html'in SABİT iframe yüksekliğiyle uyuşmayıp
             # haritayı taşırıyor ya da altını boş bırakıyordu.
-            components.html(_sevkiyat_harita_html(harita, secili_il), height=310)
+            components.html(_sevkiyat_harita_html(harita, secili_il), height=465)
         except Exception as e:
             st.info(f"Harita şu an yüklenemedi ({e}). İl seçimiyle devam edebilirsiniz.")
-
-    with col_bosluk, st.container(key="sevk_plan_panel"):
-        with st.container(key="kartplan"):
-            goster = st.session_state.get("planlanan_goster", False)
-            etiket = "📝 Planlanacak Kargolar  ▲" if goster else "📝 Planlanacak Kargolar  ▼"
-            if st.button(etiket, use_container_width=True):
-                st.session_state.planlanan_goster = not goster
-
-        if st.session_state.get("planlanan_goster", False):
-            st.caption("Müşteri adı, alıcı adres, koli adedi ve planlanan tarihi buraya serbestçe yazabilirsiniz.")
-            st.caption("Bir satırı silmek için en soldaki kutucuğu işaretleyip Delete tuşuna basın.")
-            mevcut = db.planlanan_kargolar_getir()
-            if mevcut:
-                df_plan = pd.DataFrame(mevcut)[
-                    ["musteri_adi", "alici_adresi", "aciklama", "siparis_tarihi", "koli_adedi", "planlanan_tarih"]
-                ]
-            else:
-                df_plan = pd.DataFrame({"musteri_adi": [""] * 8, "alici_adresi": [""] * 8,
-                                         "aciklama": [""] * 8, "siparis_tarihi": [""] * 8,
-                                         "koli_adedi": [""] * 8, "planlanan_tarih": [""] * 8})
-            df_plan.columns = ["Müşteri Adı", "Alıcı Adres", "Açıklama", "Sipariş Tarihi", "Koli Adedi", "Planlanan Tarih"]
-            edited_plan = st.data_editor(
-                df_plan, use_container_width=True, num_rows="dynamic", key="planlanan_editor", height=350,
-            )
-            if st.button("Kaydet", key="planlanan_kaydet"):
-                satirlar = [
-                    {
-                        "musteri_adi": row["Müşteri Adı"], "alici_adresi": row["Alıcı Adres"],
-                        "aciklama": row["Açıklama"], "siparis_tarihi": row["Sipariş Tarihi"],
-                        "koli_adedi": row["Koli Adedi"], "planlanan_tarih": row["Planlanan Tarih"],
-                    }
-                    for _, row in edited_plan.iterrows()
-                    if any(str(row[c]).strip() not in ("", "nan", "None") for c in edited_plan.columns)
-                ]
-                db.planlanan_kargolar_kaydet(satirlar)
-                st.success("Planlanan kargolar kaydedildi.")
 
     st.markdown("---")
     with st.container(key="sevk_hesap_panel"):
