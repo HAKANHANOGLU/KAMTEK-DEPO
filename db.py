@@ -235,6 +235,7 @@ def planlanan_kargolar_kaydet(satirlar: list):
             "siparis_tarihi": s.get("siparis_tarihi") or "",
             "koli_adedi": s.get("koli_adedi") or "",
             "planlanan_tarih": s.get("planlanan_tarih") or "",
+            "fis_no": s.get("fis_no") or "",
             "olusturma_zamani": now,
         }
         for s in satirlar

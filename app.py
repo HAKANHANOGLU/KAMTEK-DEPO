@@ -1719,7 +1719,8 @@ def _sevkiyat_harita_html(harita, secili_il):
     )
 
 
-_PLANLANAN_KOLONLAR = ["Müşteri Adı", "Alıcı Adres", "Açıklama", "Sipariş Tarihi", "Koli Adedi", "Planlanan Tarih"]
+_PLANLANAN_KOLONLAR = ["Fiş No", "Müşteri Adı", "Alıcı Adres", "Açıklama", "Sipariş Tarihi", "Koli Adedi", "Planlanan Tarih"]
+_PLANLANAN_ALANLAR = ["fis_no", "musteri_adi", "alici_adresi", "aciklama", "siparis_tarihi", "koli_adedi", "planlanan_tarih"]
 
 
 def _planlanan_df_olustur(satirlar, min_satir=5):
@@ -1727,11 +1728,8 @@ def _planlanan_df_olustur(satirlar, min_satir=5):
     `min_satir` satıra tamamlar (boş satırlarla) - gerçek kayıt sayısı daha
     fazlaysa hepsi gösterilir, hiçbiri gizlenmez."""
     n = max(min_satir, len(satirlar))
-    veri = {"Sil": [False] * n, "Satır": [f"Satır {i + 1}" for i in range(n)]}
-    for kolon, alan in zip(
-        _PLANLANAN_KOLONLAR,
-        ["musteri_adi", "alici_adresi", "aciklama", "siparis_tarihi", "koli_adedi", "planlanan_tarih"],
-    ):
+    veri = {"Sil": [False] * n}
+    for kolon, alan in zip(_PLANLANAN_KOLONLAR, _PLANLANAN_ALANLAR):
         veri[kolon] = [(satirlar[i].get(alan) or "") if i < len(satirlar) else "" for i in range(n)]
     return pd.DataFrame(veri)
 
@@ -1763,7 +1761,7 @@ def sayfa_sevkiyat():
                 key=f"planlanan_editor_{st.session_state.planlanan_editor_key}",
                 column_config={
                     "Sil": st.column_config.CheckboxColumn("Sil", width="small"),
-                    "Satır": st.column_config.TextColumn("Satır", disabled=True, width="small"),
+                    "Fiş No": st.column_config.TextColumn("Fiş No", width="small"),
                 },
             )
             st.session_state.planlanan_df = edited_plan
@@ -1771,10 +1769,8 @@ def sayfa_sevkiyat():
             with st.popover("➕ Satır Ekle"):
                 ek_sayi = st.number_input("Eklenecek satır sayısı", min_value=1, max_value=50, value=1, key="planlanan_satir_ekle_sayi")
                 if st.button("Ekle", key="planlanan_satir_ekle_btn"):
-                    mevcut_sayi = len(edited_plan)
                     ek_df = pd.DataFrame({
                         "Sil": [False] * ek_sayi,
-                        "Satır": [f"Satır {mevcut_sayi + i + 1}" for i in range(ek_sayi)],
                         **{k: [""] * ek_sayi for k in _PLANLANAN_KOLONLAR},
                     })
                     st.session_state.planlanan_df = pd.concat([edited_plan, ek_df], ignore_index=True)
@@ -1783,17 +1779,15 @@ def sayfa_sevkiyat():
 
             col_sil, col_kaydet = st.columns(2)
             if col_sil.button("🗑 Seçili Satırları Sil", use_container_width=True):
-                kalanlar = edited_plan[~edited_plan["Sil"]].drop(columns=["Sil", "Satır"]).reset_index(drop=True)
+                kalanlar = edited_plan[~edited_plan["Sil"]].drop(columns=["Sil"]).reset_index(drop=True)
                 if len(kalanlar) == len(edited_plan):
                     st.warning("Silmek için en az bir satırı işaretleyin.")
                 else:
                     yeniden = kalanlar.copy()
-                    yeniden.insert(0, "Satır", [f"Satır {i + 1}" for i in range(len(yeniden))])
                     yeniden.insert(0, "Sil", False)
                     # En az 5 satır her zaman görünsün diye eksikse boş satırlarla tamamla.
                     while len(yeniden) < 5:
-                        bos = pd.DataFrame([{"Sil": False, "Satır": f"Satır {len(yeniden) + 1}",
-                                              **{k: "" for k in _PLANLANAN_KOLONLAR}}])
+                        bos = pd.DataFrame([{"Sil": False, **{k: "" for k in _PLANLANAN_KOLONLAR}}])
                         yeniden = pd.concat([yeniden, bos], ignore_index=True)
                     st.session_state.planlanan_df = yeniden
                     st.session_state.planlanan_editor_key += 1
@@ -1801,7 +1795,7 @@ def sayfa_sevkiyat():
             if col_kaydet.button("Kaydet", key="planlanan_kaydet", type="primary", use_container_width=True):
                 satirlar = [
                     {
-                        "musteri_adi": row["Müşteri Adı"], "alici_adresi": row["Alıcı Adres"],
+                        "fis_no": row["Fiş No"], "musteri_adi": row["Müşteri Adı"], "alici_adresi": row["Alıcı Adres"],
                         "aciklama": row["Açıklama"], "siparis_tarihi": row["Sipariş Tarihi"],
                         "koli_adedi": row["Koli Adedi"], "planlanan_tarih": row["Planlanan Tarih"],
                     }
