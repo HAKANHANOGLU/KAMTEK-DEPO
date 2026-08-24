@@ -2284,7 +2284,16 @@ def _depo_sayim_gun_stok_haritasi(tarih_iso):
     TÜM ürünlerin güncel stok değerlerini {Ürün Adı: Stok} olarak döner (excel
     içindeki 'Sayım' sütunu dolu olsun olmasın, tüm satırlar). Otomatik
     Sayım'ın karşılaştırma kaynağı bu olsun diye - personelin o gün fiilen
-    elindeki resmi stok listesiyle eşleşsin. O gün için excel yoksa None döner."""
+    elindeki resmi stok listesiyle eşleşsin. O gün için excel yoksa None döner.
+
+    İki farklı excel biçimini destekler: (1) Kamtek'in resmi sayım fişi
+    şablonu - "Sayım" sütunu var, güncel stok onun hemen solundaki sütunda;
+    (2) düz bir stok listesi - "Sayım" sütunu hiç yok, güncel stok doğrudan
+    "Stok/Mevcut Stok/Güncel Stok" gibi adlandırılmış bir sütunda. Önce (1)
+    denenir, bulunamazsa (2)'ye düşülür - biçim (2) desteklenmeden önce, o
+    biçimdeki bir dosya sessizce atlanıp sistem otomatik olarak XML kaynağına
+    düşüyordu (kullanıcı o günkü excel'i yüklediği halde stok karşılaştırması
+    eski/farklı bir kaynaktan geliyordu)."""
     kayitlar = db.depo_sayim_getir(tarih_iso)
     if not kayitlar:
         return None
@@ -2295,12 +2304,18 @@ def _depo_sayim_gun_stok_haritasi(tarih_iso):
         except Exception:
             continue
         urun_col = excel_utils.bul_sutun(df.columns, ["AÇIKLAMA", "ÜRÜN ADI", "MALZEME ADI", "STOK ADI", "TANIM"])
-        sayim_col = excel_utils.bul_sutun(df.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
-        if urun_col is None or sayim_col is None:
+        if urun_col is None:
             continue
-        kolon_listesi = list(df.columns)
-        sayim_idx = kolon_listesi.index(sayim_col)
-        stok_col = kolon_listesi[sayim_idx - 1] if sayim_idx > 0 else None
+        sayim_col = excel_utils.bul_sutun(df.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
+        stok_col = None
+        if sayim_col is not None:
+            kolon_listesi = list(df.columns)
+            sayim_idx = kolon_listesi.index(sayim_col)
+            stok_col = kolon_listesi[sayim_idx - 1] if sayim_idx > 0 else None
+        if stok_col is None:
+            stok_col = excel_utils.bul_sutun(
+                df.columns, ["STOK MIKTARI", "STOK ADEDI", "GUNCEL STOK", "MEVCUT STOK", "STOK"], haric=["KOD"],
+            )
         if stok_col is None:
             continue
         for _, row in df.iterrows():
