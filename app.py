@@ -2332,14 +2332,18 @@ def _depo_sayim_gun_stok_haritasi(tarih_iso):
     Sayım'ın karşılaştırma kaynağı bu olsun diye - personelin o gün fiilen
     elindeki resmi stok listesiyle eşleşsin. O gün için excel yoksa None döner.
 
-    İki farklı excel biçimini destekler: (1) Kamtek'in resmi sayım fişi
+    Üç farklı excel biçimini destekler: (1) Kamtek'in resmi sayım fişi
     şablonu - "Sayım" sütunu var, güncel stok onun hemen solundaki sütunda;
-    (2) düz bir stok listesi - "Sayım" sütunu hiç yok, güncel stok doğrudan
-    "Stok/Mevcut Stok/Güncel Stok" gibi adlandırılmış bir sütunda. Önce (1)
-    denenir, bulunamazsa (2)'ye düşülür - biçim (2) desteklenmeden önce, o
-    biçimdeki bir dosya sessizce atlanıp sistem otomatik olarak XML kaynağına
-    düşüyordu (kullanıcı o günkü excel'i yüklediği halde stok karşılaştırması
-    eski/farklı bir kaynaktan geliyordu)."""
+    (2) düz bir stok listesi - "Sayım" sütunu hiç yok, güncel stok
+    "Stok/Mevcut Stok/Güncel Stok" gibi adlandırılmış bir sütunda; (3) tam
+    2 sütunlu bir dosya (Kamtek'in gerçek "StokDepoBazindaListe" çıktısı gibi -
+    1. sütun ürün adı, 2. sütun depo adıyla başlıklı stok miktarı, örn.
+    "MERKEZ-ALSANCAK DEPO") - bu durumda 2. sütunun adı hiçbir anahtar
+    kelimeyle eşleşmediği için (2) de bulamıyordu, kalan tek sütun doğrudan
+    stok miktarı sayılıyor. Sırasıyla (1), (2), (3) denenir - hiçbiri
+    bulunamazsa o dosya sessizce atlanır ve sistem otomatik olarak XML
+    kaynağına düşer (kullanıcı o günkü excel'i yüklediği halde stok
+    karşılaştırması eski/farklı bir kaynaktan geliyor olurdu)."""
     kayitlar = db.depo_sayim_getir(tarih_iso)
     if not kayitlar:
         return None
@@ -2362,6 +2366,9 @@ def _depo_sayim_gun_stok_haritasi(tarih_iso):
             stok_col = excel_utils.bul_sutun(
                 df.columns, ["STOK MIKTARI", "STOK ADEDI", "GUNCEL STOK", "MEVCUT STOK", "STOK"], haric=["KOD"],
             )
+        if stok_col is None and len(df.columns) == 2:
+            diger_kolonlar = [c for c in df.columns if c != urun_col]
+            stok_col = diger_kolonlar[0] if diger_kolonlar else None
         if stok_col is None:
             continue
         for _, row in df.iterrows():
