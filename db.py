@@ -127,6 +127,29 @@ def depo_sayim_sil(kayit_id: int):
     r.raise_for_status()
 
 
+def depo_sayim_getir_en_son():
+    """Tarihten bağımsız, en son yüklenen tek Depo Sayım Fişleri kaydını
+    döner (yoksa None) - Depolar Arası Transfer'in ürün listesi kaynağı."""
+    params = {
+        "select": "id,tarih,dosya_adi,dosya_icerik_b64,yuklenme_zamani",
+        "order": "id.desc",
+        "limit": 1,
+    }
+    r = requests.get(f"{_REST}/depo_sayim", headers=_HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    satirlar = r.json()
+    if not satirlar:
+        return None
+    row = satirlar[0]
+    return {
+        "id": row["id"],
+        "tarih": row.get("tarih"),
+        "dosya_adi": row["dosya_adi"],
+        "dosya_icerik": base64.b64decode(row["dosya_icerik_b64"]),
+        "yuklenme_zamani": row.get("yuklenme_zamani"),
+    }
+
+
 # ---------- Depo Temizlik ----------
 
 def temizlik_kaydet(tarih: str, personel_adi: str):

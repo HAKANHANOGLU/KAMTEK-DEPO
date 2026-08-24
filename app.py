@@ -2343,34 +2343,58 @@ def _depo_sayim_gun_stok_haritasi(tarih_iso):
         return None
     harita = {}
     for k in kayitlar:
-        try:
-            df = pd.read_excel(io.BytesIO(k["dosya_icerik"]))
-        except Exception:
-            continue
-        urun_col = excel_utils.bul_sutun(df.columns, ["AÇIKLAMA", "ÜRÜN ADI", "MALZEME ADI", "STOK ADI", "TANIM"])
-        if urun_col is None:
-            continue
-        sayim_col = excel_utils.bul_sutun(df.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
-        stok_col = None
-        if sayim_col is not None:
-            kolon_listesi = list(df.columns)
-            sayim_idx = kolon_listesi.index(sayim_col)
-            stok_col = kolon_listesi[sayim_idx - 1] if sayim_idx > 0 else None
-        if stok_col is None:
-            stok_col = excel_utils.bul_sutun(
-                df.columns, ["STOK MIKTARI", "STOK ADEDI", "GUNCEL STOK", "MEVCUT STOK", "STOK"], haric=["KOD"],
-            )
-        if stok_col is None and len(df.columns) == 2:
-            diger_kolonlar = [c for c in df.columns if c != urun_col]
-            stok_col = diger_kolonlar[0] if diger_kolonlar else None
-        if stok_col is None:
-            continue
-        for _, row in df.iterrows():
-            urun_adi = row.get(urun_col)
-            if not urun_adi or str(urun_adi).strip() == "":
-                continue
-            harita[str(urun_adi).strip()] = row.get(stok_col)
+        harita.update(_depo_sayim_dosya_stok_haritasi(k["dosya_icerik"]))
     return harita or None
+
+
+def _depo_sayim_dosya_stok_haritasi(dosya_icerik_bytes):
+    """_depo_sayim_gun_stok_haritasi'nin tek bir dosya için çalışan parçası -
+    hem oradan hem de _depo_sayim_en_son_urun_listesi'nden (tarihten bağımsız,
+    Depolar Arası Transfer'in ürün listesi kaynağı) kullanılıyor."""
+    try:
+        df = pd.read_excel(io.BytesIO(dosya_icerik_bytes))
+    except Exception:
+        return {}
+    urun_col = excel_utils.bul_sutun(df.columns, ["AÇIKLAMA", "ÜRÜN ADI", "MALZEME ADI", "STOK ADI", "TANIM"])
+    if urun_col is None:
+        return {}
+    sayim_col = excel_utils.bul_sutun(df.columns, ["SAYIM ADEDI", "SAYIM MIKTARI", "SAYILAN", "SAYIM"])
+    stok_col = None
+    if sayim_col is not None:
+        kolon_listesi = list(df.columns)
+        sayim_idx = kolon_listesi.index(sayim_col)
+        stok_col = kolon_listesi[sayim_idx - 1] if sayim_idx > 0 else None
+    if stok_col is None:
+        stok_col = excel_utils.bul_sutun(
+            df.columns, ["STOK MIKTARI", "STOK ADEDI", "GUNCEL STOK", "MEVCUT STOK", "STOK"], haric=["KOD"],
+        )
+    if stok_col is None and len(df.columns) == 2:
+        diger_kolonlar = [c for c in df.columns if c != urun_col]
+        stok_col = diger_kolonlar[0] if diger_kolonlar else None
+    if stok_col is None:
+        return {}
+    harita = {}
+    for _, row in df.iterrows():
+        urun_adi = row.get(urun_col)
+        if not urun_adi or str(urun_adi).strip() == "":
+            continue
+        harita[str(urun_adi).strip()] = row.get(stok_col)
+    return harita
+
+
+def _depo_sayim_en_son_urun_listesi():
+    """'Depo Sayım Fişleri'ne (tarihten bağımsız) en son yüklenen excel'deki
+    ürün adı + stok listesini döner - Depolar Arası Transfer'in 'Ürün ara ve
+    seç' listesi bunu kullanır, canlı XML kaynağı yerine. (urunler, kayit)
+    tuple'ı döner; hiç dosya yüklenmemişse (None, None)."""
+    en_son = db.depo_sayim_getir_en_son()
+    if en_son is None:
+        return None, None
+    harita = _depo_sayim_dosya_stok_haritasi(en_son["dosya_icerik"])
+    if not harita:
+        return None, None
+    urunler = [{"Ürün Adı": u, "Stok Kodu": "", "Stok": s} for u, s in harita.items()]
+    return urunler, en_son
 
 
 def _depo_sayim_gun_urun_listesi(tarih_iso):
@@ -4034,12 +4058,24 @@ def sayfa_depotransfer():
     hedef = c2.selectbox("Hedef depo (ürünün geleceği yer)", ["Alsancak", "Giriş Katı"], key="transfer_hedef")
     ne_zaman = st.text_input("Ne zaman gelmesini istiyorsunuz? (açıklama)", placeholder="Örn. bugün öğleden sonra", key="transfer_ne_zaman")
 
-    try:
-        with st.spinner("Stok verisi çekiliyor..."):
-            urunler = _stok_verisi_cache()
-    except Exception as e:
-        st.error(f"Stok verisi alınamadı: {e}")
-        return
+    # Ürün ara ve seç listesinin kaynağı: 1) Depo Sayım Fişleri'ne en son
+    # yüklenen (tarihten bağımsız) excel varsa o - ürün adı/açıklama orada
+    # personelin fiilen elindeki listeyle birebir eşleşsin diye, 2) yoksa
+    # canlı XML kaynağı.
+    urunler, en_son_sayim = _depo_sayim_en_son_urun_listesi()
+    if urunler is not None:
+        tarih_fmt = en_son_sayim.get("tarih") or ""
+        st.caption(
+            f"📥 Ürün listesi kaynağı: Depo Sayım Fişleri'ne en son yüklenen '{en_son_sayim['dosya_adi']}' "
+            f"({tarih_fmt}, {en_son_sayim.get('yuklenme_zamani') or ''})."
+        )
+    else:
+        try:
+            with st.spinner("Stok verisi çekiliyor..."):
+                urunler = _stok_verisi_cache()
+        except Exception as e:
+            st.error(f"Stok verisi alınamadı: {e}")
+            return
 
     if not urunler:
         st.info("Stok verisi bulunamadı.")
