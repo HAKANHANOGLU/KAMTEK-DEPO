@@ -2289,9 +2289,13 @@ def _sayim_ozet_renklendir(row):
 
 
 def _excel_sayim_verisi(dosya_icerik_bytes):
-    """Bir 'Depo Sayım Fişleri > Excel Yükleme' dosyasından {urun_adi: {'Sayım':.., 'Fark':..}}
-    döner - otomatik (Stok Sayım) akışıyla aynı şekle getirilir ki haftalık
-    kontrol tablosunda iki kaynak da birlikte gösterilebilsin."""
+    """Bir 'Depo Sayım Fişleri > Excel Yükleme' dosyasından (Kamtek'in resmi
+    sayım fişi şablonu - 'Sayım' sütunu dosyada zaten dolu gelmişse)
+    {urun_adi: {'Sayım':.., 'Güncel Stok':.., 'Fark':..}} döner - otomatik
+    (Stok Sayım) akışıyla aynı şekle getirilir ki haftalık rapor tablosunda
+    tüm kaynaklar birlikte gösterilebilsin. 'Güncel Stok' burada o GÜNÜN
+    excel'indeki değer - haftalık raporda hangi günün stoğunun
+    gösterileceğini belirleyen asıl veri bu."""
     try:
         filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(dosya_icerik_bytes))
     except Exception:
@@ -2309,13 +2313,14 @@ def _excel_sayim_verisi(dosya_icerik_bytes):
         if not urun or str(urun).strip() == "":
             continue
         sayim_deger = row.get(sayim_col)
+        guncel_stok = row.get(stok_col) if stok_col is not None else None
         fark = ""
         if stok_col is not None:
             try:
-                fark = str(float(str(sayim_deger).replace(",", ".")) - float(str(row.get(stok_col)).replace(",", ".")))
+                fark = str(float(str(sayim_deger).replace(",", ".")) - float(str(guncel_stok).replace(",", ".")))
             except (ValueError, TypeError):
                 fark = ""
-        sonuc[str(urun).strip()] = {"Sayım": sayim_deger, "Fark": fark}
+        sonuc[str(urun).strip()] = {"Sayım": sayim_deger, "Güncel Stok": guncel_stok, "Fark": fark}
     return sonuc
 
 
@@ -2430,10 +2435,33 @@ def haftalik_kontrol_bolumu():
     st.subheader("Haftalık Depo Kontrol Şablonu")
     st.caption(
         "Bu haftanın (Pazartesi–Pazar) hem Excel yükleme hem otomatik (Stok Sayım) yoluyla "
-        "yapılan TÜM sayımları, güncel ürün listesiyle birleştirilerek gösterilir - hiç "
-        "sayılmamış ürünler de dahildir."
+        "yapılan TÜM sayımları gösterir. Ürün listesi ve mevcut stok, Depo Sayım Fişleri'ne EN SON "
+        "yüklenen excel'den geliyor - mevcut stoğu 0 olup hiç sayılmamış ürünler listeye alınmaz. "
+        "Bir ürün sayıldıysa, 'Mevcut Stok' değeri o ürünün SAYILDIĞI GÜNÜN excel'inden gösterilir "
+        "(rapora bakılan günün değil) - stok o günden sonra değişmiş olsa bile, sayıldığı gün doğru "
+        "sayılmışsa doğru görünsün diye."
     )
     _haftalik_rapor_icerik()
+
+
+def _sayi_veya_yok(v):
+    try:
+        return float(str(v).replace(",", "."))
+    except (ValueError, TypeError):
+        return None
+
+
+def _haftalik_satir_durumu(bilgi):
+    """Bir sayım kaydı için Durum'u belirler: 'Sayım Hatası' (stok 0
+    DEĞİLKEN sayım 0 yazılmış - kullanıcı talebiyle özel olarak
+    işaretleniyor, gerçek bir sayım hatasıdır), 'Fark Var' ya da 'Doğru'."""
+    sayim_sayi = _sayi_veya_yok(bilgi.get("Sayım"))
+    stok_sayi = _sayi_veya_yok(bilgi.get("Güncel Stok"))
+    if sayim_sayi == 0 and stok_sayi not in (None, 0):
+        return "Sayım Hatası"
+    if _fark_var_mi(bilgi.get("Fark")):
+        return "Fark Var"
+    return "Doğru"
 
 
 def _haftalik_rapor_icerik():
@@ -2442,20 +2470,31 @@ def _haftalik_rapor_icerik():
     gun_isimleri = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
     hafta_gunleri = [hafta_baslangic + timedelta(days=i) for i in range(7)]
 
+    # Her ürün için haftanın SON sayıldığı günün sonucu tutulur - Güncel Stok
+    # burada O GÜNÜN excel'indeki değer (stok_sayim_oturumu_kaydet / veya
+    # _excel_sayim_verisi'nden geliyor), sonraki günlerde stok değişmiş olsa
+    # bile burada YENİDEN hesaplanmıyor. Böylece rapor, bir ürünün sayıldığı
+    # günkü stok değerini gösterir - raporun bakıldığı günün değerini değil.
     urun_sayim = {}
     for gun, isim in zip(hafta_gunleri, gun_isimleri):
         for oturum in db.stok_sayim_oturumlari_getir(gun.isoformat()):
             for d in db.stok_sayim_detay_getir(oturum["id"]):
-                urun_sayim[d["urun_adi"]] = {"Sayım": d.get("sayilan"), "Fark": d.get("fark"), "Gün": isim}
+                urun_sayim[d["urun_adi"]] = {
+                    "Sayım": d.get("sayilan"), "Güncel Stok": d.get("guncel_stok"),
+                    "Fark": d.get("fark"), "Gün": isim,
+                }
         for kayit in db.depo_sayim_getir(gun.isoformat()):
             for urun_adi, bilgi in _excel_sayim_verisi(kayit["dosya_icerik"]).items():
-                urun_sayim[urun_adi] = {"Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"], "Gün": isim}
+                urun_sayim[urun_adi] = {
+                    "Sayım": bilgi["Sayım"], "Güncel Stok": bilgi.get("Güncel Stok"),
+                    "Fark": bilgi["Fark"], "Gün": isim,
+                }
 
-    try:
-        urunler = _stok_verisi_cache()
-    except Exception as e:
-        st.error(f"Ürün listesi alınamadı: {e}")
-        urunler = []
+    # Ürün listesinin (ve hiç sayılmamış ürünlerin referans stoğunun) kaynağı
+    # Depo Sayım Fişleri'ne EN SON yüklenen excel - canlı XML değil, çünkü
+    # personelin hangi ürünleri sayması gerektiği o listeye göre belli olur.
+    urunler, _en_son_kayit = _depo_sayim_en_son_urun_listesi()
+    urunler = urunler or []
 
     satirlar = []
     urun_adlari_bilinen = set()
@@ -2465,21 +2504,31 @@ def _haftalik_rapor_icerik():
             continue
         urun_adlari_bilinen.add(urun_adi)
         bilgi = urun_sayim.get(urun_adi)
-        satirlar.append({
-            "Ürün Adı": urun_adi, "Güncel Stok": u.get("Stok"),
-            "Sayım": bilgi["Sayım"] if bilgi else "", "Fark": bilgi["Fark"] if bilgi else "",
-            "Sayıldığı Gün": bilgi["Gün"] if bilgi else "Sayılmadı",
-            "_sayildi": 1 if bilgi else 0,
-        })
-    # Ürün listesinde (XML/excel kaynağında) hiç yer almayan ama Excel sayım
-    # dosyasında sayılmış ürünler (ör. farklı bir isimlendirme/kaynak) de
-    # kaybolmasın diye ayrıca ekleniyor.
+        if bilgi:
+            satirlar.append({
+                "Ürün Adı": urun_adi, "Güncel Stok": bilgi.get("Güncel Stok"),
+                "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"],
+                "Sayıldığı Gün": bilgi["Gün"], "Durum": _haftalik_satir_durumu(bilgi), "_sayildi": 1,
+            })
+        else:
+            # Hiç sayılmamış - mevcut stoğu 0 olan ürünleri listeye almaya
+            # gerek yok (sayılması beklenmiyor).
+            if _sayi_veya_yok(u.get("Stok")) == 0:
+                continue
+            satirlar.append({
+                "Ürün Adı": urun_adi, "Güncel Stok": u.get("Stok"),
+                "Sayım": "", "Fark": "", "Sayıldığı Gün": "Sayılmadı", "Durum": "Sayılmadı", "_sayildi": 0,
+            })
+    # En son excel'de yer almayan ama bu hafta sayılmış ürünler (ör. farklı
+    # bir isimlendirme, ya da artık listede olmayan bir ürün) kaybolmasın
+    # diye ayrıca ekleniyor.
     for urun_adi, bilgi in urun_sayim.items():
         if urun_adi in urun_adlari_bilinen:
             continue
         satirlar.append({
-            "Ürün Adı": urun_adi, "Güncel Stok": "",
-            "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"], "Sayıldığı Gün": bilgi["Gün"], "_sayildi": 1,
+            "Ürün Adı": urun_adi, "Güncel Stok": bilgi.get("Güncel Stok"),
+            "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"],
+            "Sayıldığı Gün": bilgi["Gün"], "Durum": _haftalik_satir_durumu(bilgi), "_sayildi": 1,
         })
     if not satirlar:
         st.info("Ürün listesi bulunamadı.")
@@ -2505,8 +2554,11 @@ def _haftalik_rapor_icerik():
     df = df.drop(columns=["_sayildi"]).reset_index(drop=True)
 
     def _renklendir(row):
-        renk = "#DCF3E0" if row["Sayıldığı Gün"] != "Sayılmadı" else "#FBE1E1"
-        return [f"background-color: {renk}"] * len(row)
+        renk = {
+            "Doğru": "#DCF3E0", "Fark Var": "#FBE1E1",
+            "Sayım Hatası": "#FCE3B5", "Sayılmadı": "#FBE1E1",
+        }.get(row["Durum"], "")
+        return [f"background-color: {renk}"] * len(row) if renk else [""] * len(row)
 
     if df.empty:
         st.caption("Filtreye uyan ürün yok.")
@@ -2514,8 +2566,12 @@ def _haftalik_rapor_icerik():
 
     styler = df.style.apply(_renklendir, axis=1)
     st.dataframe(styler, use_container_width=True, height=520, hide_index=True)
-    sayilan_adet = int((df["Sayıldığı Gün"] != "Sayılmadı").sum())
-    st.caption(f"🟢 Sayıldı: {sayilan_adet} · 🔴 Sayılmadı: {len(df) - sayilan_adet} · Sütun başlıklarına tıklayarak sıralayabilirsiniz.")
+    sayilan_adet = int((df["Durum"] != "Sayılmadı").sum())
+    hata_adet = int((df["Durum"] == "Sayım Hatası").sum())
+    st.caption(
+        f"🟢 Sayıldı: {sayilan_adet} · 🟠 Sayım Hatası: {hata_adet} · 🔴 Sayılmadı: {len(df) - sayilan_adet} · "
+        "Sütun başlıklarına tıklayarak sıralayabilirsiniz."
+    )
 
     # Excel indirme - ekrandaki İLE BİREBİR AYNI sütunlar ve renkler (aynı
     # styler nesnesi kullanılıyor, pandas openpyxl motoruyla hücre
