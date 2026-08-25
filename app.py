@@ -2437,9 +2437,11 @@ def haftalik_kontrol_bolumu():
         "Bu haftanın (Pazartesi–Pazar) hem Excel yükleme hem otomatik (Stok Sayım) yoluyla "
         "yapılan TÜM sayımları gösterir. Ürün listesi ve mevcut stok, Depo Sayım Fişleri'ne EN SON "
         "yüklenen excel'den geliyor - mevcut stoğu 0 olup hiç sayılmamış ürünler listeye alınmaz. "
-        "Bir ürün sayıldıysa, 'Mevcut Stok' değeri o ürünün SAYILDIĞI GÜNÜN excel'inden gösterilir "
-        "(rapora bakılan günün değil) - stok o günden sonra değişmiş olsa bile, sayıldığı gün doğru "
-        "sayılmışsa doğru görünsün diye."
+        "Bir ürün sayıldıysa, 'Mevcut Stok' değeri o ürünün SAYILDIĞI GÜNE ait, o gün için yüklenmiş "
+        "EN SON excel'den her açılışta yeniden hesaplanır (rapora bakılan günün değil, ama aynı gün "
+        "içinde excel düzeltilip yeniden yüklenirse rapor da güncel excel'i yansıtır). O gün için hiç "
+        "excel yüklenmemişse 'Referans Yok' olarak işaretlenir - 2 saatte bir güncellenen canlı stok "
+        "kaynağı bu tabloda HİÇBİR ZAMAN kullanılmaz."
     )
     _haftalik_rapor_icerik()
 
@@ -2452,12 +2454,16 @@ def _sayi_veya_yok(v):
 
 
 def _haftalik_satir_durumu(bilgi):
-    """Bir sayım kaydı için Durum'u belirler: 'Sayım Hatası' (stok 0
-    DEĞİLKEN sayım 0 yazılmış - kullanıcı talebiyle özel olarak
-    işaretleniyor, gerçek bir sayım hatasıdır), 'Fark Var' ya da 'Doğru'."""
-    sayim_sayi = _sayi_veya_yok(bilgi.get("Sayım"))
+    """Bir sayım kaydı için Durum'u belirler: stok referansı yoksa (o gün
+    hiç Depo Sayım Fişleri excel'i yüklenmemişse) 'Referans Yok'; stok 0
+    DEĞİLKEN sayım 0 yazılmışsa 'Sayım Hatası' (kullanıcı talebiyle özel
+    olarak işaretleniyor, gerçek bir sayım hatasıdır); yoksa 'Fark Var' ya
+    da 'Doğru'."""
     stok_sayi = _sayi_veya_yok(bilgi.get("Güncel Stok"))
-    if sayim_sayi == 0 and stok_sayi not in (None, 0):
+    if stok_sayi is None:
+        return "Referans Yok"
+    sayim_sayi = _sayi_veya_yok(bilgi.get("Sayım"))
+    if sayim_sayi == 0 and stok_sayi != 0:
         return "Sayım Hatası"
     if _fark_var_mi(bilgi.get("Fark")):
         return "Fark Var"
@@ -2470,25 +2476,41 @@ def _haftalik_rapor_icerik():
     gun_isimleri = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
     hafta_gunleri = [hafta_baslangic + timedelta(days=i) for i in range(7)]
 
-    # Her ürün için haftanın SON sayıldığı günün sonucu tutulur - Güncel Stok
-    # burada O GÜNÜN excel'indeki değer (stok_sayim_oturumu_kaydet / veya
-    # _excel_sayim_verisi'nden geliyor), sonraki günlerde stok değişmiş olsa
-    # bile burada YENİDEN hesaplanmıyor. Böylece rapor, bir ürünün sayıldığı
-    # günkü stok değerini gösterir - raporun bakıldığı günün değerini değil.
+    # Her ürün için haftanın SON sayıldığı günün sonucu tutulur. Güncel Stok
+    # burada VERİTABANINDA KAYITLI (sayım anında donmuş) değer DEĞİL - her
+    # raporu açışta, o günün Depo Sayım Fişleri'ne yüklenmiş EN SON excel'i
+    # yeniden okunarak TAZE hesaplanıyor. Böylece aynı gün içinde excel
+    # düzeltilip yeniden yüklenirse (ör. yanlış dosya silinip doğrusu
+    # yüklenirse) rapor da güncellenir - sayım anında hangi dosya "o an"
+    # yüklüydü onu değil, o günün SON HALİNİ esas alır. Hiçbir zaman canlı
+    # (2 saatte bir güncellenen) XML kaynağına düşülmüyor - o gün için excel
+    # yüklenmemişse Güncel Stok boş kalır ("Referans Yok"), XML'den bir
+    # değer YAZILMAZ.
     urun_sayim = {}
     for gun, isim in zip(hafta_gunleri, gun_isimleri):
-        for oturum in db.stok_sayim_oturumlari_getir(gun.isoformat()):
+        gun_iso = gun.isoformat()
+        gun_stok_haritasi = _depo_sayim_gun_stok_haritasi(gun_iso)  # None -> o gün excel yok
+
+        def _guncel_ve_fark(urun_adi, sayim_deger, dosya_stok_col_degeri=None):
+            guncel = gun_stok_haritasi.get(urun_adi) if gun_stok_haritasi else None
+            if guncel is None:
+                guncel = dosya_stok_col_degeri
+            if guncel is None:
+                return None, ""
+            try:
+                fark = str(float(str(sayim_deger).replace(",", ".")) - float(str(guncel).replace(",", ".")))
+            except (ValueError, TypeError):
+                fark = ""
+            return guncel, fark
+
+        for oturum in db.stok_sayim_oturumlari_getir(gun_iso):
             for d in db.stok_sayim_detay_getir(oturum["id"]):
-                urun_sayim[d["urun_adi"]] = {
-                    "Sayım": d.get("sayilan"), "Güncel Stok": d.get("guncel_stok"),
-                    "Fark": d.get("fark"), "Gün": isim,
-                }
-        for kayit in db.depo_sayim_getir(gun.isoformat()):
+                guncel, fark = _guncel_ve_fark(d["urun_adi"], d.get("sayilan"))
+                urun_sayim[d["urun_adi"]] = {"Sayım": d.get("sayilan"), "Güncel Stok": guncel, "Fark": fark, "Gün": isim}
+        for kayit in db.depo_sayim_getir(gun_iso):
             for urun_adi, bilgi in _excel_sayim_verisi(kayit["dosya_icerik"]).items():
-                urun_sayim[urun_adi] = {
-                    "Sayım": bilgi["Sayım"], "Güncel Stok": bilgi.get("Güncel Stok"),
-                    "Fark": bilgi["Fark"], "Gün": isim,
-                }
+                guncel, fark = _guncel_ve_fark(urun_adi, bilgi["Sayım"], bilgi.get("Güncel Stok"))
+                urun_sayim[urun_adi] = {"Sayım": bilgi["Sayım"], "Güncel Stok": guncel, "Fark": fark, "Gün": isim}
 
     # Ürün listesinin (ve hiç sayılmamış ürünlerin referans stoğunun) kaynağı
     # Depo Sayım Fişleri'ne EN SON yüklenen excel - canlı XML değil, çünkü
@@ -2569,9 +2591,11 @@ def _haftalik_rapor_icerik():
     sayilan_adet = int((df["Durum"] != "Sayılmadı").sum())
     hata_adet = int((df["Durum"] == "Sayım Hatası").sum())
     fark_adet = int((df["Durum"] == "Fark Var").sum())
+    referanssiz_adet = int((df["Durum"] == "Referans Yok").sum())
     st.caption(
         f"🟢 Sayıldı: {sayilan_adet} · 🟣 Fark Var: {fark_adet} · 🟠 Sayım Hatası: {hata_adet} · "
-        f"🔴 Sayılmadı: {len(df) - sayilan_adet} · Sütun başlıklarına tıklayarak sıralayabilirsiniz."
+        f"🔴 Sayılmadı: {len(df) - sayilan_adet} · ⚪ Referans Yok: {referanssiz_adet} · "
+        "Sütun başlıklarına tıklayarak sıralayabilirsiniz."
     )
 
     # Excel indirme - ekrandaki İLE BİREBİR AYNI sütunlar ve renkler (aynı
