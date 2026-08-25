@@ -139,6 +139,19 @@ st.markdown("""
 <style>
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
+/* Streamlit'in sağ üstteki kendi araç çubuğu (Share / yıldız / kalem /
+   profil ikonları) - PWA'da tarayıcı çerçevesi olmadan zaten görünmüyordu
+   ama normal tarayıcı sekmesinde görünüyordu, kullanıcı istemediği için
+   kaldırıldı. Bilerek sadece araç çubuğunu (stToolbar/stDecoration)
+   hedefliyoruz, "header"/stHeader'ın tamamını DEĞİL - o kapsayıcı,
+   sidebar'ı aç/kapa okunu da barındırabiliyor, tamamen gizlersek sol
+   menüyü telefonda kapatma imkanı gidebilirdi. */
+[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+    display: none !important;
+}
+[data-testid="stHeader"] {
+    background: transparent !important;
+}
 
 .st-key-kart1 button {
     background-color: #E6F1FB !important; border: none !important; border-radius: 32px !important;
