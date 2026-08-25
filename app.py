@@ -2555,7 +2555,7 @@ def _haftalik_rapor_icerik():
 
     def _renklendir(row):
         renk = {
-            "Doğru": "#DCF3E0", "Fark Var": "#FBE1E1",
+            "Doğru": "#DCF3E0", "Fark Var": "#E4D9F5",
             "Sayım Hatası": "#FCE3B5", "Sayılmadı": "#FBE1E1",
         }.get(row["Durum"], "")
         return [f"background-color: {renk}"] * len(row) if renk else [""] * len(row)
@@ -2568,9 +2568,10 @@ def _haftalik_rapor_icerik():
     st.dataframe(styler, use_container_width=True, height=520, hide_index=True)
     sayilan_adet = int((df["Durum"] != "Sayılmadı").sum())
     hata_adet = int((df["Durum"] == "Sayım Hatası").sum())
+    fark_adet = int((df["Durum"] == "Fark Var").sum())
     st.caption(
-        f"🟢 Sayıldı: {sayilan_adet} · 🟠 Sayım Hatası: {hata_adet} · 🔴 Sayılmadı: {len(df) - sayilan_adet} · "
-        "Sütun başlıklarına tıklayarak sıralayabilirsiniz."
+        f"🟢 Sayıldı: {sayilan_adet} · 🟣 Fark Var: {fark_adet} · 🟠 Sayım Hatası: {hata_adet} · "
+        f"🔴 Sayılmadı: {len(df) - sayilan_adet} · Sütun başlıklarına tıklayarak sıralayabilirsiniz."
     )
 
     # Excel indirme - ekrandaki İLE BİREBİR AYNI sütunlar ve renkler (aynı
