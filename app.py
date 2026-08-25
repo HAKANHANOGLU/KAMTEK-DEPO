@@ -2324,6 +2324,7 @@ def _excel_sayim_verisi(dosya_icerik_bytes):
     return sonuc
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def _depo_sayim_gun_stok_haritasi(tarih_iso):
     """O güne 'Depo Sayım Fişleri > Excel Yükleme'den yüklenmiş dosya(lar)daki
     TÜM ürünlerin güncel stok değerlerini {Ürün Adı: Stok} olarak döner (excel
@@ -2342,7 +2343,15 @@ def _depo_sayim_gun_stok_haritasi(tarih_iso):
     stok miktarı sayılıyor. Sırasıyla (1), (2), (3) denenir - hiçbiri
     bulunamazsa o dosya sessizce atlanır ve sistem otomatik olarak XML
     kaynağına düşer (kullanıcı o günkü excel'i yüklediği halde stok
-    karşılaştırması eski/farklı bir kaynaktan geliyor olurdu)."""
+    karşılaştırması eski/farklı bir kaynaktan geliyor olurdu).
+
+    ÖNBELLEKLİ (2 dk): bu fonksiyon veritabanından dosya indirip excel
+    ayrıştırıyor - Stok Sayım ekranında arama kutusuna her harf yazıldığında
+    Streamlit tüm sayfayı yeniden çalıştırdığı için, önbellek olmadan her
+    tuşta bu ağır işlem tekrar yapılıyor ve arama gözle görülür yavaş
+    kalıyordu. Yeni bir excel yüklendiğinde/silindiğinde .clear() ile
+    önbellek elle temizleniyor (bkz. depo_sayim_bolumu) - 2 dakikalık TTL
+    sadece ekstra bir güvenlik ağı."""
     kayitlar = db.depo_sayim_getir(tarih_iso)
     if not kayitlar:
         return None
@@ -2387,11 +2396,13 @@ def _depo_sayim_dosya_stok_haritasi(dosya_icerik_bytes):
     return harita
 
 
+@st.cache_data(ttl=120, show_spinner=False)
 def _depo_sayim_en_son_urun_listesi():
     """'Depo Sayım Fişleri'ne (tarihten bağımsız) en son yüklenen excel'deki
     ürün adı + stok listesini döner - Depolar Arası Transfer'in 'Ürün ara ve
     seç' listesi bunu kullanır, canlı XML kaynağı yerine. (urunler, kayit)
-    tuple'ı döner; hiç dosya yüklenmemişse (None, None)."""
+    tuple'ı döner; hiç dosya yüklenmemişse (None, None). ÖNBELLEKLİ (2 dk) -
+    bkz. _depo_sayim_gun_stok_haritasi'nin önbellek notu."""
     en_son = db.depo_sayim_getir_en_son()
     if en_son is None:
         return None, None
@@ -2850,6 +2861,10 @@ def depo_sayim_bolumu():
         )
         if yuklenen is not None:
             db.depo_sayim_kaydet(secili_tarih.isoformat(), yuklenen.name, yuklenen.getvalue())
+            # Bu iki fonksiyon önbellekli (bkz. tanımları) - yeni excel hemen
+            # yansısın diye önbellek burada elle temizleniyor.
+            _depo_sayim_gun_stok_haritasi.clear()
+            _depo_sayim_en_son_urun_listesi.clear()
             st.session_state.sayim_uploader_key += 1
             st.session_state.sayim_basarili_mesaj = f"{yuklenen.name} kaydedildi ({secili_tarih.strftime('%d.%m.%Y')})."
             st.rerun()
@@ -2983,6 +2998,8 @@ def depo_sayim_bolumu():
             )
             if c_sil.button("🗑 Sil", key=f"sil_{k['id']}"):
                 db.depo_sayim_sil(k["id"])
+                _depo_sayim_gun_stok_haritasi.clear()
+                _depo_sayim_en_son_urun_listesi.clear()
                 st.rerun()
             try:
                 filtreli = excel_utils.sayim_satirlarini_filtrele(io.BytesIO(k["dosya_icerik"]))
