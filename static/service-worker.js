@@ -9,7 +9,7 @@
 // yakalayip kullaniciya "Guncelle" bildirimi gosterir. Kullanici tikladiginda
 // SKIP_WAITING mesaji gonderilir, yeni worker aktif olur ve sayfa yeniden
 // yuklenir.
-const CACHE_NAME = "kamtek-depo-shell-v72";
+const CACHE_NAME = "kamtek-depo-shell-v73";
 const SHELL_ASSETS = [
   "/app/static/manifest.json",
   "/app/static/icons/pwa-192x192.png",
