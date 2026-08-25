@@ -2569,7 +2569,9 @@ def _haftalik_rapor_icerik():
 
     df = pd.DataFrame(satirlar)
 
-    f1, f2 = st.columns([2, 1])
+    f0, f1, f2 = st.columns([2, 2, 1])
+    with f0:
+        arama = st.text_input("Ürün Adı ara", key="hk_urun_arama", placeholder="🔍 ürün adı yazın...")
     with f1:
         siralama = st.radio(
             "Sıralama", ["Varsayılan", "Sayılmayanlar Önce", "Sayılanlar Önce"],
@@ -2578,6 +2580,8 @@ def _haftalik_rapor_icerik():
     with f2:
         sadece_sayilmayan = st.checkbox("Sadece sayılmayanları göster", key="hk_sadece_sayilmayan")
 
+    if arama:
+        df = df[df["Ürün Adı"].str.contains(arama, case=False, na=False)]
     if sadece_sayilmayan:
         df = df[df["_sayildi"] == 0]
     if siralama == "Sayılmayanlar Önce":
