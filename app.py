@@ -222,8 +222,19 @@ def _pwa_kurulum():
           }
 
           function pushKurulumuBaslat(reg) {
+            var teshis = 'pushManager:' + (reg.pushManager ? 'var' : 'YOK');
+            teshis += ' | standalone:' + win.navigator.standalone;
+            teshis += ' | Notif:' + ('Notification' in win ? 'var' : 'YOK');
+            var etiket = doc.createElement('div');
+            etiket.style.cssText =
+              'position:fixed;left:8px;bottom:8px;z-index:999999;background:rgba(0,0,0,.8);' +
+              'color:#0f0;font-size:10px;padding:6px 8px;border-radius:6px;max-width:280px;font-family:monospace;';
+            etiket.textContent = teshis;
+            doc.body.appendChild(etiket);
+
             if (!reg.pushManager) { return; }
             pushIzinDurumu(reg).then(function (durum) {
+              etiket.textContent = teshis + ' | izin:' + durum;
               if (durum === 'granted') {
                 reg.pushManager.getSubscription().then(function (mevcut) {
                   if (!mevcut) { pushAboneOl(reg); }
@@ -231,7 +242,9 @@ def _pwa_kurulum():
               } else if (durum !== 'denied') {
                 bildirimButonuGoster(reg);
               }
-            }).catch(function () {});
+            }).catch(function (e) {
+              etiket.textContent = teshis + ' | HATA:' + e.message;
+            });
           }
         })();
         </script>
