@@ -9,7 +9,7 @@
 // yakalayip kullaniciya "Guncelle" bildirimi gosterir. Kullanici tikladiginda
 // SKIP_WAITING mesaji gonderilir, yeni worker aktif olur ve sayfa yeniden
 // yuklenir.
-const CACHE_NAME = "kamtek-depo-shell-v76";
+const CACHE_NAME = "kamtek-depo-shell-v77";
 const SHELL_ASSETS = [
   "/app/static/manifest.json",
   "/app/static/icons/pwa-192x192.png",
@@ -51,4 +51,26 @@ self.addEventListener("fetch", (event) => {
       caches.match(event.request).then((cached) => cached || fetch(event.request))
     );
   }
+});
+
+// ---- Push bildirimleri (planlama görevleri) ----
+self.addEventListener("push", (event) => {
+  let veri = { title: "Kamtek Depo", body: "" };
+  try {
+    veri = event.data ? event.data.json() : veri;
+  } catch (e) {
+    veri.body = event.data ? event.data.text() : "";
+  }
+  event.waitUntil(
+    self.registration.showNotification(veri.title || "Kamtek Depo", {
+      body: veri.body || "",
+      icon: "/app/static/icons/pwa-192x192.png",
+      badge: "/app/static/icons/pwa-192x192.png",
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(self.clients.openWindow("/"));
 });

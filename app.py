@@ -2,7 +2,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import calendar
 import concurrent.futures
 import hashlib
@@ -20,6 +20,22 @@ import stok_utils
 st.set_page_config(page_title="KAMTEK DEPO", layout="wide", initial_sidebar_state="expanded")
 db.init_db()
 
+_TR_TZ = timezone(timedelta(hours=3))
+
+
+def _tr_bugun():
+    """Streamlit Cloud sunucusu UTC'de çalıştığı için 'bugün' Türkiye saatine göre hesaplanır."""
+    return datetime.now(_TR_TZ).date()
+
+
+def _tr_simdi_saat():
+    return datetime.now(_TR_TZ).strftime("%H:%M")
+
+
+# Push bildirimleri için VAPID public key - gizli değil, tarayıcıya gönderilmesi
+# gerekiyor (private key sadece Supabase Edge Function'da tutuluyor).
+_VAPID_PUBLIC_KEY = "BIuI56_a-F_hoJ-o02z9hjX8nmUk_-td1wDoscxKP5PL-o-mQjol2ZvNlKFMu7TrSX6o0jEu2yXRgpKXVKOxi7I"
+
 # ------------------------------------------------------------------
 # PWA kurulumu (manifest + service worker + iOS/Android meta etiketleri)
 # ------------------------------------------------------------------
@@ -34,6 +50,9 @@ def _pwa_kurulum():
         """
         <script>
         (function () {
+          var KAMTEK_VAPID_PUBLIC_KEY = """ + json.dumps(_VAPID_PUBLIC_KEY) + """;
+          var KAMTEK_SUPABASE_URL = """ + json.dumps(db.SUPABASE_URL) + """;
+          var KAMTEK_SUPABASE_KEY = """ + json.dumps(db.SUPABASE_KEY) + """;
           var doc = window.parent.document;
           var win = window.parent;
           // Streamlit her etkileşimde bu script'i yeniden çalıştırır (rerun);
@@ -121,7 +140,77 @@ def _pwa_kurulum():
             // Kullanıcı uygulamayı açık bıraktığında da yeni sürüm var mı diye
             // periyodik kontrol et (her 30 dakikada bir).
             setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
+
+            pushKurulumuBaslat(reg);
           }).catch(function () {});
+
+          // ---- Push bildirimi aboneliği (planlama görevleri) ----
+          function urlBase64ToUint8Array(base64String) {
+            var padding = '='.repeat((4 - base64String.length % 4) % 4);
+            var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            var rawData = win.atob(base64);
+            var outputArray = new Uint8Array(rawData.length);
+            for (var i = 0; i < rawData.length; ++i) {
+              outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+          }
+
+          function abonelikKaydet(subscription) {
+            var json = subscription.toJSON();
+            fetch(KAMTEK_SUPABASE_URL + '/rest/v1/push_abonelikler', {
+              method: 'POST',
+              headers: {
+                'apikey': KAMTEK_SUPABASE_KEY,
+                'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates',
+              },
+              body: JSON.stringify({
+                endpoint: json.endpoint,
+                p256dh: json.keys.p256dh,
+                auth_key: json.keys.auth,
+              }),
+            }).catch(function () {});
+          }
+
+          function pushAboneOl(reg) {
+            reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
+            }).then(abonelikKaydet).catch(function () {});
+          }
+
+          function bildirimButonuGoster(reg) {
+            if (doc.getElementById('kamtek-push-izin-btn')) { return; }
+            var btn = doc.createElement('button');
+            btn.id = 'kamtek-push-izin-btn';
+            btn.textContent = '🔔 Bildirimleri Aç';
+            btn.style.cssText =
+              'position:fixed;right:16px;bottom:16px;z-index:999999;' +
+              'background:#0C447C;color:#fff;border:none;border-radius:24px;' +
+              'padding:10px 18px;font-weight:700;font-size:13px;' +
+              'font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
+              'box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;';
+            btn.addEventListener('click', function () {
+              btn.remove();
+              win.Notification.requestPermission().then(function (izin) {
+                if (izin === 'granted') { pushAboneOl(reg); }
+              });
+            });
+            doc.body.appendChild(btn);
+          }
+
+          function pushKurulumuBaslat(reg) {
+            if (!('PushManager' in win) || !('Notification' in win)) { return; }
+            if (win.Notification.permission === 'granted') {
+              reg.pushManager.getSubscription().then(function (mevcut) {
+                if (!mevcut) { pushAboneOl(reg); }
+              });
+            } else if (win.Notification.permission === 'default') {
+              bildirimButonuGoster(reg);
+            }
+          }
         })();
         </script>
         """,
@@ -1119,8 +1208,8 @@ def _bildirim_verileri():
     bir bekleme süresine) sebep oluyordu. Artık 4 istek tek seferde yapılıp
     20 saniye boyunca tüm kullanıcılar/sayfalar arasında paylaşılıyor.
     """
-    bugun_iso = date.today().isoformat()
-    simdi_saat = datetime.now().strftime("%H:%M")
+    bugun_iso = _tr_bugun().isoformat()
+    simdi_saat = _tr_simdi_saat()
     try:
         gorevler = db.gorevler_getir_bekleyen_bildirim(bugun_iso, simdi_saat)
     except Exception:
@@ -4310,7 +4399,7 @@ def sayfa_bildirim():
     geri_butonu()
     st.header("Bildirim")
 
-    bugun_iso = date.today().isoformat()
+    bugun_iso = _tr_bugun().isoformat()
     veri = _bildirim_verileri()
     okunmus = veri["okunmus"]
 
