@@ -52,6 +52,7 @@ def _pwa_kurulum():
         (function () {
           var KAMTEK_VAPID_PUBLIC_KEY = """ + json.dumps(_VAPID_PUBLIC_KEY) + """;
           var KAMTEK_SUPABASE_URL = """ + json.dumps(db.SUPABASE_URL) + """;
+          var KAMTEK_SUPABASE_KEY = """ + json.dumps(db.SUPABASE_KEY) + """;
           var doc = window.parent.document;
           var win = window.parent;
           // Streamlit her etkileşimde bu script'i yeniden çalıştırır (rerun);
@@ -170,26 +171,14 @@ def _pwa_kurulum():
                 p256dh: json.keys.p256dh,
                 auth_key: json.keys.auth,
               }),
-            }).then(function (r) {
-              if (!r.ok) {
-                r.text().then(function (t) {
-                  win.alert('Kayit hatasi (' + r.status + '): ' + t);
-                });
-              } else {
-                win.alert('Abonelik kaydedildi, bildirimler acik.');
-              }
-            }).catch(function (e) {
-              win.alert('Kayit fetch hatasi: ' + e.message);
-            });
+            }).catch(function () {});
           }
 
           function pushAboneOl(reg, btnHataGosterCB) {
             reg.pushManager.subscribe({
               userVisibleOnly: true,
               applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
-            }).then(abonelikKaydet).catch(function (e) {
-              // GEÇİCİ TEŞHİS: gerçek hatayı görmek için.
-              win.alert('Abonelik hatasi: ' + (e && e.message ? e.message : e));
+            }).then(abonelikKaydet).catch(function () {
               // Kullanıcı izni reddetti ya da bir hata oldu - tekrar denemesi için
               // butonu geri getir.
               if (btnHataGosterCB) { btnHataGosterCB(); }
@@ -233,22 +222,16 @@ def _pwa_kurulum():
           }
 
           function pushKurulumuBaslat(reg) {
-            if (!reg.pushManager) { win.alert('pushManager yok'); return; }
+            if (!reg.pushManager) { return; }
             pushIzinDurumu(reg).then(function (durum) {
-              win.alert('izin durumu: ' + durum);
               if (durum === 'granted') {
                 reg.pushManager.getSubscription().then(function (mevcut) {
-                  win.alert('mevcut abonelik: ' + (mevcut ? 'var' : 'yok'));
                   if (!mevcut) { pushAboneOl(reg); }
-                }).catch(function (e) {
-                  win.alert('getSubscription hatasi: ' + e.message);
                 });
               } else if (durum !== 'denied') {
                 bildirimButonuGoster(reg);
               }
-            }).catch(function (e) {
-              win.alert('pushIzinDurumu hatasi: ' + e.message);
-            });
+            }).catch(function () {});
           }
         })();
         </script>
