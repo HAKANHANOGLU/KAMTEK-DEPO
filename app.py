@@ -105,7 +105,7 @@ def _pwa_kurulum():
           appleIcon.href = '/~/+/app/static/icons/apple-touch-icon-180x180.png';
           doc.head.appendChild(appleIcon);
 
-          if (!('serviceWorker' in navigator)) { return; }
+          if (!('serviceWorker' in win.navigator)) { return; }
 
           // ---- Güncelleme bildirimi banner'ı ----
           function bannerGoster(waitingWorker) {
@@ -132,13 +132,13 @@ def _pwa_kurulum():
           }
 
           var yenilendi = false;
-          navigator.serviceWorker.addEventListener('controllerchange', function () {
+          win.navigator.serviceWorker.addEventListener('controllerchange', function () {
             if (yenilendi) { return; }
             yenilendi = true;
             win.location.reload();
           });
 
-          navigator.serviceWorker.register('/~/+/app/static/service-worker.js').then(function (reg) {
+          win.navigator.serviceWorker.register('/~/+/app/static/service-worker.js').then(function (reg) {
             // Sayfa açıldığında zaten bekleyen bir güncelleme varsa hemen göster.
             if (reg.waiting && reg.active) {
               bannerGoster(reg.waiting);
@@ -147,7 +147,7 @@ def _pwa_kurulum():
               var yeniWorker = reg.installing;
               if (!yeniWorker) { return; }
               yeniWorker.addEventListener('statechange', function () {
-                if (yeniWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                if (yeniWorker.state === 'installed' && win.navigator.serviceWorker.controller) {
                   bannerGoster(yeniWorker);
                 }
               });
