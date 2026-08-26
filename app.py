@@ -234,9 +234,22 @@ footer {visibility: hidden;}
    kaldırıldı. Bilerek sadece araç çubuğunu (stToolbar/stDecoration)
    hedefliyoruz, "header"/stHeader'ın tamamını DEĞİL - o kapsayıcı,
    sidebar'ı aç/kapa okunu da barındırabiliyor, tamamen gizlersek sol
-   menüyü telefonda kapatma imkanı gidebilirdi. */
-[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+   menüyü telefonda kapatma imkanı gidebilirdi.
+   25.08 güncellemesinden sonra Streamlit Cloud'un otomatik güncellediği
+   streamlit sürümünde sidebar aç/kapa oku (stSidebarCollapsedControl)
+   stToolbar'ın İÇİNE taşınmış olabilir - bu yüzden stToolbar'ı toptan
+   gizlemek yerine, içinde o ok varsa kapsayıcıyı gizlemeyip SADECE diğer
+   çocuklarını (Share/yıldız/kalem) gizliyoruz. */
+[data-testid="stToolbar"]:not(:has([data-testid="stSidebarCollapsedControl"])),
+[data-testid="stDecoration"], [data-testid="stStatusWidget"] {
     display: none !important;
+}
+[data-testid="stToolbar"]:has([data-testid="stSidebarCollapsedControl"]) > *:not([data-testid="stSidebarCollapsedControl"]) {
+    display: none !important;
+}
+[data-testid="stSidebarCollapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
 }
 [data-testid="stHeader"] {
     background: transparent !important;
