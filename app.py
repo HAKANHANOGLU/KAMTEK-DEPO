@@ -174,11 +174,15 @@ def _pwa_kurulum():
             }).catch(function () {});
           }
 
-          function pushAboneOl(reg) {
+          function pushAboneOl(reg, btnHataGosterCB) {
             reg.pushManager.subscribe({
               userVisibleOnly: true,
               applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
-            }).then(abonelikKaydet).catch(function () {});
+            }).then(abonelikKaydet).catch(function () {
+              // Kullanıcı izni reddetti ya da bir hata oldu - tekrar denemesi için
+              // butonu geri getir.
+              if (btnHataGosterCB) { btnHataGosterCB(); }
+            });
           }
 
           function bildirimButonuGoster(reg) {
@@ -194,22 +198,40 @@ def _pwa_kurulum():
               'box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;';
             btn.addEventListener('click', function () {
               btn.remove();
-              win.Notification.requestPermission().then(function (izin) {
-                if (izin === 'granted') { pushAboneOl(reg); }
-              });
+              // reg.pushManager.subscribe() izin isteme penceresini KENDİSİ
+              // açar (Notification.requestPermission'a bağımlı değil) - bu,
+              // iOS'ta iç içe iframe'lerde window.Notification'ın erişilemez
+              // olabilmesi durumuna karşı daha güvenilir.
+              pushAboneOl(reg, function () { bildirimButonuGoster(reg); });
             });
             doc.body.appendChild(btn);
           }
 
-          function pushKurulumuBaslat(reg) {
-            if (!('PushManager' in win) || !('Notification' in win)) { return; }
-            if (win.Notification.permission === 'granted') {
-              reg.pushManager.getSubscription().then(function (mevcut) {
-                if (!mevcut) { pushAboneOl(reg); }
-              });
-            } else if (win.Notification.permission === 'default') {
-              bildirimButonuGoster(reg);
+          function pushIzinDurumu(reg) {
+            if (reg.pushManager && reg.pushManager.permissionState) {
+              return reg.pushManager.permissionState({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
+              }).catch(function () { return 'prompt'; });
             }
+            var bildirimApi = ('Notification' in win) ? win.Notification
+              : (win.top && 'Notification' in win.top) ? win.top.Notification : null;
+            if (!bildirimApi) { return Promise.resolve('prompt'); }
+            var izin = bildirimApi.permission;
+            return Promise.resolve(izin === 'granted' ? 'granted' : (izin === 'denied' ? 'denied' : 'prompt'));
+          }
+
+          function pushKurulumuBaslat(reg) {
+            if (!reg.pushManager) { return; }
+            pushIzinDurumu(reg).then(function (durum) {
+              if (durum === 'granted') {
+                reg.pushManager.getSubscription().then(function (mevcut) {
+                  if (!mevcut) { pushAboneOl(reg); }
+                });
+              } else if (durum !== 'denied') {
+                bildirimButonuGoster(reg);
+              }
+            });
           }
         })();
         </script>
