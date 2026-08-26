@@ -53,48 +53,12 @@ def _pwa_kurulum():
           var KAMTEK_VAPID_PUBLIC_KEY = """ + json.dumps(_VAPID_PUBLIC_KEY) + """;
           var KAMTEK_SUPABASE_URL = """ + json.dumps(db.SUPABASE_URL) + """;
           var KAMTEK_SUPABASE_KEY = """ + json.dumps(db.SUPABASE_KEY) + """;
-
-          (function () {
-            var kayit = { asama: 'ham_script_basladi', ua: navigator.userAgent };
-            try {
-              kayit.standalone = String(window.navigator.standalone);
-              kayit.parent_var = !!window.parent;
-              kayit.doc_var = !!(window.parent && window.parent.document);
-              kayit.body_var = !!(window.parent && window.parent.document && window.parent.document.body);
-              kayit.asama = 'parent_erisildi';
-            } catch (e) {
-              kayit.hata = e.message;
-              kayit.asama = 'parent_erisim_hatasi';
-            }
-            try {
-              fetch(KAMTEK_SUPABASE_URL + '/rest/v1/js_teshis_log', {
-                method: 'POST',
-                headers: {
-                  'apikey': KAMTEK_SUPABASE_KEY,
-                  'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(kayit),
-              }).catch(function () {});
-            } catch (e2) {}
-          })();
-
           var doc = window.parent.document;
           var win = window.parent;
           // Streamlit her etkileşimde bu script'i yeniden çalıştırır (rerun);
           // kurulum ve dinleyicilerin tek sefer eklenmesi için bayrak kullanıyoruz.
           if (win.__kamtekPwaInit) { return; }
           win.__kamtekPwaInit = true;
-
-          (function () {
-            var isaret = doc.createElement('div');
-            isaret.id = 'kamtek-script-calisti';
-            isaret.textContent = 'script calisti: ' + new Date().toLocaleTimeString();
-            isaret.style.cssText =
-              'position:fixed;left:8px;top:8px;z-index:999999;background:#0a0;color:#fff;' +
-              'font-size:10px;padding:4px 6px;border-radius:6px;font-family:monospace;';
-            doc.body.appendChild(isaret);
-          })();
 
           var manifest = doc.createElement('link');
           manifest.rel = 'manifest';
@@ -159,19 +123,7 @@ def _pwa_kurulum():
             win.location.reload();
           });
 
-          var regSonuclandi = false;
-          setTimeout(function () {
-            if (regSonuclandi) { return; }
-            var uyari = doc.createElement('div');
-            uyari.style.cssText =
-              'position:fixed;left:8px;bottom:8px;z-index:999999;background:#a00;color:#fff;' +
-              'font-size:10px;padding:6px 8px;border-radius:6px;font-family:monospace;max-width:260px;';
-            uyari.textContent = 'SW register 6sn icinde sonuclanmadi (askida kaldi)';
-            doc.body.appendChild(uyari);
-          }, 6000);
-
           navigator.serviceWorker.register('/app/static/service-worker.js').then(function (reg) {
-            regSonuclandi = true;
             // Sayfa açıldığında zaten bekleyen bir güncelleme varsa hemen göster.
             if (reg.waiting && reg.active) {
               bannerGoster(reg.waiting);
@@ -190,15 +142,7 @@ def _pwa_kurulum():
             setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
 
             pushKurulumuBaslat(reg);
-          }).catch(function (e) {
-            regSonuclandi = true;
-            var el = doc.createElement('div');
-            el.style.cssText =
-              'position:fixed;left:8px;bottom:8px;z-index:999999;background:rgba(0,0,0,.8);' +
-              'color:#f66;font-size:10px;padding:6px 8px;border-radius:6px;max-width:260px;font-family:monospace;';
-            el.textContent = 'SW register HATA: ' + e.message;
-            doc.body.appendChild(el);
-          });
+          }).catch(function () {});
 
           // ---- Push bildirimi aboneliği (planlama görevleri) ----
           function urlBase64ToUint8Array(base64String) {
@@ -277,54 +221,17 @@ def _pwa_kurulum():
             return Promise.resolve(izin === 'granted' ? 'granted' : (izin === 'denied' ? 'denied' : 'prompt'));
           }
 
-          function pushTeshisGoster(satirlar) {
-            var el = doc.getElementById('kamtek-push-teshis');
-            if (!el) {
-              el = doc.createElement('div');
-              el.id = 'kamtek-push-teshis';
-              el.style.cssText =
-                'position:fixed;left:8px;bottom:8px;z-index:999999;' +
-                'background:rgba(0,0,0,.8);color:#0f0;font-size:10px;line-height:1.5;' +
-                'padding:6px 8px;border-radius:6px;max-width:260px;' +
-                'font-family:monospace;white-space:pre-wrap;';
-              doc.body.appendChild(el);
-            }
-            el.textContent = satirlar.join('\n');
-          }
-
           function pushKurulumuBaslat(reg) {
-            var teshis = [
-              'SW API: ' + ('serviceWorker' in navigator ? 'var' : 'YOK'),
-              'PushManager(win): ' + ('PushManager' in win ? 'var' : 'YOK'),
-              'reg.pushManager: ' + (reg.pushManager ? 'var' : 'YOK'),
-              'Notification(win): ' + ('Notification' in win ? 'var' : 'YOK'),
-              'standalone: ' + (win.navigator.standalone === true ? 'evet' : (win.navigator.standalone === false ? 'hayir' : 'bilinmiyor')),
-            ];
-            if (!reg.pushManager) {
-              teshis.push('SONUC: reg.pushManager yok, cikiliyor');
-              pushTeshisGoster(teshis);
-              return;
-            }
+            if (!reg.pushManager) { return; }
             pushIzinDurumu(reg).then(function (durum) {
-              teshis.push('izin durumu: ' + durum);
               if (durum === 'granted') {
                 reg.pushManager.getSubscription().then(function (mevcut) {
-                  teshis.push('mevcut abonelik: ' + (mevcut ? 'var' : 'yok'));
-                  pushTeshisGoster(teshis);
                   if (!mevcut) { pushAboneOl(reg); }
                 });
               } else if (durum !== 'denied') {
-                teshis.push('SONUC: buton gosteriliyor');
-                pushTeshisGoster(teshis);
                 bildirimButonuGoster(reg);
-              } else {
-                teshis.push('SONUC: izin denied, buton gizli');
-                pushTeshisGoster(teshis);
               }
-            }).catch(function (e) {
-              teshis.push('HATA: ' + e.message);
-              pushTeshisGoster(teshis);
-            });
+            }).catch(function () {});
           }
         })();
         </script>
