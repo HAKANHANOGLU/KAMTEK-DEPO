@@ -231,14 +231,18 @@ footer {visibility: hidden;}
 /* Streamlit'in sağ üstteki kendi araç çubuğu (Share / yıldız / kalem /
    profil ikonları) - PWA'da tarayıcı çerçevesi olmadan zaten görünmüyordu
    ama normal tarayıcı sekmesinde görünüyordu, kullanıcı istemediği için
-   kaldırıldı. Bilerek sadece araç çubuğunu (stToolbar/stDecoration)
-   hedefliyoruz, "header"/stHeader'ın tamamını DEĞİL - o kapsayıcı,
-   sidebar'ı aç/kapa okunu da barındırabiliyor, tamamen gizlersek sol
-   menüyü telefonda kapatma imkanı gidebilirdi. (Gerçek sidebar aç/kapa
-   butonunun testid'i stExpandSidebarButton/stSidebarCollapseButton -
-   stToolbar'ın dışında, ayrı bir eleman - o yüzden bu seçiciler ona
-   dokunmuyor.) */
-[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+   kaldırıldı. DOĞRULANDI: sidebar kapalıyken onu yeniden açma oku
+   (stExpandSidebarButton) DOM'da stToolbar'ın İÇİNDE render ediliyor -
+   stToolbar'ı toptan gizlersek bu ok da ebeveyniyle birlikte kayboluyor
+   ve sidebar bir daha hiç açılamıyor. Bu yüzden stToolbar'ı SADECE içinde
+   o ok yokken (yani sidebar açıkken) tamamen gizliyoruz; kapalıyken
+   toolbar'ı görünür bırakıp SADECE Share/yıldız/kalem gibi diğer
+   çocuklarını gizliyoruz, açma oku olduğu gibi kalıyor. */
+[data-testid="stToolbar"]:not(:has([data-testid="stExpandSidebarButton"])),
+[data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+    display: none !important;
+}
+[data-testid="stToolbar"]:has([data-testid="stExpandSidebarButton"]) > *:not(:has([data-testid="stExpandSidebarButton"])):not([data-testid="stExpandSidebarButton"]) {
     display: none !important;
 }
 [data-testid="stHeader"] {
