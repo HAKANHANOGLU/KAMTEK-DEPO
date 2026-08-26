@@ -62,7 +62,7 @@ def _pwa_kurulum():
 
           var manifest = doc.createElement('link');
           manifest.rel = 'manifest';
-          manifest.href = '/app/static/manifest.json';
+          manifest.href = '/~/+/app/static/manifest.json';
           doc.head.appendChild(manifest);
 
           var themeColor = doc.createElement('meta');
@@ -87,7 +87,7 @@ def _pwa_kurulum():
 
           var appleIcon = doc.createElement('link');
           appleIcon.rel = 'apple-touch-icon';
-          appleIcon.href = '/app/static/icons/apple-touch-icon-180x180.png';
+          appleIcon.href = '/~/+/app/static/icons/apple-touch-icon-180x180.png';
           doc.head.appendChild(appleIcon);
 
           if (!('serviceWorker' in navigator)) { return; }
@@ -123,7 +123,7 @@ def _pwa_kurulum():
             win.location.reload();
           });
 
-          navigator.serviceWorker.register('/app/static/service-worker.js').then(function (reg) {
+          navigator.serviceWorker.register('/~/+/app/static/service-worker.js').then(function (reg) {
             // Sayfa açıldığında zaten bekleyen bir güncelleme varsa hemen göster.
             if (reg.waiting && reg.active) {
               bannerGoster(reg.waiting);

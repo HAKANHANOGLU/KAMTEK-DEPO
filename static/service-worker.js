@@ -9,13 +9,17 @@
 // yakalayip kullaniciya "Guncelle" bildirimi gosterir. Kullanici tikladiginda
 // SKIP_WAITING mesaji gonderilir, yeni worker aktif olur ve sayfa yeniden
 // yuklenir.
-const CACHE_NAME = "kamtek-depo-shell-v79";
+const CACHE_NAME = "kamtek-depo-shell-v80";
+// Streamlit Cloud bu uygulamayı /~/+/ alt yolunda sunuyor; domain kökünden
+// başlayan bir mutlak yol (ör. /app/static/...) gerçek dosya yerine
+// Streamlit'in kendi HTML kabuğunu döndürüyor - bu yüzden hepsi /~/+/ ile
+// başlamak zorunda.
 const SHELL_ASSETS = [
-  "/app/static/manifest.json",
-  "/app/static/icons/pwa-192x192.png",
-  "/app/static/icons/pwa-512x512.png",
-  "/app/static/icons/maskable-icon-512x512.png",
-  "/app/static/icons/apple-touch-icon-180x180.png",
+  "/~/+/app/static/manifest.json",
+  "/~/+/app/static/icons/pwa-192x192.png",
+  "/~/+/app/static/icons/pwa-512x512.png",
+  "/~/+/app/static/icons/maskable-icon-512x512.png",
+  "/~/+/app/static/icons/apple-touch-icon-180x180.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -46,7 +50,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   // Sadece kendi statik varlıklarımızı önbellekten karşıla; geri kalan her şeyi
   // (Streamlit'in canlı sayfası, websocket, Supabase, DIA XML) doğrudan ağa bırak.
-  if (url.pathname.startsWith("/app/static/")) {
+  if (url.pathname.startsWith("/~/+/app/static/")) {
     event.respondWith(
       caches.match(event.request).then((cached) => cached || fetch(event.request))
     );
@@ -64,8 +68,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(veri.title || "Kamtek Depo", {
       body: veri.body || "",
-      icon: "/app/static/icons/pwa-192x192.png",
-      badge: "/app/static/icons/pwa-192x192.png",
+      icon: "/~/+/app/static/icons/pwa-192x192.png",
+      badge: "/~/+/app/static/icons/pwa-192x192.png",
     })
   );
 });
