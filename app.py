@@ -142,7 +142,14 @@ def _pwa_kurulum():
             setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
 
             pushKurulumuBaslat(reg);
-          }).catch(function () {});
+          }).catch(function (e) {
+            var el = doc.createElement('div');
+            el.style.cssText =
+              'position:fixed;left:8px;bottom:8px;z-index:999999;background:rgba(0,0,0,.8);' +
+              'color:#f66;font-size:10px;padding:6px 8px;border-radius:6px;max-width:260px;font-family:monospace;';
+            el.textContent = 'SW register HATA: ' + e.message;
+            doc.body.appendChild(el);
+          });
 
           // ---- Push bildirimi aboneliği (planlama görevleri) ----
           function urlBase64ToUint8Array(base64String) {
@@ -221,16 +228,53 @@ def _pwa_kurulum():
             return Promise.resolve(izin === 'granted' ? 'granted' : (izin === 'denied' ? 'denied' : 'prompt'));
           }
 
+          function pushTeshisGoster(satirlar) {
+            var el = doc.getElementById('kamtek-push-teshis');
+            if (!el) {
+              el = doc.createElement('div');
+              el.id = 'kamtek-push-teshis';
+              el.style.cssText =
+                'position:fixed;left:8px;bottom:8px;z-index:999999;' +
+                'background:rgba(0,0,0,.8);color:#0f0;font-size:10px;line-height:1.5;' +
+                'padding:6px 8px;border-radius:6px;max-width:260px;' +
+                'font-family:monospace;white-space:pre-wrap;';
+              doc.body.appendChild(el);
+            }
+            el.textContent = satirlar.join('\n');
+          }
+
           function pushKurulumuBaslat(reg) {
-            if (!reg.pushManager) { return; }
+            var teshis = [
+              'SW API: ' + ('serviceWorker' in navigator ? 'var' : 'YOK'),
+              'PushManager(win): ' + ('PushManager' in win ? 'var' : 'YOK'),
+              'reg.pushManager: ' + (reg.pushManager ? 'var' : 'YOK'),
+              'Notification(win): ' + ('Notification' in win ? 'var' : 'YOK'),
+              'standalone: ' + (win.navigator.standalone === true ? 'evet' : (win.navigator.standalone === false ? 'hayir' : 'bilinmiyor')),
+            ];
+            if (!reg.pushManager) {
+              teshis.push('SONUC: reg.pushManager yok, cikiliyor');
+              pushTeshisGoster(teshis);
+              return;
+            }
             pushIzinDurumu(reg).then(function (durum) {
+              teshis.push('izin durumu: ' + durum);
               if (durum === 'granted') {
                 reg.pushManager.getSubscription().then(function (mevcut) {
+                  teshis.push('mevcut abonelik: ' + (mevcut ? 'var' : 'yok'));
+                  pushTeshisGoster(teshis);
                   if (!mevcut) { pushAboneOl(reg); }
                 });
               } else if (durum !== 'denied') {
+                teshis.push('SONUC: buton gosteriliyor');
+                pushTeshisGoster(teshis);
                 bildirimButonuGoster(reg);
+              } else {
+                teshis.push('SONUC: izin denied, buton gizli');
+                pushTeshisGoster(teshis);
               }
+            }).catch(function (e) {
+              teshis.push('HATA: ' + e.message);
+              pushTeshisGoster(teshis);
             });
           }
         })();
