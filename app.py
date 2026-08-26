@@ -36,154 +36,6 @@ def _tr_simdi_saat():
 # gerekiyor (private key sadece Supabase Edge Function'da tutuluyor).
 _VAPID_PUBLIC_KEY = "BIuI56_a-F_hoJ-o02z9hjX8nmUk_-td1wDoscxKP5PL-o-mQjol2ZvNlKFMu7TrSX6o0jEu2yXRgpKXVKOxi7I"
 
-# Service worker + push kodu, components.html'in KENDİ srcdoc iframe'i
-# İÇİNDEN değil, gerçek <script> etiketi olarak window.parent.document'e
-# enjekte edilip ORADA çalıştırılıyor. Sebep: srcdoc iframe'in kendi
-# navigator.serviceWorker'ı tarayıcıda window.parent'tan AYRI bir storage
-# partition'a düşebiliyor - bu yüzden component iframe içinden register()
-# çağrısı "başarılı" dönse bile window.parent hiçbir zaman gerçekten o
-# service worker tarafından kontrol edilmiyordu (push API de bu yüzden
-# hiç çalışmıyordu). Bu bir Python raw-string (r\"\"\"...\"\"\") - JS içindeki
-# ters eğik çizgiler (\n, regex vb.) Python tarafından YORUMLANMASIN diye.
-_PWA_INJECT_JS_TEMPLATE = r"""
-(function () {
-  var KAMTEK_VAPID_PUBLIC_KEY = "__VAPID__";
-  var KAMTEK_SUPABASE_URL = "__SUPA_URL__";
-  var KAMTEK_SUPABASE_KEY = "__SUPA_KEY__";
-
-  if (!('serviceWorker' in navigator)) { return; }
-
-  function bannerGoster(waitingWorker) {
-    if (document.getElementById('kamtek-pwa-update-banner')) { return; }
-    var banner = document.createElement('div');
-    banner.id = 'kamtek-pwa-update-banner';
-    banner.style.cssText =
-      'position:fixed;left:0;right:0;bottom:0;z-index:999999;' +
-      'background:#0C447C;color:#fff;padding:12px 16px;' +
-      'display:flex;align-items:center;justify-content:center;gap:14px;' +
-      'font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;' +
-      'box-shadow:0 -2px 8px rgba(0,0,0,.25);';
-    banner.innerHTML =
-      '<span>🔄 Yeni bir güncelleme var</span>' +
-      '<button id="kamtek-pwa-update-btn" style="' +
-      'background:#fff;color:#0C447C;border:none;border-radius:8px;' +
-      'padding:8px 18px;font-weight:700;font-size:14px;">Güncelle</button>';
-    document.body.appendChild(banner);
-    document.getElementById('kamtek-pwa-update-btn').addEventListener('click', function () {
-      banner.querySelector('span').textContent = '⏳ Güncelleniyor...';
-      document.getElementById('kamtek-pwa-update-btn').style.display = 'none';
-      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-    });
-  }
-
-  var yenilendi = false;
-  navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (yenilendi) { return; }
-    yenilendi = true;
-    window.location.reload();
-  });
-
-  function urlBase64ToUint8Array(base64String) {
-    var padding = '='.repeat((4 - base64String.length % 4) % 4);
-    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    var rawData = window.atob(base64);
-    var outputArray = new Uint8Array(rawData.length);
-    for (var i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  }
-
-  function abonelikKaydet(subscription) {
-    var j = subscription.toJSON();
-    fetch(KAMTEK_SUPABASE_URL + '/rest/v1/push_abonelikler', {
-      method: 'POST',
-      headers: {
-        'apikey': KAMTEK_SUPABASE_KEY,
-        'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates',
-      },
-      body: JSON.stringify({
-        endpoint: j.endpoint,
-        p256dh: j.keys.p256dh,
-        auth_key: j.keys.auth,
-      }),
-    }).catch(function () {});
-  }
-
-  function pushAboneOl(reg, btnHataGosterCB) {
-    reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
-    }).then(abonelikKaydet).catch(function () {
-      if (btnHataGosterCB) { btnHataGosterCB(); }
-    });
-  }
-
-  function bildirimButonuGoster(reg) {
-    if (document.getElementById('kamtek-push-izin-btn')) { return; }
-    var btn = document.createElement('button');
-    btn.id = 'kamtek-push-izin-btn';
-    btn.textContent = '🔔 Bildirimleri Aç';
-    btn.style.cssText =
-      'position:fixed;right:16px;bottom:16px;z-index:999999;' +
-      'background:#0C447C;color:#fff;border:none;border-radius:24px;' +
-      'padding:10px 18px;font-weight:700;font-size:13px;' +
-      'font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
-      'box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;';
-    btn.addEventListener('click', function () {
-      btn.remove();
-      pushAboneOl(reg, function () { bildirimButonuGoster(reg); });
-    });
-    document.body.appendChild(btn);
-  }
-
-  function pushIzinDurumu(reg) {
-    if (reg.pushManager && reg.pushManager.permissionState) {
-      return reg.pushManager.permissionState({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
-      }).catch(function () { return 'prompt'; });
-    }
-    var bildirimApi = ('Notification' in window) ? window.Notification : null;
-    if (!bildirimApi) { return Promise.resolve('prompt'); }
-    var izin = bildirimApi.permission;
-    return Promise.resolve(izin === 'granted' ? 'granted' : (izin === 'denied' ? 'denied' : 'prompt'));
-  }
-
-  function pushKurulumuBaslat(reg) {
-    if (!reg.pushManager) { return; }
-    pushIzinDurumu(reg).then(function (durum) {
-      if (durum === 'granted') {
-        reg.pushManager.getSubscription().then(function (mevcut) {
-          if (!mevcut) { pushAboneOl(reg); }
-        });
-      } else if (durum !== 'denied') {
-        bildirimButonuGoster(reg);
-      }
-    }).catch(function () {});
-  }
-
-  navigator.serviceWorker.register('/app/static/service-worker.js').then(function (reg) {
-    if (reg.waiting && reg.active) {
-      bannerGoster(reg.waiting);
-    }
-    reg.addEventListener('updatefound', function () {
-      var yeniWorker = reg.installing;
-      if (!yeniWorker) { return; }
-      yeniWorker.addEventListener('statechange', function () {
-        if (yeniWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          bannerGoster(yeniWorker);
-        }
-      });
-    });
-    setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
-    pushKurulumuBaslat(reg);
-  }).catch(function () {});
-})();
-"""
-
 # ------------------------------------------------------------------
 # PWA kurulumu (manifest + service worker + iOS/Android meta etiketleri)
 # ------------------------------------------------------------------
@@ -198,6 +50,9 @@ def _pwa_kurulum():
         """
         <script>
         (function () {
+          var KAMTEK_VAPID_PUBLIC_KEY = """ + json.dumps(_VAPID_PUBLIC_KEY) + """;
+          var KAMTEK_SUPABASE_URL = """ + json.dumps(db.SUPABASE_URL) + """;
+          var KAMTEK_SUPABASE_KEY = """ + json.dumps(db.SUPABASE_KEY) + """;
           var doc = window.parent.document;
           var win = window.parent;
           // Streamlit her etkileşimde bu script'i yeniden çalıştırır (rerun);
@@ -237,17 +92,160 @@ def _pwa_kurulum():
 
           if (!('serviceWorker' in navigator)) { return; }
 
-          // Service worker + push kurulum kodu window.parent.document'e gerçek
-          // bir <script> etiketi olarak enjekte edilip ORADA çalıştırılıyor
-          // (bkz. _PWA_INJECT_JS_TEMPLATE'in üstündeki not).
-          var s = doc.createElement('script');
-          s.textContent = """ + json.dumps(
-            _PWA_INJECT_JS_TEMPLATE
-            .replace("__VAPID__", _VAPID_PUBLIC_KEY)
-            .replace("__SUPA_URL__", db.SUPABASE_URL)
-            .replace("__SUPA_KEY__", db.SUPABASE_KEY)
-        ) + """;
-          doc.head.appendChild(s);
+          // ---- Güncelleme bildirimi banner'ı ----
+          function bannerGoster(waitingWorker) {
+            if (doc.getElementById('kamtek-pwa-update-banner')) { return; }
+            var banner = doc.createElement('div');
+            banner.id = 'kamtek-pwa-update-banner';
+            banner.style.cssText =
+              'position:fixed;left:0;right:0;bottom:0;z-index:999999;' +
+              'background:#0C447C;color:#fff;padding:12px 16px;' +
+              'display:flex;align-items:center;justify-content:center;gap:14px;' +
+              'font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;' +
+              'box-shadow:0 -2px 8px rgba(0,0,0,.25);';
+            banner.innerHTML =
+              '<span>🔄 Yeni bir güncelleme var</span>' +
+              '<button id="kamtek-pwa-update-btn" style="' +
+              'background:#fff;color:#0C447C;border:none;border-radius:8px;' +
+              'padding:8px 18px;font-weight:700;font-size:14px;">Güncelle</button>';
+            doc.body.appendChild(banner);
+            doc.getElementById('kamtek-pwa-update-btn').addEventListener('click', function () {
+              banner.querySelector('span').textContent = '⏳ Güncelleniyor...';
+              doc.getElementById('kamtek-pwa-update-btn').style.display = 'none';
+              waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+            });
+          }
+
+          var yenilendi = false;
+          navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (yenilendi) { return; }
+            yenilendi = true;
+            win.location.reload();
+          });
+
+          navigator.serviceWorker.register('/app/static/service-worker.js').then(function (reg) {
+            // Sayfa açıldığında zaten bekleyen bir güncelleme varsa hemen göster.
+            if (reg.waiting && reg.active) {
+              bannerGoster(reg.waiting);
+            }
+            reg.addEventListener('updatefound', function () {
+              var yeniWorker = reg.installing;
+              if (!yeniWorker) { return; }
+              yeniWorker.addEventListener('statechange', function () {
+                if (yeniWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  bannerGoster(yeniWorker);
+                }
+              });
+            });
+            // Kullanıcı uygulamayı açık bıraktığında da yeni sürüm var mı diye
+            // periyodik kontrol et (her 30 dakikada bir).
+            setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
+
+            pushKurulumuBaslat(reg);
+          }).catch(function () {});
+
+          // ---- Push bildirimi aboneliği (planlama görevleri) ----
+          function urlBase64ToUint8Array(base64String) {
+            var padding = '='.repeat((4 - base64String.length % 4) % 4);
+            var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            var rawData = win.atob(base64);
+            var outputArray = new Uint8Array(rawData.length);
+            for (var i = 0; i < rawData.length; ++i) {
+              outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+          }
+
+          function abonelikKaydet(subscription) {
+            var json = subscription.toJSON();
+            fetch(KAMTEK_SUPABASE_URL + '/rest/v1/push_abonelikler', {
+              method: 'POST',
+              headers: {
+                'apikey': KAMTEK_SUPABASE_KEY,
+                'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates',
+              },
+              body: JSON.stringify({
+                endpoint: json.endpoint,
+                p256dh: json.keys.p256dh,
+                auth_key: json.keys.auth,
+              }),
+            }).catch(function () {});
+          }
+
+          function pushAboneOl(reg, btnHataGosterCB) {
+            reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
+            }).then(abonelikKaydet).catch(function () {
+              // Kullanıcı izni reddetti ya da bir hata oldu - tekrar denemesi için
+              // butonu geri getir.
+              if (btnHataGosterCB) { btnHataGosterCB(); }
+            });
+          }
+
+          function bildirimButonuGoster(reg) {
+            if (doc.getElementById('kamtek-push-izin-btn')) { return; }
+            var btn = doc.createElement('button');
+            btn.id = 'kamtek-push-izin-btn';
+            btn.textContent = '🔔 Bildirimleri Aç';
+            btn.style.cssText =
+              'position:fixed;right:16px;bottom:16px;z-index:999999;' +
+              'background:#0C447C;color:#fff;border:none;border-radius:24px;' +
+              'padding:10px 18px;font-weight:700;font-size:13px;' +
+              'font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
+              'box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;';
+            btn.addEventListener('click', function () {
+              btn.remove();
+              // reg.pushManager.subscribe() izin isteme penceresini KENDİSİ
+              // açar (Notification.requestPermission'a bağımlı değil) - bu,
+              // iOS'ta iç içe iframe'lerde window.Notification'ın erişilemez
+              // olabilmesi durumuna karşı daha güvenilir.
+              pushAboneOl(reg, function () { bildirimButonuGoster(reg); });
+            });
+            doc.body.appendChild(btn);
+          }
+
+          function pushIzinDurumu(reg) {
+            if (reg.pushManager && reg.pushManager.permissionState) {
+              return reg.pushManager.permissionState({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
+              }).catch(function () { return 'prompt'; });
+            }
+            var bildirimApi = ('Notification' in win) ? win.Notification
+              : (win.top && 'Notification' in win.top) ? win.top.Notification : null;
+            if (!bildirimApi) { return Promise.resolve('prompt'); }
+            var izin = bildirimApi.permission;
+            return Promise.resolve(izin === 'granted' ? 'granted' : (izin === 'denied' ? 'denied' : 'prompt'));
+          }
+
+          function pushKurulumuBaslat(reg) {
+            var teshis = 'pushManager:' + (reg.pushManager ? 'var' : 'YOK');
+            teshis += ' | standalone:' + win.navigator.standalone;
+            teshis += ' | Notif:' + ('Notification' in win ? 'var' : 'YOK');
+            var etiket = doc.createElement('div');
+            etiket.style.cssText =
+              'position:fixed;left:8px;bottom:8px;z-index:999999;background:rgba(0,0,0,.8);' +
+              'color:#0f0;font-size:10px;padding:6px 8px;border-radius:6px;max-width:280px;font-family:monospace;';
+            etiket.textContent = teshis;
+            doc.body.appendChild(etiket);
+
+            if (!reg.pushManager) { return; }
+            pushIzinDurumu(reg).then(function (durum) {
+              etiket.textContent = teshis + ' | izin:' + durum;
+              if (durum === 'granted') {
+                reg.pushManager.getSubscription().then(function (mevcut) {
+                  if (!mevcut) { pushAboneOl(reg); }
+                });
+              } else if (durum !== 'denied') {
+                bildirimButonuGoster(reg);
+              }
+            }).catch(function (e) {
+              etiket.textContent = teshis + ' | HATA:' + e.message;
+            });
+          }
         })();
         </script>
         """,
