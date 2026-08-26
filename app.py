@@ -60,6 +60,16 @@ def _pwa_kurulum():
           if (win.__kamtekPwaInit) { return; }
           win.__kamtekPwaInit = true;
 
+          (function () {
+            var isaret = doc.createElement('div');
+            isaret.id = 'kamtek-script-calisti';
+            isaret.textContent = 'script calisti: ' + new Date().toLocaleTimeString();
+            isaret.style.cssText =
+              'position:fixed;left:8px;top:8px;z-index:999999;background:#0a0;color:#fff;' +
+              'font-size:10px;padding:4px 6px;border-radius:6px;font-family:monospace;';
+            doc.body.appendChild(isaret);
+          })();
+
           var manifest = doc.createElement('link');
           manifest.rel = 'manifest';
           manifest.href = '/app/static/manifest.json';
@@ -123,7 +133,19 @@ def _pwa_kurulum():
             win.location.reload();
           });
 
+          var regSonuclandi = false;
+          setTimeout(function () {
+            if (regSonuclandi) { return; }
+            var uyari = doc.createElement('div');
+            uyari.style.cssText =
+              'position:fixed;left:8px;bottom:8px;z-index:999999;background:#a00;color:#fff;' +
+              'font-size:10px;padding:6px 8px;border-radius:6px;font-family:monospace;max-width:260px;';
+            uyari.textContent = 'SW register 6sn icinde sonuclanmadi (askida kaldi)';
+            doc.body.appendChild(uyari);
+          }, 6000);
+
           navigator.serviceWorker.register('/app/static/service-worker.js').then(function (reg) {
+            regSonuclandi = true;
             // Sayfa açıldığında zaten bekleyen bir güncelleme varsa hemen göster.
             if (reg.waiting && reg.active) {
               bannerGoster(reg.waiting);
@@ -143,6 +165,7 @@ def _pwa_kurulum():
 
             pushKurulumuBaslat(reg);
           }).catch(function (e) {
+            regSonuclandi = true;
             var el = doc.createElement('div');
             el.style.cssText =
               'position:fixed;left:8px;bottom:8px;z-index:999999;background:rgba(0,0,0,.8);' +
