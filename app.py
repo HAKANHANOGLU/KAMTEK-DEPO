@@ -233,16 +233,22 @@ def _pwa_kurulum():
           }
 
           function pushKurulumuBaslat(reg) {
-            if (!reg.pushManager) { return; }
+            if (!reg.pushManager) { win.alert('pushManager yok'); return; }
             pushIzinDurumu(reg).then(function (durum) {
+              win.alert('izin durumu: ' + durum);
               if (durum === 'granted') {
                 reg.pushManager.getSubscription().then(function (mevcut) {
+                  win.alert('mevcut abonelik: ' + (mevcut ? 'var' : 'yok'));
                   if (!mevcut) { pushAboneOl(reg); }
+                }).catch(function (e) {
+                  win.alert('getSubscription hatasi: ' + e.message);
                 });
               } else if (durum !== 'denied') {
                 bildirimButonuGoster(reg);
               }
-            }).catch(function () {});
+            }).catch(function (e) {
+              win.alert('pushIzinDurumu hatasi: ' + e.message);
+            });
           }
         })();
         </script>
