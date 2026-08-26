@@ -170,14 +170,26 @@ def _pwa_kurulum():
                 p256dh: json.keys.p256dh,
                 auth_key: json.keys.auth,
               }),
-            }).catch(function () {});
+            }).then(function (r) {
+              if (!r.ok) {
+                r.text().then(function (t) {
+                  win.alert('Kayit hatasi (' + r.status + '): ' + t);
+                });
+              } else {
+                win.alert('Abonelik kaydedildi, bildirimler acik.');
+              }
+            }).catch(function (e) {
+              win.alert('Kayit fetch hatasi: ' + e.message);
+            });
           }
 
           function pushAboneOl(reg, btnHataGosterCB) {
             reg.pushManager.subscribe({
               userVisibleOnly: true,
               applicationServerKey: urlBase64ToUint8Array(KAMTEK_VAPID_PUBLIC_KEY),
-            }).then(abonelikKaydet).catch(function () {
+            }).then(abonelikKaydet).catch(function (e) {
+              // GEÇİCİ TEŞHİS: gerçek hatayı görmek için.
+              win.alert('Abonelik hatasi: ' + (e && e.message ? e.message : e));
               // Kullanıcı izni reddetti ya da bir hata oldu - tekrar denemesi için
               // butonu geri getir.
               if (btnHataGosterCB) { btnHataGosterCB(); }
