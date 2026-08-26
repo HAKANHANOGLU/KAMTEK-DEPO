@@ -53,6 +53,32 @@ def _pwa_kurulum():
           var KAMTEK_VAPID_PUBLIC_KEY = """ + json.dumps(_VAPID_PUBLIC_KEY) + """;
           var KAMTEK_SUPABASE_URL = """ + json.dumps(db.SUPABASE_URL) + """;
           var KAMTEK_SUPABASE_KEY = """ + json.dumps(db.SUPABASE_KEY) + """;
+
+          (function () {
+            var kayit = { asama: 'ham_script_basladi', ua: navigator.userAgent };
+            try {
+              kayit.standalone = String(window.navigator.standalone);
+              kayit.parent_var = !!window.parent;
+              kayit.doc_var = !!(window.parent && window.parent.document);
+              kayit.body_var = !!(window.parent && window.parent.document && window.parent.document.body);
+              kayit.asama = 'parent_erisildi';
+            } catch (e) {
+              kayit.hata = e.message;
+              kayit.asama = 'parent_erisim_hatasi';
+            }
+            try {
+              fetch(KAMTEK_SUPABASE_URL + '/rest/v1/js_teshis_log', {
+                method: 'POST',
+                headers: {
+                  'apikey': KAMTEK_SUPABASE_KEY,
+                  'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(kayit),
+              }).catch(function () {});
+            } catch (e2) {}
+          })();
+
           var doc = window.parent.document;
           var win = window.parent;
           // Streamlit her etkileşimde bu script'i yeniden çalıştırır (rerun);
