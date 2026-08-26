@@ -190,7 +190,7 @@ def _pwa_kurulum():
             btn.id = 'kamtek-push-izin-btn';
             btn.textContent = '🔔 Bildirimleri Aç';
             btn.style.cssText =
-              'position:fixed;right:16px;bottom:16px;z-index:999999;' +
+              'position:fixed;left:16px;bottom:16px;z-index:999999;' +
               'background:#0C447C;color:#fff;border:none;border-radius:24px;' +
               'padding:10px 18px;font-weight:700;font-size:13px;' +
               'font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
