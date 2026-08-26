@@ -52,22 +52,6 @@ def _pwa_kurulum():
         (function () {
           var KAMTEK_VAPID_PUBLIC_KEY = """ + json.dumps(_VAPID_PUBLIC_KEY) + """;
           var KAMTEK_SUPABASE_URL = """ + json.dumps(db.SUPABASE_URL) + """;
-          var KAMTEK_SUPABASE_KEY = """ + json.dumps(db.SUPABASE_KEY) + """;
-
-          try {
-            var _standalone = 'bilinmiyor';
-            try { _standalone = String(window.navigator.standalone); } catch (e0) { _standalone = 'HATA:' + e0.message; }
-            fetch(KAMTEK_SUPABASE_URL + '/rest/v1/js_teshis_log', {
-              method: 'POST',
-              headers: {
-                'apikey': KAMTEK_SUPABASE_KEY,
-                'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ asama: 'script_basladi', ua: navigator.userAgent, standalone: _standalone }),
-            }).catch(function () {});
-          } catch (e1) {}
-
           var doc = window.parent.document;
           var win = window.parent;
           // Streamlit her etkileşimde bu script'i yeniden çalıştırır (rerun);
@@ -156,28 +140,8 @@ def _pwa_kurulum():
             // periyodik kontrol et (her 30 dakikada bir).
             setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
 
-            fetch(KAMTEK_SUPABASE_URL + '/rest/v1/js_teshis_log', {
-              method: 'POST',
-              headers: {
-                'apikey': KAMTEK_SUPABASE_KEY,
-                'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ asama: 'sw_register_basarili', standalone: _standalone }),
-            }).catch(function () {});
-
             pushKurulumuBaslat(reg);
-          }).catch(function (eReg) {
-            fetch(KAMTEK_SUPABASE_URL + '/rest/v1/js_teshis_log', {
-              method: 'POST',
-              headers: {
-                'apikey': KAMTEK_SUPABASE_KEY,
-                'Authorization': 'Bearer ' + KAMTEK_SUPABASE_KEY,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ asama: 'sw_register_hata', standalone: _standalone, ua: eReg.message }),
-            }).catch(function () {});
-          });
+          }).catch(function () {});
 
           // ---- Push bildirimi aboneliği (planlama görevleri) ----
           function urlBase64ToUint8Array(base64String) {
@@ -257,19 +221,8 @@ def _pwa_kurulum():
           }
 
           function pushKurulumuBaslat(reg) {
-            var teshis = 'pushManager:' + (reg.pushManager ? 'var' : 'YOK');
-            teshis += ' | standalone:' + win.navigator.standalone;
-            teshis += ' | Notif:' + ('Notification' in win ? 'var' : 'YOK');
-            var etiket = doc.createElement('div');
-            etiket.style.cssText =
-              'position:fixed;left:8px;bottom:8px;z-index:999999;background:rgba(0,0,0,.8);' +
-              'color:#0f0;font-size:10px;padding:6px 8px;border-radius:6px;max-width:280px;font-family:monospace;';
-            etiket.textContent = teshis;
-            doc.body.appendChild(etiket);
-
             if (!reg.pushManager) { return; }
             pushIzinDurumu(reg).then(function (durum) {
-              etiket.textContent = teshis + ' | izin:' + durum;
               if (durum === 'granted') {
                 reg.pushManager.getSubscription().then(function (mevcut) {
                   if (!mevcut) { pushAboneOl(reg); }
@@ -277,9 +230,7 @@ def _pwa_kurulum():
               } else if (durum !== 'denied') {
                 bildirimButonuGoster(reg);
               }
-            }).catch(function (e) {
-              etiket.textContent = teshis + ' | HATA:' + e.message;
-            });
+            }).catch(function () {});
           }
         })();
         </script>
