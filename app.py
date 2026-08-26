@@ -234,22 +234,12 @@ footer {visibility: hidden;}
    kaldırıldı. Bilerek sadece araç çubuğunu (stToolbar/stDecoration)
    hedefliyoruz, "header"/stHeader'ın tamamını DEĞİL - o kapsayıcı,
    sidebar'ı aç/kapa okunu da barındırabiliyor, tamamen gizlersek sol
-   menüyü telefonda kapatma imkanı gidebilirdi.
-   25.08 güncellemesinden sonra Streamlit Cloud'un otomatik güncellediği
-   streamlit sürümünde sidebar aç/kapa oku (stSidebarCollapsedControl)
-   stToolbar'ın İÇİNE taşınmış olabilir - bu yüzden stToolbar'ı toptan
-   gizlemek yerine, içinde o ok varsa kapsayıcıyı gizlemeyip SADECE diğer
-   çocuklarını (Share/yıldız/kalem) gizliyoruz. */
-[data-testid="stToolbar"]:not(:has([data-testid="stSidebarCollapsedControl"])),
-[data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+   menüyü telefonda kapatma imkanı gidebilirdi. (Gerçek sidebar aç/kapa
+   butonunun testid'i stExpandSidebarButton/stSidebarCollapseButton -
+   stToolbar'ın dışında, ayrı bir eleman - o yüzden bu seçiciler ona
+   dokunmuyor.) */
+[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
     display: none !important;
-}
-[data-testid="stToolbar"]:has([data-testid="stSidebarCollapsedControl"]) > *:not([data-testid="stSidebarCollapsedControl"]) {
-    display: none !important;
-}
-[data-testid="stSidebarCollapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
 }
 [data-testid="stHeader"] {
     background: transparent !important;
@@ -567,9 +557,14 @@ div[data-testid="stDateInput"] input:focus,
     border-color: #378ADD !important;
     box-shadow: 0 0 0 1px #378ADD !important;
 }
-/* Telefon ekranında sidebar tüm sayfayı kaplıyordu - genişliğini sınırla. */
+/* Telefon ekranında sidebar tüm sayfayı kaplıyordu - genişliğini sınırla.
+   NOT: sadece aria-expanded="true" (açık) durumunda uygulanıyor - aksi halde
+   Streamlit sidebar'ı kapatırken genişliği 0'a indirmeye çalışıyor, bizim
+   !important kuralımız buna izin vermeyince sidebar hem kapanmıyor hem de
+   yeniden açma oku (stExpandSidebarButton) boyutsuz/tıklanamaz kalıp
+   sidebar bir daha hiç açılamıyordu. */
 @media (max-width: 640px) {
-    section[data-testid="stSidebar"] {
+    section[data-testid="stSidebar"][aria-expanded="true"] {
         width: 76vw !important;
         min-width: 76vw !important;
         max-width: 300px !important;
