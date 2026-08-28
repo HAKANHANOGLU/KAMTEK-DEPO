@@ -917,6 +917,14 @@ section[data-testid="stSidebar"] .gb-nav-baslik { color: #5E6C82 !important; }
 .gb-kpi-sub.info { color: var(--gb-info); }
 .gb-kpi-card.violet { border-left-color: var(--gb-violet); }
 .gb-kpi-sub.violet { color: var(--gb-violet); }
+/* KPI kartlarının altındaki "Aç →" bağlantı butonları - kartla aynı satırda,
+   dar ve göze batmayan; kartı tıklanabilir hissettirmek için. */
+[class*="st-key-gbkpi_nav_"] { margin-top: -22px; }
+[class*="st-key-gbkpi_nav_"] div[data-testid="stButton"] button {
+    background: none !important; border: none !important; color: var(--gb-accent) !important;
+    font-weight: 500 !important; font-size: 11.5px !important; padding: 0 4px 6px 4px !important;
+    min-height: 0 !important; height: auto !important; box-shadow: none !important;
+}
 .st-key-ds_yukleme_panel, .st-key-ds_takvim_panel, .st-key-ds_matris_panel,
 .st-key-ds_son_islemler_panel, .st-key-ds_rapor_panel {
     background: #FFFFFF !important; border: 1px solid var(--gb-border) !important;
@@ -1581,6 +1589,22 @@ def sayfa_home():
     kart_html += "</div>"
     st.markdown(kart_html, unsafe_allow_html=True)
 
+    kpi_hedefler = [
+        ("kargotakip", None),
+        ("depo", "sayim"),
+        ("iade", None),
+        ("stoktakip", None),
+        ("kontrollistesi", None),
+    ]
+    kpi_kolonlar = st.columns(5)
+    for kol, (hedef_sayfa, depo_alt) in zip(kpi_kolonlar, kpi_hedefler):
+        with kol:
+            with st.container(key=f"gbkpi_nav_{hedef_sayfa}"):
+                if st.button("Aç →", key=f"gbkpi_nav_btn_{hedef_sayfa}", use_container_width=True):
+                    if depo_alt:
+                        st.session_state.depo_alt_sayfa = depo_alt
+                    git(hedef_sayfa)
+
     ana_col, yan_col = st.columns([2.2, 1], gap="large")
 
     with ana_col:
@@ -1768,7 +1792,7 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
 
   function ease(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
 
-  function drive(fromPt, toPt){
+  function drive(fromPt, toPt, onDone){
     var dx = toPt[0]-fromPt[0], dy = toPt[1]-fromPt[1];
     var len = Math.hypot(dx, dy) || 1;
     var nx = -dy/len, ny = dx/len;
@@ -1779,7 +1803,10 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
     route.style.strokeDasharray = L;
     route.style.strokeDashoffset = L;
     truck.style.opacity = '1';
-    var dur = Math.max(450, Math.min(900, len*3.5));
+    // Süre mesafeyle orantılı; uzak illerde kamyonun gerçekten varış
+    // noktasına ulaşabilmesi için üst sınır kaldırıldı (bkz. onDone -
+    // Streamlit'e bildirim artık animasyon bitmeden tetiklenmiyor).
+    var dur = Math.max(450, len*3.5);
     var start = null;
     function frame(ts){
       if(start === null) start = ts;
@@ -1791,7 +1818,7 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
       truck.setAttribute('transform', 'translate(' + pt.x + ',' + pt.y + ') rotate(' + ang + ')');
       route.style.strokeDashoffset = String(L*(1-et));
       if(t < 1){ requestAnimationFrame(frame); }
-      else { truck.style.opacity = '0'; }
+      else { truck.style.opacity = '0'; if(onDone) onDone(); }
     }
     requestAnimationFrame(frame);
   }
@@ -1816,16 +1843,16 @@ _SEVK_HARITA_TEMPLATE = string.Template(r"""
     if(!name || name === SELECTED) return;
     var target = CENTROIDS[name];
     if(!target) return;
-    // Sunucu round-trip'ini beklemeden anında görsel geri bildirim: seçili
-    // il ve etiketi hemen güncelleniyor, kamyon animasyonu ve Streamlit'e
-    // bildirim (commitSelection) paralel/arka planda ilerliyor.
+    // İl seçimi ve etiket anında güncelleniyor; Streamlit'e bildirim
+    // (commitSelection) ise kamyon animasyonu bitene KADAR ertelendi - aksi
+    // halde sunucu round-trip'i sayfayı yeniden çizip animasyonu yarıda
+    // kesiyordu (uzak iller tam mesafeyi tamamlayamadan kesiliyordu).
     var prevPath = layer.querySelector('.kh-is-selected');
     if(prevPath) prevPath.classList.remove('kh-is-selected');
     t.classList.add('kh-is-selected');
     place(selectedMarker, target, name);
     SELECTED = name;
-    drive(CENTROIDS[DEPOT], target);
-    commitSelection(name);
+    drive(CENTROIDS[DEPOT], target, function () { commitSelection(name); });
   });
   layer.addEventListener('mousemove', function(e){
     var t = e.target.closest ? e.target.closest('.kh-il') : null;
@@ -2017,9 +2044,17 @@ def sayfa_sevkiyat():
                 st.session_state.sevkiyat_df = pd.concat([edited, ek_df], ignore_index=True)
                 st.rerun()
 
-        col_hesapla, col_kargolastir = st.columns(2)
+        col_hesapla, col_kargolastir, col_temizle = st.columns(3)
         hesapla_tiklandi = col_hesapla.button("Hesapla", type="primary", use_container_width=True)
         kargolastir_tiklandi = col_kargolastir.button("📦 Kargolaştır", use_container_width=True)
+        if col_temizle.button("🗑️ Tabloyu Temizle", use_container_width=True):
+            st.session_state.sevkiyat_df = pd.DataFrame(
+                {"Satır": [f"Satır {i + 1}" for i in range(5)], "Miktar": [float("nan")] * 5, "Desi": [float("nan")] * 5}
+            )
+            st.session_state.sevkiyat_editor_key += 1
+            st.session_state.hesap_sonuclari = None
+            st.session_state.kargo_secilen = None
+            st.rerun()
 
         if hesapla_tiklandi:
             gecerli_satirlar = [
@@ -2617,6 +2652,10 @@ def _haftalik_satir_durumu(bilgi):
     return "Doğru"
 
 
+# "Sorunlular Önce" sıralamasında satırların dizilme sırası - küçük sayı üstte.
+_HAFTALIK_ONCELIK = {"Sayılmadı": 0, "Sayım Hatası": 1, "Fark Var": 2, "Referans Yok": 3, "Doğru": 4}
+
+
 def _haftalik_rapor_icerik():
     bugun = date.today()
     hafta_baslangic = bugun - timedelta(days=bugun.weekday())
@@ -2653,11 +2692,16 @@ def _haftalik_rapor_icerik():
         for oturum in db.stok_sayim_oturumlari_getir(gun_iso):
             for d in db.stok_sayim_detay_getir(oturum["id"]):
                 guncel, fark = _guncel_ve_fark(d["urun_adi"], d.get("sayilan"))
-                urun_sayim[d["urun_adi"]] = {"Sayım": d.get("sayilan"), "Güncel Stok": guncel, "Fark": fark, "Gün": isim}
+                urun_sayim[d["urun_adi"]] = {
+                    "Sayım": d.get("sayilan"), "Güncel Stok": guncel, "Fark": fark, "Gün": isim,
+                    "Kim": oturum.get("personel_adi"),
+                }
         for kayit in db.depo_sayim_getir(gun_iso):
             for urun_adi, bilgi in _excel_sayim_verisi(kayit["dosya_icerik"]).items():
                 guncel, fark = _guncel_ve_fark(urun_adi, bilgi["Sayım"], bilgi.get("Güncel Stok"))
-                urun_sayim[urun_adi] = {"Sayım": bilgi["Sayım"], "Güncel Stok": guncel, "Fark": fark, "Gün": isim}
+                urun_sayim[urun_adi] = {
+                    "Sayım": bilgi["Sayım"], "Güncel Stok": guncel, "Fark": fark, "Gün": isim, "Kim": None,
+                }
 
     # Ürün listesinin (ve hiç sayılmamış ürünlerin referans stoğunun) kaynağı
     # Depo Sayım Fişleri'ne EN SON yüklenen excel - canlı XML değil, çünkü
@@ -2674,10 +2718,12 @@ def _haftalik_rapor_icerik():
         urun_adlari_bilinen.add(urun_adi)
         bilgi = urun_sayim.get(urun_adi)
         if bilgi:
+            durum = _haftalik_satir_durumu(bilgi)
             satirlar.append({
                 "Ürün Adı": urun_adi, "Güncel Stok": bilgi.get("Güncel Stok"),
-                "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"],
-                "Sayıldığı Gün": bilgi["Gün"], "Durum": _haftalik_satir_durumu(bilgi), "_sayildi": 1,
+                "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"], "Sayan": bilgi.get("Kim") or "—",
+                "Sayıldığı Gün": bilgi["Gün"], "Durum": durum, "_sayildi": 1,
+                "_oncelik": _HAFTALIK_ONCELIK.get(durum, 9),
             })
         else:
             # Hiç sayılmamış - mevcut stoğu 0 olan ürünleri listeye almaya
@@ -2686,7 +2732,8 @@ def _haftalik_rapor_icerik():
                 continue
             satirlar.append({
                 "Ürün Adı": urun_adi, "Güncel Stok": u.get("Stok"),
-                "Sayım": "", "Fark": "", "Sayıldığı Gün": "Sayılmadı", "Durum": "Sayılmadı", "_sayildi": 0,
+                "Sayım": "", "Fark": "", "Sayan": "", "Sayıldığı Gün": "Sayılmadı", "Durum": "Sayılmadı",
+                "_sayildi": 0, "_oncelik": _HAFTALIK_ONCELIK.get("Sayılmadı", 9),
             })
     # En son excel'de yer almayan ama bu hafta sayılmış ürünler (ör. farklı
     # bir isimlendirme, ya da artık listede olmayan bir ürün) kaybolmasın
@@ -2694,10 +2741,12 @@ def _haftalik_rapor_icerik():
     for urun_adi, bilgi in urun_sayim.items():
         if urun_adi in urun_adlari_bilinen:
             continue
+        durum = _haftalik_satir_durumu(bilgi)
         satirlar.append({
             "Ürün Adı": urun_adi, "Güncel Stok": bilgi.get("Güncel Stok"),
-            "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"],
-            "Sayıldığı Gün": bilgi["Gün"], "Durum": _haftalik_satir_durumu(bilgi), "_sayildi": 1,
+            "Sayım": bilgi["Sayım"], "Fark": bilgi["Fark"], "Sayan": bilgi.get("Kim") or "—",
+            "Sayıldığı Gün": bilgi["Gün"], "Durum": durum, "_sayildi": 1,
+            "_oncelik": _HAFTALIK_ONCELIK.get(durum, 9),
         })
     if not satirlar:
         st.info("Ürün listesi bulunamadı.")
@@ -2710,7 +2759,7 @@ def _haftalik_rapor_icerik():
         arama = st.text_input("Ürün Adı ara", key="hk_urun_arama", placeholder="🔍 ürün adı yazın...")
     with f1:
         siralama = st.radio(
-            "Sıralama", ["Varsayılan", "Sayılmayanlar Önce", "Sayılanlar Önce"],
+            "Sıralama", ["Varsayılan", "Sayılmayanlar Önce", "Sayılanlar Önce", "Sorunlular Önce"],
             horizontal=True, key="hk_siralama",
         )
     with f2:
@@ -2724,7 +2773,11 @@ def _haftalik_rapor_icerik():
         df = df.sort_values("_sayildi", ascending=True)
     elif siralama == "Sayılanlar Önce":
         df = df.sort_values("_sayildi", ascending=False)
-    df = df.drop(columns=["_sayildi"]).reset_index(drop=True)
+    elif siralama == "Sorunlular Önce":
+        # Sayılmadı / Sayım Hatası / Fark Var olanlar (yani "sorunlu" olanlar)
+        # en üste - doğru sayılmış ürünler en altta.
+        df = df.sort_values("_oncelik", ascending=True)
+    df = df.drop(columns=["_sayildi", "_oncelik"]).reset_index(drop=True)
 
     def _renklendir(row):
         renk = {
