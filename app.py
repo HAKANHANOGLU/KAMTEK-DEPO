@@ -12,6 +12,10 @@ import html
 import json
 import string
 
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+
 import data
 import db
 import excel_utils
@@ -4063,6 +4067,72 @@ def _calisma_dakika_hesapla(giris, cikis, tarih_iso):
     return fark_dk
 
 
+def _puantaj_excel_olustur(personeller, kayit_haritasi, yil, ay, gun_sayisi, gun_renkleri):
+    """Aylık puantaj görünümündeki İLE AYNI renklendirme ve düzenle bir
+    xlsx dosyası üretir (ekrandaki HTML tablonun openpyxl karşılığı)."""
+    ince_kenarlik = Side(style="thin", color="DDDDDD")
+    kenarlik = Border(left=ince_kenarlik, right=ince_kenarlik, top=ince_kenarlik, bottom=ince_kenarlik)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Puantaj"
+
+    # ---- Başlık satırları (personel adı + Giriş/Çıkış/Ek Mesai/Sebebi) ----
+    ws.cell(row=1, column=1, value="Tarih")
+    ws.merge_cells(start_row=1, start_column=1, end_row=2, end_column=1)
+    for c in (ws.cell(row=1, column=1), ws.cell(row=2, column=1)):
+        c.fill = PatternFill("solid", fgColor="F5F5F5")
+        c.border = kenarlik
+        c.alignment = Alignment(horizontal="center", vertical="center")
+
+    alt_basliklar = ["Giriş", "Çıkış", "Ek Mesai", "Sebebi"]
+    for i, p in enumerate(personeller):
+        baslangic_col = 2 + i * 4
+        ws.merge_cells(start_row=1, start_column=baslangic_col, end_row=1, end_column=baslangic_col + 3)
+        ust = ws.cell(row=1, column=baslangic_col, value=p["ad_soyad"])
+        ust.fill = PatternFill("solid", fgColor="378ADD")
+        ust.font = Font(color="FFFFFF", bold=True)
+        ust.alignment = Alignment(horizontal="center", vertical="center")
+        for j, etiket in enumerate(alt_basliklar):
+            alt = ws.cell(row=2, column=baslangic_col + j, value=etiket)
+            alt.fill = PatternFill("solid", fgColor="E6F1FB")
+            alt.font = Font(size=9)
+            alt.alignment = Alignment(horizontal="center")
+            alt.border = kenarlik
+        ws.cell(row=1, column=baslangic_col).border = kenarlik
+
+    # ---- Gün satırları ----
+    for gun_no in range(1, gun_sayisi + 1):
+        satir = 2 + gun_no
+        d = date(yil, ay, gun_no)
+        d_iso = d.isoformat()
+        haftanin_gunu = d.weekday()
+        renk_hex = gun_renkleri.get(haftanin_gunu, "#FFFFFF").lstrip("#")
+        dolgu = PatternFill("solid", fgColor=renk_hex)
+
+        tarih_hucre = ws.cell(row=satir, column=1, value=f"{d.strftime('%d.%m.%Y')} {GUN_ISIMLERI_KISA[haftanin_gunu]}")
+        tarih_hucre.fill = dolgu
+        tarih_hucre.border = kenarlik
+
+        for i, p in enumerate(personeller):
+            k = kayit_haritasi.get(d_iso, {}).get(p["id"], {})
+            degerler = [k.get("giris_saati") or "", k.get("cikis_saati") or "", k.get("ek_mesai_saat") or "", k.get("sebep") or ""]
+            baslangic_col = 2 + i * 4
+            for j, deger in enumerate(degerler):
+                hucre = ws.cell(row=satir, column=baslangic_col + j, value=deger)
+                hucre.fill = dolgu
+                hucre.border = kenarlik
+
+    ws.column_dimensions["A"].width = 16
+    for i in range(len(personeller) * 4):
+        ws.column_dimensions[get_column_letter(2 + i)].width = 11
+    ws.freeze_panes = "B3"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def _puantaj_bolumu():
     st.subheader("Puantaj")
     personeller = db.personel_listele()
@@ -4148,6 +4218,14 @@ def _puantaj_bolumu():
         f"<tbody>{''.join(satirlar_html)}</tbody></table></div>"
     )
     st.markdown(tablo_html, unsafe_allow_html=True)
+
+    st.download_button(
+        "⬇ Excel olarak indir",
+        data=_puantaj_excel_olustur(personeller, kayit_haritasi, yil, ay, gun_sayisi, gun_renkleri),
+        file_name=f"puantaj_{yil}_{ay:02d}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="puantaj_excel_indir",
+    )
 
     st.markdown("---")
     st.markdown("**Aylık toplam**")
