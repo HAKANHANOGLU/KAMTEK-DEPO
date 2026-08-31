@@ -1044,24 +1044,16 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-ds_matris_panel) > div[data-tes
 .ds-log-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--gb-accent); }
 .ds-log-text { font-size: 12.5px; color: var(--gb-text-dark); line-height: 1.4; }
 .ds-log-alt { font-size: 11px; color: var(--gb-text-soft); margin-top: 2px; }
-/* Son İşlemler panelinin üstündeki "Haftalık Rapor" kutusu - gerçek bir
-   st.button, tıklanınca sayfanın altında rapor tablosu açılıp kapanıyor.
+/* Son İşlemler panelinin üstündeki "Haftalık Rapor" kutusu - ayrı Aç/Kapat
+   butonları, tıklanınca sayfanın altında rapor tablosu açılıp kapanıyor.
    Son İşlemler paneliyle aynı genişlikte, kendi sütununda üstte duruyor. */
 .st-key-ds_rapor_tile {
     background: #FFFFFF !important; border: 6px solid var(--gb-danger) !important;
     border-radius: 10px !important;
-    padding: 0 !important; margin-bottom: 16px !important; box-sizing: border-box;
+    padding: 16px !important; margin-bottom: 16px !important; box-sizing: border-box;
 }
 .st-key-ds_rapor_tile div[data-testid="stButton"] button {
-    width: 100% !important; min-height: 90px !important;
-    background: transparent !important; border: none !important; box-shadow: none !important;
-    display: flex !important; flex-direction: column !important; align-items: flex-start !important;
-    justify-content: center !important; padding: 16px !important; text-align: left !important;
-    white-space: pre-line !important;
-}
-.st-key-ds_rapor_tile div[data-testid="stButton"] button p {
-    font-family: 'Space Grotesk', sans-serif !important; font-size: 15px !important; font-weight: 600 !important;
-    color: var(--gb-text-dark) !important; white-space: pre-line !important; text-align: left !important;
+    font-family: 'Space Grotesk', sans-serif !important; font-weight: 600 !important;
 }
 
 /* Sevkiyat Planlama - Varış İli / Planlanacak Kargolar / Gönderi Hesapla
@@ -2656,11 +2648,22 @@ def _haftalik_satir_durumu(bilgi):
 _HAFTALIK_ONCELIK = {"Sayılmadı": 0, "Sayım Hatası": 1, "Fark Var": 2, "Referans Yok": 3, "Doğru": 4}
 
 
+_HAFTA_SECENEKLERI = ["Bu Hafta", "Geçen Hafta", "2 Hafta Önce", "3 Hafta Önce"]
+
+
 def _haftalik_rapor_icerik():
     bugun = date.today()
-    hafta_baslangic = bugun - timedelta(days=bugun.weekday())
+    bu_hafta_baslangic = bugun - timedelta(days=bugun.weekday())
+
+    hafta_secimi = st.radio(
+        "Hafta", _HAFTA_SECENEKLERI, horizontal=True, key="hk_hafta_secim",
+    )
+    hafta_offset = _HAFTA_SECENEKLERI.index(hafta_secimi)
+    hafta_baslangic = bu_hafta_baslangic - timedelta(weeks=hafta_offset)
+
     gun_isimleri = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
     hafta_gunleri = [hafta_baslangic + timedelta(days=i) for i in range(7)]
+    st.caption(f"📅 {hafta_gunleri[0].strftime('%d.%m.%Y')} — {hafta_gunleri[-1].strftime('%d.%m.%Y')}")
 
     # Her ürün için haftanın SON sayıldığı günün sonucu tutulur. Güncel Stok
     # burada VERİTABANINDA KAYITLI (sayım anında donmuş) değer DEĞİL - her
@@ -2809,7 +2812,7 @@ def _haftalik_rapor_icerik():
     styler.to_excel(excel_buffer, index=False, engine="openpyxl", sheet_name="Haftalık Kontrol")
     st.download_button(
         "⬇ Excel olarak indir", data=excel_buffer.getvalue(),
-        file_name=f"haftalik_depo_kontrol_{bugun.isoformat()}.xlsx",
+        file_name=f"haftalik_depo_kontrol_{hafta_baslangic.isoformat()}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="hk_excel_indir",
     )
@@ -3071,8 +3074,16 @@ def depo_sayim_bolumu():
         _depo_blok_matrisi(hafta_gunleri, blok_durumlari, gun_dosyalari, blok_durumlari_db)
     with col_son_islemler:
         with st.container(key="ds_rapor_tile"):
-            if st.button("Haftalık Rapor\nDetaylı tabloyu aç/kapat", key="ds_rapor_ac_btn", use_container_width=True):
-                st.session_state.ds_rapor_acik = not st.session_state.ds_rapor_acik
+            st.markdown('<div class="ds-panel-title" style="margin-bottom:6px;">Haftalık Rapor</div>', unsafe_allow_html=True)
+            col_ac, col_kapat = st.columns(2)
+            if col_ac.button("📂 Aç", key="ds_rapor_ac_btn", use_container_width=True,
+                              disabled=st.session_state.ds_rapor_acik):
+                st.session_state.ds_rapor_acik = True
+                st.rerun()
+            if col_kapat.button("📁 Kapat", key="ds_rapor_kapat_btn", use_container_width=True,
+                                 disabled=not st.session_state.ds_rapor_acik):
+                st.session_state.ds_rapor_acik = False
+                st.rerun()
         _depo_sayim_son_islemler(gun_isolari, gun_dosyalari, blok_durumlari)
 
     if st.session_state.ds_rapor_acik:
