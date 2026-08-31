@@ -715,6 +715,34 @@ def temizlik_getir_son_gunler(oda, gun_listesi):
     return r.json()
 
 
+# ---------- Depo Temizlik - Haftalık Plan (gün + alan -> personel ataması) ----------
+
+def temizlik_plani_getir():
+    """{(gun_no, oda): personel_adi} haritası döner."""
+    r = requests.get(f"{_REST}/depo_temizlik_plani", headers=_HEADERS, timeout=15)
+    r.raise_for_status()
+    return {(row["gun_no"], row["oda"]): row["personel_adi"] for row in r.json()}
+
+
+def temizlik_plani_kaydet(gun_no: int, oda: str, personel_adi: str):
+    row = {"gun_no": gun_no, "oda": oda, "personel_adi": personel_adi}
+    headers = dict(_HEADERS)
+    headers["Prefer"] = "resolution=merge-duplicates"
+    r = requests.post(
+        f"{_REST}/depo_temizlik_plani", headers=headers,
+        params={"on_conflict": "gun_no,oda"}, data=json.dumps(row), timeout=15,
+    )
+    r.raise_for_status()
+
+
+def temizlik_plani_sil(gun_no: int, oda: str):
+    r = requests.delete(
+        f"{_REST}/depo_temizlik_plani", headers=_HEADERS,
+        params={"gun_no": f"eq.{gun_no}", "oda": f"eq.{oda}"}, timeout=15,
+    )
+    r.raise_for_status()
+
+
 # ---------- Aras Kargo Entegrasyonu ----------
 # Aras'ın GetQueryJSON SOAP servisi (WCF) - kimlik bilgileri (kullanıcı adı,
 # şifre, müşteri kodu) ASLA koda yazılmıyor, sadece Streamlit Cloud'un

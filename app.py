@@ -1260,7 +1260,25 @@ def _bildirim_verileri():
         okunmus = db.bildirim_okundu_getir_gun(bugun_iso)
     except Exception:
         okunmus = set()
-    return {"gorevler": gorevler, "transferler": transferler, "dogumgunler": dogumgunler, "okunmus": okunmus}
+
+    temizlik_uyarilari = []
+    if simdi_saat >= TEMIZLIK_GUN_SONU_SAAT:
+        try:
+            gun_no_bugun = _tr_bugun().weekday()
+            plan_bugun = {oda: personel for (gun_no, oda), personel in db.temizlik_plani_getir().items() if gun_no == gun_no_bugun}
+            if plan_bugun:
+                temizlenenler = set(db.temizlik_getir_gun_oda(bugun_iso).keys())
+                temizlik_uyarilari = [
+                    {"oda": oda, "personel_adi": personel}
+                    for oda, personel in plan_bugun.items() if oda not in temizlenenler
+                ]
+        except Exception:
+            temizlik_uyarilari = []
+
+    return {
+        "gorevler": gorevler, "transferler": transferler, "dogumgunler": dogumgunler,
+        "temizlik_uyarilari": temizlik_uyarilari, "okunmus": okunmus,
+    }
 
 
 def _bildirim_sayisi(veri=None):
@@ -1269,6 +1287,7 @@ def _bildirim_sayisi(veri=None):
     sayac = sum(1 for g in veri["gorevler"] if ("gorev", str(g["id"])) not in okunmus)
     sayac += sum(1 for t in veri["transferler"] if ("transfer", str(t["id"])) not in okunmus)
     sayac += sum(1 for p in veri["dogumgunler"] if ("dogumgunu", str(p["id"])) not in okunmus)
+    sayac += sum(1 for t in veri["temizlik_uyarilari"] if ("temizlik", t["oda"]) not in okunmus)
     return sayac
 
 
@@ -1672,6 +1691,12 @@ def sayfa_home():
                 f"<div class='gb-notif-row'><div class='gb-notif-dot'></div>"
                 f"<div><div class='gb-notif-text'>Bugün <b>{html.escape(p['ad_soyad'])}</b>'nin doğum günü 🎂</div>"
                 f"<div class='gb-notif-time'>bugün</div></div></div>"
+            )
+        for t in veri["temizlik_uyarilari"]:
+            notif_html += (
+                f"<div class='gb-notif-row'><div class='gb-notif-dot warn'></div>"
+                f"<div><div class='gb-notif-text'>🧹 <b>{html.escape(t['oda'])}</b> — "
+                f"{html.escape(t['personel_adi'])} tarafından temizlenecekti</div></div></div>"
             )
         if not notif_html:
             notif_html = "<div style='color:#9A9A94; font-size:13.5px;'>Şu an bekleyen bir bildirim yok.</div>"
@@ -3226,6 +3251,10 @@ def depo_sayim_bolumu():
 
 ODALAR = ["Sevk Odası", "Erkekler Tuvaleti", "Kadınlar Tuvaleti", "Mutfak",
           "Sinan Bey'in Odası", "Ofis 1", "Ofis 2", "Ofis 3"]
+TEMIZLIK_GUN_ISIMLERI = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+# Bu saatten sonra, planlanmış ama o gün hâlâ işaretlenmemiş temizlikler
+# Bildirim sayfasında uyarı olarak çıkar.
+TEMIZLIK_GUN_SONU_SAAT = "18:00"
 
 
 def _temizlik_kroki_svg(temizlenenler_bugun):
@@ -3358,6 +3387,47 @@ def depo_temizlik_bolumu():
         else:
             ozet_satirlari.append({"Alan": oda, "Son Temizlik": "Bu hafta temizlenmedi", "Kim": "-"})
     st.dataframe(pd.DataFrame(ozet_satirlari), use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+    st.markdown("**📅 Haftalık Temizlik Planı**")
+    st.caption(
+        "Her alan için hangi gün kimin temizleyeceğini belirleyin. Planlanan gün "
+        f"geldiğinde, saat {TEMIZLIK_GUN_SONU_SAAT}'a kadar 'Temizlendi' işaretlenmezse "
+        "Bildirim sayfasında uyarı olarak çıkar."
+    )
+    personel_adlari = [p["ad_soyad"] for p in db.personel_listele()]
+    plan = db.temizlik_plani_getir()
+    plan_df = pd.DataFrame(
+        {"Alan": ODALAR} | {
+            gun: [plan.get((gun_no, oda), "") for oda in ODALAR]
+            for gun_no, gun in enumerate(TEMIZLIK_GUN_ISIMLERI)
+        }
+    )
+    plan_edited = st.data_editor(
+        plan_df, use_container_width=True, hide_index=True, key="temizlik_plani_editor",
+        disabled=["Alan"],
+        column_config={
+            gun: st.column_config.SelectboxColumn(gun, options=[""] + personel_adlari)
+            for gun in TEMIZLIK_GUN_ISIMLERI
+        },
+    )
+    if st.button("Planı Kaydet", key="temizlik_plani_kaydet_btn"):
+        degisiklik = 0
+        for i, oda in enumerate(ODALAR):
+            for gun_no, gun in enumerate(TEMIZLIK_GUN_ISIMLERI):
+                eski = plan.get((gun_no, oda), "")
+                yeni = plan_edited.at[i, gun] or ""
+                if yeni != eski:
+                    if yeni:
+                        db.temizlik_plani_kaydet(gun_no, oda, yeni)
+                    else:
+                        db.temizlik_plani_sil(gun_no, oda)
+                    degisiklik += 1
+        if degisiklik:
+            st.success(f"{degisiklik} atama güncellendi.")
+        else:
+            st.info("Değişiklik yok.")
+        st.rerun()
 
 
 # ------------------------------------------------------------------
@@ -4520,6 +4590,12 @@ def sayfa_bildirim():
             not_metni = f" ({t['istenen_zaman_aciklama']})" if t.get("istenen_zaman_aciklama") else ""
             metin = f"{t['talep_eden_depo']} → {t['hedef_depo']}: {t['urun_aciklama']} ({t.get('adet') or '?'} adet){not_metni}"
             _bildirim_satiri("transfer", t["id"], metin, "info", okunmus, bugun_iso)
+            gosterildi = True
+
+    if veri["temizlik_uyarilari"]:
+        st.markdown("**🧹 Bugün temizlenmesi gerekip işaretlenmemiş alanlar**")
+        for t in veri["temizlik_uyarilari"]:
+            _bildirim_satiri("temizlik", t["oda"], f"{t['oda']} — {t['personel_adi']} tarafından temizlenecekti", "error", okunmus, bugun_iso)
             gosterildi = True
 
     if not gosterildi:
