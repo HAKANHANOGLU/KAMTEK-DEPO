@@ -37,7 +37,7 @@ PRICING = {
             (1, 5, 100), (6, 10, 120), (11, 15, 160), (16, 20, 200), (21, 30, 242),
         ],
         "artan_desi": 10.6,
-        "iller": ["İZMİR", "BALIKESİR", "İSTANBUL", "KOCAELİ", "ESKİŞEHİR", "ANKARA", "DENİZLİ"],
+        "iller": ["İZMİR", "BALIKESİR", "İSTANBUL", "KOCAELİ", "ESKİŞEHİR", "ANKARA", "DENİZLİ", "BURSA"],
     },
     "ARAS": {
         "logo": "aras_logo.jpg",
